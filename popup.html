@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Foldnex</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="Foldnex" class="brand-icon">
+        <div class="brand-text">
+          <span class="brand-title">Foldnex</span>
+          <span class="brand-badge">AI</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnOptions" class="icon-btn" title="Open Settings & Rules">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main 1-Click Action Card -->
+    <div class="action-card">
+      <div class="tab-summary">
+        <span id="tabCountLabel">Scanning tabs...</span>
+        <span id="tabShortcut" class="shortcut-pill">Alt+G</span>
+      </div>
+
+      <button id="btnGroupTabs" class="primary-btn">
+        <span class="btn-sparkle">✨</span>
+        <span class="btn-text">Group Tabs Now</span>
+      </button>
+
+      <div class="sub-actions">
+        <button id="btnUngroup" class="link-btn">Ungroup all tabs</button>
+      </div>
+    </div>
+
+    <!-- Live Status / Result feedback -->
+    <div id="statusBox" class="status-box hidden">
+      <div id="statusSpinner" class="spinner hidden"></div>
+      <div id="statusMessage" class="status-msg"></div>
+    </div>
+
+    <!-- Active Engine Card -->
+    <div class="card engine-card">
+      <div class="card-header">
+        <span class="card-label">Active AI Engine</span>
+        <span id="engineBadge" class="badge">Checking...</span>
+      </div>
+      <div class="provider-select-row">
+        <select id="providerSelect" class="select-input">
+          <option value="gemini_nano">Chrome Gemini Nano (On-Device)</option>
+          <option value="gemini_api">Google Gemini 2.0 Flash</option>
+          <option value="openai">OpenAI / Compatible</option>
+          <option value="offline">🛡️ Offline Smart Mode (Zero AI)</option>
+        </select>
+      </div>
+      <div id="nanoHint" class="nano-hint hidden">
+        💡 Gemini Nano runs 100% locally with zero latency & full privacy.
+      </div>
+    </div>
+
+    <!-- Fast Learning Cache Stats -->
+    <div class="card stats-card">
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-icon">⚡</span>
+          <div>
+            <div id="statRulesCount" class="stat-val">0</div>
+            <div class="stat-desc">Learned Rules (0ms)</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">📊</span>
+          <div>
+            <div id="statLastGrouped" class="stat-val">-</div>
+            <div class="stat-desc">Last Grouped</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Direct 1-Click Toolbar Mode Toggle -->
+    <div class="setting-toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-title">Direct Toolbar 1-Click</span>
+        <span class="toggle-desc">Clicking extension icon groups immediately</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggleOneClickMode">
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>Foldnex v1.0.0</span>
+      <a href="#" id="linkManageRules">Manage Rules & Memory →</a>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

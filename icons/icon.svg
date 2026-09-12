@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="50%" stop-color="#7c3aed" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)" filter="url(#shadow)"/>
+  
+  <!-- Tab card 1 -->
+  <rect x="28" y="26" width="72" height="20" rx="6" fill="#ffffff" opacity="0.85"/>
+  <!-- Tab card 2 -->
+  <rect x="22" y="52" width="84" height="22" rx="7" fill="#ffffff" opacity="0.95"/>
+  <!-- Tab card 3 with AI sparkle indicator -->
+  <rect x="18" y="80" width="62" height="24" rx="7" fill="#ffffff"/>
+  <!-- Sparkle AI pill -->
+  <rect x="84" y="80" width="26" height="24" rx="7" fill="#38bdf8"/>
+  <path d="M97 86 L98.5 90 L102.5 91.5 L98.5 93 L97 97 L95.5 93 L91.5 91.5 L95.5 90 Z" fill="#ffffff"/>
+</svg>

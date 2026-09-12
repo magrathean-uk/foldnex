@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Foldnex - AI One-Click Tab Grouper",
+  "version": "1.0.0",
+  "description": "One-click intelligent tab grouping with Chrome Gemini Nano, Gemini Flash, or OpenAI. Fast local learning memory for 0ms speed.",
+  "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "identity",
+    "commands"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Foldnex - One-Click AI Tab Grouping",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "group-tabs": {
+      "suggested_key": {
+        "default": "Alt+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "One-click group all tabs with AI"
+    },
+    "ungroup-tabs": {
+      "suggested_key": {
+        "default": "Alt+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Ungroup all tabs in current window"
+    }
+  }
+}
