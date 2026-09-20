@@ -2,27 +2,29 @@
 
 Foldnex is a Manifest V3 Chrome extension that removes duplicate pages and organises the remaining tabs in the current window into focused, named Chrome tab groups.
 
-It combines learned local rules, an offline clusterer, Chrome's on-device Prompt API, and optional cloud AI providers. The interface follows a restrained Magrathean/Teslatlas design language and keeps engine configuration secondary to the main cleanup action.
+It combines exact semantic result reuse, explicit local rules, an offline clusterer, Chrome's on-device Prompt API, and optional cloud AI providers. The interface follows a restrained Magrathean/Teslatlas design language and keeps engine configuration secondary to the main cleanup action.
 
 ## What it does
 
 - Removes conservative, exact-page duplicates before grouping.
 - Uses complete page titles and privacy-sanitised URLs to infer the user's active tasks.
-- Creates two to six named groups with valid Chrome tab-group colours.
+- Uses an adaptive one-to-nine group range based on the size and diversity of the window.
 - Preserves pinned and browser-internal tabs instead of attempting to group them.
-- Learns reusable URL-pattern rules from successful groupings and manual group renames.
+- Reuses only an unchanged semantic tab set; changed titles return to title-aware classification.
+- Applies explicit URL rules and remembers manual group renames only for the exact renamed cohort.
 - Falls back to the offline clusterer when a selected AI provider is unavailable.
 - Supports popup, toolbar, and keyboard-driven workflows.
 
 ## Duplicate handling
 
-Foldnex treats two ordinary HTTP(S) tabs as duplicates when their normalised page identity matches:
+Foldnex treats two pages as duplicates when their conservative page identity matches:
 
-- URL fragments are ignored because they normally identify a position within the same document.
-- HTTP and HTTPS variants are treated as the same location.
+- Ordinary document-anchor fragments are ignored, while route-like fragments such as `#/settings` remain significant.
+- HTTP and HTTPS remain distinct.
 - Host, explicit port, path, query keys, query values, and query order remain significant.
 - Pinned tabs win; otherwise Foldnex keeps the active tab, then the leftmost copy.
-- Chrome pages, extension pages, developer tools, and other non-web URLs are never removed as duplicates.
+- Exact duplicates of `chrome://extensions`, downloads, history, and bookmarks may be removed.
+- Other Chrome pages, extension pages, developer tools, and non-web URLs are never removed as duplicates.
 
 The tab list is refreshed after duplicate removal, so only surviving tabs are classified and grouped.
 
@@ -47,9 +49,11 @@ Provider model fields are populated from each provider's live models endpoint an
 
 ### Recommended Groq configuration
 
-The Groq default is `qwen/qwen3.8-27b`. Foldnex uses Groq's strict JSON Schema output for supported models and disables Qwen reasoning for this constrained classification task, reducing latency and unnecessary output tokens.
+The Groq default is `qwen/qwen3.8-27b`. On a saved 36-tab acceptance window it produced a substantially cleaner, lower-token result than `openai/gpt-oss-20b`, especially when asked to split a large same-domain bucket by purpose. Foldnex uses JSON-object output, compact local tab ordinals, local coverage and quality validation, and a bounded completion budget. Users can still select any compatible model returned by Groq's live catalog.
 
-Every complete tab title is preserved. Control characters are neutralised, the records are encoded as JSON, and the prompt explicitly treats them as untrusted data rather than instructions. URLs are reduced to semantic host/path information and an allowlist of useful query parameters before leaving the extension.
+Every complete tab title is preserved up to a defensive 1,000-character ceiling. Control characters are neutralised, the records are encoded as compact JSON, and the prompt explicitly treats them as untrusted data rather than instructions. URLs are reduced to semantic host/path hints and an allowlist of useful query parameters before leaving the extension.
+
+For an unchanged tab set, Foldnex reuses a content-addressed local result for up to six hours. A changed title or semantic URL hint invalidates that result. Broad domain rules produced by earlier AI runs never bypass title-aware grouping.
 
 ## Install from source
 
@@ -71,7 +75,7 @@ After changing source files, use **Reload** on the Foldnex card at `chrome://ext
 - Enable **Run directly from toolbar** in Behaviour settings to make the toolbar icon run grouping without opening the popup.
 - Enable **Collapse groups after creation** if newly created groups should start collapsed.
 
-The toolbar badge shows progress and then the number of groups created. The popup reports groups created, duplicates removed, and whether the offline fallback was used.
+The toolbar badge shows progress and then the number of groups created. The popup reports groups created, duplicates removed, and whether the offline fallback was used. Settings shows privacy-safe last-run diagnostics including engine, source, group counts, token usage, latency, and quality flags.
 
 ## Configure an engine
 
@@ -95,24 +99,26 @@ Chrome's built-in model depends on Chrome, operating-system, hardware, storage, 
 
 The Prompt API is normally available to extension documents rather than the Manifest V3 service worker. Keep the Foldnex popup open for Nano grouping. Toolbar-direct and keyboard runs safely fall back to offline grouping when Chrome does not expose the API in that context.
 
-## Learned rules
+## Rules and memory
 
-Foldnex stores learned URL-pattern rules locally and can classify a fully recognised window without a network request. In settings you can:
+Foldnex stores explicit URL-pattern rules locally. These are authoritative user overrides, not automatic guesses. In settings you can:
 
 - Search, add, or delete rules.
 - Choose a group name and Chrome colour for a manual wildcard rule.
 - Export rules as JSON.
 - Import a validated JSON rules file of up to 1 MB.
-- Clear all learned rules.
+- Clear rules, scoped rename preferences, and the exact-result cache.
 
-Manual group renames teach Foldnex the new category. Persistent learning is skipped in incognito windows.
+Manual group renames are remembered only for that exact semantic cohort. Programmatic Foldnex updates are suppressed through shared session state so they cannot be mistaken for user corrections. Persistent memory and diagnostics are skipped in incognito windows.
+
+When upgrading from the original URL-learning implementation, legacy rules are quarantined locally and active rules start clean because the earlier format could not reliably distinguish user corrections from programmatic grouping.
 
 ## Privacy and safety boundaries
 
 - API keys stay in local extension storage and are not committed to this repository.
 - Cloud requests contain complete titles because that context materially improves grouping accuracy.
 - URLs are stripped of credentials, fragments, tracking data, and non-allowlisted query parameters before prompting.
-- Prompt output is validated against current numeric tab IDs; missing tabs are reclaimed into an `Other` group.
+- Prompt output uses small local ordinals and is validated back against current Chrome tab IDs; missing tabs are reclaimed and trigger a semantic quality retry when needed.
 - Grouping is limited to one Chrome window and respects its incognito boundary.
 - The extension has no content scripts and does not read page bodies.
 
@@ -124,7 +130,8 @@ popup.html/.css/.js    Compact cleanup and engine-selection surface
 options/               Provider, learned-rule, and behaviour settings
 src/ai-engine.js       Provider catalog, live model discovery, and AI requests
 src/grouper.js         Deduplication and Chrome tab-group orchestration
-src/cache-engine.js    Local learned-pattern memory and sanitisation
+src/cache-engine.js    Exact-result cache, explicit rules, scoped preferences, and sanitisation
+src/group-state.js     Cross-context programmatic group-update suppression
 src/offline-clusterer.js
                        Zero-cloud fallback clustering
 DESIGN.md              Maintained visual-system reference
@@ -136,6 +143,7 @@ PRODUCT.md             Product scope and behavioural contract
 There is no transpilation or packaging step. Before loading or publishing a change:
 
 ```sh
+npm test
 for file in background.js popup.js options/options.js src/*.js; do
   node --check "$file"
 done

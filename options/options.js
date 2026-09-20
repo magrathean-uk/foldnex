@@ -2,7 +2,7 @@
  * Foldnex - Options & Settings Controller
  */
 
-import { LearningCache, safeGlobToRegExp } from '../src/cache-engine.js';
+import { ExactResultCache, LearningCache, safeGlobToRegExp } from '../src/cache-engine.js';
 import {
   checkChromeNanoStatus,
   prepareChromeNano,
@@ -70,6 +70,12 @@ const importFileInput = document.getElementById('importFileInput');
 // Behavior elements
 const prefOneClickMode = document.getElementById('prefOneClickMode');
 const prefCollapseGroups = document.getElementById('prefCollapseGroups');
+const diagEngine = document.getElementById('diagEngine');
+const diagSource = document.getElementById('diagSource');
+const diagOutcome = document.getElementById('diagOutcome');
+const diagTokens = document.getElementById('diagTokens');
+const diagLatency = document.getElementById('diagLatency');
+const diagQuality = document.getElementById('diagQuality');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
@@ -253,6 +259,7 @@ function updateProviderPanels(provider) {
   panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
   panelCompatibleDetails.classList.toggle('hidden', config?.mode !== 'compatible');
   panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
+  if (provider === 'gemini_nano') refreshNanoDiagnostics();
   if (config?.mode === 'compatible') loadCompatibleProvider(provider);
   if (provider === 'gemini_api') refreshModelCatalog(provider);
 }
@@ -375,8 +382,28 @@ async function loadSettings() {
     oauthRedirectUri.textContent = 'chrome://extensions';
   }
 
-  await refreshNanoDiagnostics();
   await loadLearnedRules();
+  await loadRunDiagnostics();
+}
+
+async function loadRunDiagnostics() {
+  if (!diagEngine) return;
+  const { foldnex_last_run: run } = await chrome.storage.local.get('foldnex_last_run');
+  if (!run) return;
+
+  const providerName = PROVIDER_CATALOG[run.provider]?.name || run.provider || 'Unknown';
+  diagEngine.textContent = run.model ? `${providerName} · ${run.model}` : providerName;
+  diagSource.textContent = String(run.source || 'unknown').replaceAll('-', ' ');
+  diagOutcome.textContent = `${run.tabsGrouped || 0} tabs · ${run.groupsCreated || 0} groups · ${run.duplicateTabsClosed || 0} duplicates`;
+  diagTokens.textContent = run.promptTokens || run.completionTokens
+    ? `${run.promptTokens || 0} in · ${run.completionTokens || 0} out · ${run.cachedTokens || 0} cached`
+    : 'Local or cache result';
+  diagLatency.textContent = run.latencyMs ? `${run.latencyMs} ms total` : '—';
+  diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
+  const diagFallback = document.getElementById('diagFallback');
+  if (diagFallback) {
+    diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
+  }
 }
 
 /**
@@ -531,7 +558,7 @@ btnTestCompatible.addEventListener('click', async () => {
       messages: [{ role: 'user', content: 'Reply with the single word ok.' }],
       temperature: 0
     };
-    if (provider === 'openai') payload.max_completion_tokens = 32;
+    if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = 32;
     else payload.max_tokens = 32;
 
     const res = await fetch(`${base.replace(/\/+$/, '')}/chat/completions`, {
@@ -706,6 +733,8 @@ btnAddRule.addEventListener('click', async () => {
     existing.color = safeColor;
     existing.confidence = 1.0;
     existing.userOverride = true;
+    existing.source = 'manual_rule';
+    existing.schemaVersion = 2;
     existing.updatedAt = Date.now();
   } else {
     rules.push({
@@ -715,12 +744,15 @@ btnAddRule.addEventListener('click', async () => {
       confidence: 1.0,
       matchCount: 1,
       userOverride: true,
+      source: 'manual_rule',
+      schemaVersion: 2,
       createdAt: Date.now(),
       updatedAt: Date.now()
     });
   }
 
   await chrome.storage.local.set({ [LearningCache.STORAGE_KEY]: rules });
+  await ExactResultCache.clear();
   newRulePattern.value = '';
   newRuleCategory.value = '';
   showToast(`Rule saved for "${pattern}"!`, 'success');
@@ -745,7 +777,8 @@ btnExportRules.addEventListener('click', async () => {
     color: r.color,
     confidence: r.confidence,
     matchCount: r.matchCount,
-    userOverride: r.userOverride
+    userOverride: r.userOverride,
+    source: r.source || 'manual_rule'
   }));
   const blob = new Blob([JSON.stringify(cleanExport, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -829,6 +862,8 @@ if (btnImportRules && importFileInput) {
           confidence,
           matchCount,
           userOverride: true,
+          source: 'manual_rule',
+          schemaVersion: 2,
           createdAt: Number.isInteger(item.createdAt) ? item.createdAt : Date.now(),
           updatedAt: Date.now()
         });
@@ -842,6 +877,7 @@ if (btnImportRules && importFileInput) {
 
       const mergedRules = Array.from(existingRuleMap.values());
       await chrome.storage.local.set({ [LearningCache.STORAGE_KEY]: mergedRules });
+      await ExactResultCache.clear();
       await loadLearnedRules();
       showToast(`Successfully imported ${importedCount} rules (${skippedCount} skipped).`, 'success');
     } catch (err) {
@@ -879,8 +915,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       prefCollapseGroups.checked = Boolean(changes.collapseGroupsOnCreation.newValue);
     }
   }
-  if (areaName === 'local' && changes[LearningCache.STORAGE_KEY]) {
-    loadLearnedRules();
+  if (areaName === 'local') {
+    if (changes[LearningCache.STORAGE_KEY]) loadLearnedRules();
+    if (changes.foldnex_last_run) loadRunDiagnostics();
   }
 });
 

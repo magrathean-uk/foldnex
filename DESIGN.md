@@ -147,6 +147,7 @@ The selected row reveals one shared configuration area below the list. Do not du
 ### Result and Status Copy
 
 - Use concrete outcomes: groups created, duplicate tabs removed, fallback used, or setup required.
+- Keep advanced diagnostics in Behaviour as a quiet definition list: engine, execution source, outcome, aggregate token usage, latency, and quality state. Never show raw titles, URLs, prompts, secrets, or provider response bodies.
 - Name the active engine; do not use vague labels such as “AI enabled.”
 - Keep Local or Cloud visible beside each engine.
 - Error messages should identify the next action without exposing provider responses, credentials, or tab data.

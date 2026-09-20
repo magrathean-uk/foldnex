@@ -60,7 +60,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .status-pill.ready { color: var(--success); }
 .status-pill.checking { color: var(--warning); }
 
-.provider-settings-box, .add-rule-card, .rules-table-container, .settings-list, .shortcuts-box { margin-bottom: 30px; padding: 28px 0 0; border-top: 1px solid var(--line); }
+.provider-settings-box, .add-rule-card, .rules-table-container, .settings-list, .shortcuts-box, .diagnostics-grid { margin-bottom: 30px; padding: 28px 0 0; border-top: 1px solid var(--line); }
 .provider-settings-box h3, .add-rule-card h3, .sub-section h4 { margin: 0 0 20px; font-size: 17px; font-weight: 620; letter-spacing: -.02em; }
 .nano-status-banner { margin-bottom: 24px; padding: 15px 17px; border-radius: var(--radius); color: var(--muted); background: var(--surface); }
 .setup-instructions { margin-bottom: 24px; color: var(--muted); }
@@ -113,6 +113,11 @@ input::placeholder { color: var(--quiet); }
 .empty-state { padding: 46px 20px; color: var(--quiet); text-align: center; }
 
 .settings-list { padding-top: 0; }
+.diagnostics-heading { margin-top: 34px; margin-bottom: 0; }
+.diagnostics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; }
+.diagnostics-grid div { min-width: 0; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.diagnostics-grid dt { margin-bottom: 5px; color: var(--quiet); font-size: 11px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; }
+.diagnostics-grid dd { overflow-wrap: anywhere; margin: 0; color: var(--ink); font-size: 13px; }
 .setting-item { display: flex; align-items: center; justify-content: space-between; gap: 42px; padding: 22px 0; border-bottom: 1px solid var(--line); }
 .setting-name { margin-bottom: 4px; font-size: 15px; font-weight: 620; }
 .setting-description { max-width: 62ch; color: var(--quiet); font-size: 13px; }
@@ -155,5 +160,6 @@ kbd { padding: 4px 7px; color: var(--ink); font-size: 11px; }
   .shortcut-row { grid-template-columns: 1fr; }
   .action-buttons { align-items: stretch; flex-direction: column; }
   .model-picker-row { grid-template-columns: 1fr; }
+  .diagnostics-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

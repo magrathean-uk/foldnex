@@ -150,9 +150,10 @@ async function refreshStats() {
 
     const localData = await chrome.storage.local.get('foldnex_last_run');
     if (localData.foldnex_last_run) {
-      const { timestamp, groupsCreated } = localData.foldnex_last_run;
+      const { timestamp, groupsCreated, source, model } = localData.foldnex_last_run;
       const minsAgo = Math.round((Date.now() - timestamp) / 60000);
       statLastGrouped.textContent = minsAgo <= 1 ? 'Just now' : `${minsAgo}m ago (${groupsCreated} grps)`;
+      statLastGrouped.title = `${source || 'unknown'}${model ? ` · ${model}` : ''}`;
     } else {
       statLastGrouped.textContent = 'Never';
     }
@@ -168,10 +169,24 @@ async function refreshStats() {
 btnGroupTabs.addEventListener('click', async () => {
   showStatus('Analyzing tabs & organizing...', 'loading');
   try {
-    // Run from this extension document so Chrome's Prompt API is available.
-    // Manifest V3 service workers cannot access LanguageModel.
-    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    const res = await executeTabGrouping(activeTab?.windowId);
+    const [[activeTab], { provider = 'gemini_nano' }] = await Promise.all([
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }),
+      chrome.storage.sync.get('provider')
+    ]);
+
+    // Nano must execute in an extension document. Cloud and offline engines run
+    // through the background worker so one context owns orchestration and locks.
+    let res;
+    if (provider === 'gemini_nano') {
+      res = await executeTabGrouping(activeTab?.windowId);
+    } else {
+      const response = await chrome.runtime.sendMessage({
+        type: 'TRIGGER_GROUPING',
+        windowId: activeTab?.windowId
+      });
+      if (!response?.success) throw new Error(response?.error || 'Grouping failed');
+      res = response.result;
+    }
     const duplicates = res.duplicateTabsClosed || 0;
     const duplicateSummary = duplicates === 1
       ? ' Removed 1 duplicate tab.'
@@ -197,6 +212,8 @@ btnGroupTabs.addEventListener('click', async () => {
         reasonSnippet = 'Invalid API key';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
+    } else if (res.qualityFlags?.length) {
+      showStatus(`Created ${res.groupsCreated} groups; review recommended.${duplicateSummary}`, 'warning');
     } else {
       showStatus(`Created ${res.groupsCreated} groups.${duplicateSummary}`, 'success');
     }

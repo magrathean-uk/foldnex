@@ -3,9 +3,16 @@
  * Handles toolbar clicks, keyboard shortcuts, background grouping, and continuous learning.
  */
 
-import { executeTabGrouping, ungroupAllTabs, knownGroupTitles } from './src/grouper.js';
+import { executeTabGrouping, ungroupAllTabs } from './src/grouper.js';
 import { LearningCache } from './src/cache-engine.js';
 import { checkChromeNanoStatus } from './src/ai-engine.js';
+import {
+  consumeProgrammaticGroupUpdate,
+  getGroupTitleBaseline,
+  removeGroupState,
+  seedGroupTitleBaselines,
+  setGroupTitleBaseline
+} from './src/group-state.js';
 
 // API keys live in storage.local and should only be readable by trusted
 // extension pages and the service worker, never by a future content script.
@@ -123,24 +130,26 @@ chrome.commands.onCommand.addListener(async (command) => {
 chrome.tabGroups.onUpdated.addListener(async (group) => {
   if (!group.title) return;
 
-  // Differentiate programmatic Foldnex updates vs. user manual rename
-  const previousTitle = knownGroupTitles.get(group.id);
-  if (previousTitle === group.title) {
-    // Title is unchanged (event triggered by color change, collapse/expand, or Foldnex grouper)
+  if (await consumeProgrammaticGroupUpdate(group)) {
     return;
   }
 
-  // Update registry with the new user title
-  knownGroupTitles.set(group.id, group.title);
+  const previousTitle = await getGroupTitleBaseline(group.id);
+  if (previousTitle === undefined) {
+    // A service-worker restart must not reinterpret an existing title as a
+    // user action. Establish the baseline and wait for a later change.
+    await setGroupTitleBaseline(group.id, group.title);
+    return;
+  }
+  if (previousTitle === group.title) return;
+  await setGroupTitleBaseline(group.id, group.title);
 
   try {
     const tabsInGroup = await chrome.tabs.query({ groupId: group.id });
-    // Filter out incognito tabs to prevent privacy leaks
-    const validUrls = tabsInGroup.filter(t => t.url && !t.incognito).map(t => t.url);
-    if (validUrls.length > 0) {
-      // Single batch storage operation instead of per-tab loop
-      await LearningCache.learnUserCorrections(validUrls, group.title, group.color);
-      console.log(`[Foldnex] Learned user renamed group "${group.title}" for ${validUrls.length} tabs.`);
+    const validTabs = tabsInGroup.filter(tab => tab.url && !tab.incognito);
+    if (validTabs.length > 0) {
+      await LearningCache.learnGroupRename(validTabs, group.title, group.color);
+      console.log(`[Foldnex] Learned scoped rename "${group.title}" for ${validTabs.length} tabs.`);
     }
   } catch (err) {
     console.warn('[Foldnex] Error learning group update:', err);
@@ -149,7 +158,9 @@ chrome.tabGroups.onUpdated.addListener(async (group) => {
 
 // Clean up memory registry when a tab group is closed
 chrome.tabGroups.onRemoved.addListener((group) => {
-  knownGroupTitles.delete(group.id);
+  removeGroupState(group.id).catch(err => {
+    console.warn('[Foldnex] Failed to clear removed group state:', err);
+  });
 });
 
 /**
@@ -188,16 +199,25 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       collapseGroupsOnCreation: false
     });
   }
+  await LearningCache.ensureSchema();
   await syncPopupBehavior();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await LearningCache.ensureSchema();
+  await seedGroupTitleBaselines(await chrome.tabGroups.query({}));
   await syncPopupBehavior();
 });
 
 // Clear any stale badges on service worker evaluation
 chrome.action.setBadgeText({ text: '' });
 syncPopupBehavior();
+LearningCache.ensureSchema().catch(err => {
+  console.warn('[Foldnex] Could not migrate learning storage:', err);
+});
+chrome.tabGroups.query({}).then(seedGroupTitleBaselines).catch(err => {
+  console.warn('[Foldnex] Could not seed group title baselines:', err);
+});
 
 /**
  * Messaging API for Popup & Options Pages
@@ -206,8 +226,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'TRIGGER_GROUPING') {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        const result = await triggerOneClickGrouping(tab?.windowId);
+        let targetWindowId = message.windowId;
+        if (!targetWindowId) {
+          const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+          targetWindowId = tab?.windowId;
+        }
+        const result = await triggerOneClickGrouping(targetWindowId);
         sendResponse({ success: true, result });
       } catch (err) {
         sendResponse({ success: false, error: err.message });

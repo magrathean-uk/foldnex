@@ -3,18 +3,32 @@
  * Connects tab querying, local learning cache, AI clustering, and native Chrome tabGroups API.
  */
 
-import { LearningCache } from './cache-engine.js';
-import { clusterTabsWithAI, CHROME_GROUP_COLORS } from './ai-engine.js';
+import { ExactResultCache, LearningCache } from './cache-engine.js';
+import {
+  assessGroupingQuality,
+  clusterTabsWithAI,
+  CHROME_GROUP_COLORS,
+  PROVIDER_CATALOG,
+  providerSettingKey
+} from './ai-engine.js';
 import { clusterTabsOffline } from './offline-clusterer.js';
+import { markProgrammaticGroupUpdate } from './group-state.js';
 
-// In-memory registry of active group titles managed by Foldnex to prevent feedback loops
-export const knownGroupTitles = new Map(); // groupId -> title
+const RUN_HISTORY_KEY = 'foldnex_run_history_v1';
+const RUN_HISTORY_LIMIT = 20;
+const PROMPT_VERSION = 'semantic-v6';
+const SAFE_INTERNAL_DUPLICATE_PAGES = new Set([
+  'extensions', 'downloads', 'history', 'bookmarks'
+]);
+
+function isRouteLikeFragment(fragment) {
+  return fragment.startsWith('/') || fragment.startsWith('!') || /[/?=&]/.test(fragment);
+}
 
 /**
- * Return a stable identity for ordinary web pages only. URL fragments identify
- * a position within a document, not a different document, so they are omitted.
- * Query-string order and values are deliberately retained: changing either can
- * be meaningful to a web application, and deduplication must be conservative.
+ * Return a conservative page identity. Ordinary document anchors are ignored,
+ * while route-like fragments are preserved for hash-routed applications.
+ * A short allowlist of stateless Chrome pages may also be deduplicated exactly.
  */
 export function getDuplicateTabKey(tab) {
   const rawUrl = tab?.url || tab?.pendingUrl;
@@ -22,22 +36,60 @@ export function getDuplicateTabKey(tab) {
 
   try {
     const url = new URL(rawUrl);
+    if (url.protocol === 'chrome:' && SAFE_INTERNAL_DUPLICATE_PAGES.has(url.hostname)) {
+      return url.href;
+    }
     if (!['http:', 'https:'].includes(url.protocol)) return null;
 
-    url.hash = '';
-    // Treat the secure and insecure variants of the same web location as one
-    // page identity. Host, explicit port, path, and query remain significant.
-    url.protocol = 'https:';
+    const fragment = url.hash.slice(1);
+    if (!fragment || !isRouteLikeFragment(fragment)) url.hash = '';
     return url.href;
   } catch {
     return null;
   }
 }
 
+function modelForSettings(settings) {
+  const provider = settings.provider || 'gemini_nano';
+  const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
+  if (provider === 'gemini_api') return settings.geminiModel || config.defaultModel || 'gemini';
+  if (config.mode === 'compatible') {
+    return settings[providerSettingKey(provider, 'model')] || config.defaultModel || 'default';
+  }
+  return provider;
+}
+
+function mergeExplicitGroups(groups, explicitGroups) {
+  if (!explicitGroups?.length) return groups;
+  const explicitIds = new Set(explicitGroups.flatMap(group => group.tabs.map(tab => tab.id)));
+  const retained = (groups || []).map(group => ({
+    ...group,
+    tabIds: (group.tabIds || []).filter(id => !explicitIds.has(id))
+  })).filter(group => group.tabIds.length > 0);
+
+  for (const explicit of explicitGroups) {
+    const existing = retained.find(group => group.name.toLowerCase() === explicit.name.toLowerCase());
+    const ids = explicit.tabs.map(tab => tab.id);
+    if (existing) existing.tabIds.push(...ids);
+    else retained.push({ name: explicit.name, color: explicit.color || 'blue', tabIds: ids });
+  }
+  return retained;
+}
+
+async function recordRun(run) {
+  const data = await chrome.storage.local.get(RUN_HISTORY_KEY);
+  const history = Array.isArray(data[RUN_HISTORY_KEY]) ? data[RUN_HISTORY_KEY] : [];
+  history.unshift(run);
+  await chrome.storage.local.set({
+    foldnex_last_run: run,
+    [RUN_HISTORY_KEY]: history.slice(0, RUN_HISTORY_LIMIT)
+  });
+}
+
 /**
- * Close redundant ordinary web tabs before grouping. Pinned tabs always win;
- * otherwise preserve the active tab, then the leftmost tab, as the canonical
- * survivor. Special browser URLs are never candidates for removal.
+ * Close redundant pages before grouping. Pinned tabs always win; otherwise
+ * preserve the active tab, then the leftmost tab, as the canonical survivor.
+ * Only the explicitly safe internal Chrome pages accepted above participate.
  */
 export async function eliminateDuplicateTabs(tabs, windowId) {
   const duplicatesByUrl = new Map();
@@ -112,6 +164,7 @@ export function getGroupableTabs(tabs) {
  * Execute grouping for the given window (or active window)
  */
 export async function executeTabGrouping(windowId, settings) {
+  const runStartedAt = performance.now();
   // 1. Resolve and lock explicit target window
   let targetWindowId = windowId;
   if (!targetWindowId) {
@@ -167,55 +220,97 @@ export async function executeTabGrouping(windowId, settings) {
   }
   let fallbackUsed = false;
   let fallbackReason = null;
+  let resultSource = 'unknown';
+  let aiMeta = null;
+  let qualityIssues = [];
+
+  await LearningCache.ensureSchema();
+  const provider = effectiveSettings.provider || 'gemini_nano';
+  const requestedModel = modelForSettings(effectiveSettings);
+  const cacheScope = `${PROMPT_VERSION}:${provider}:${requestedModel}`;
 
   console.log(`[Foldnex] Starting grouping for ${groupableTabs.length} tabs in window ${resolvedWindowId}...`);
 
-  // Step 1: Instant Local Cache Matching (0ms fast path)
-  const { matchedGroups, unmatched } = await LearningCache.classifyLocal(groupableTabs);
-  console.log(`[Foldnex] Local cache matched ${matchedGroups.length} groups, ${unmatched.length} unmatched tabs.`);
-
   let finalGroups = [];
+  let exactCacheContext = null;
 
-  // If local cache categorized all tabs, we complete immediately with 0 network calls!
-  if (unmatched.length === 0 && matchedGroups.length > 0) {
-    finalGroups = matchedGroups.map(g => ({
-      name: g.name,
-      color: g.color || 'blue',
-      tabIds: g.tabs.map(t => t.id)
-    }));
-  } else {
-    let aiTabsToCluster = groupableTabs;
+  if (!isIncognitoWindow) {
+    const cached = await ExactResultCache.get(groupableTabs, cacheScope);
+    exactCacheContext = cached.context;
+    if (cached.groups?.length) {
+      finalGroups = cached.groups;
+      resultSource = 'exact-cache';
+      console.log(`[Foldnex] Reused an exact semantic result for ${groupableTabs.length} unchanged tabs.`);
+    }
+  }
 
-    // Check if user explicitly chose Offline Smart Mode (Zero-AI)
-    if (effectiveSettings.provider === 'offline') {
+  if (finalGroups.length === 0) {
+    if (provider === 'offline') {
       console.log('[Foldnex] Using Offline Smart Clusterer (Zero AI mode selected)');
-      finalGroups = clusterTabsOffline(aiTabsToCluster);
+      finalGroups = clusterTabsOffline(groupableTabs);
+      resultSource = 'offline';
     } else {
       try {
-        finalGroups = await clusterTabsWithAI(aiTabsToCluster, effectiveSettings);
+        let aiResult = await clusterTabsWithAI(groupableTabs, effectiveSettings);
+        finalGroups = aiResult.groups;
+        aiMeta = aiResult.meta;
+        resultSource = aiMeta.provider === 'gemini_nano' ? 'nano' : 'cloud';
+
+        const firstQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
+        qualityIssues = firstQuality.issues;
+        if (!firstQuality.passed) {
+          console.warn(`[Foldnex] Retrying one semantic quality failure: ${qualityIssues.join('; ')}`);
+          try {
+            const retry = await clusterTabsWithAI(groupableTabs, effectiveSettings, qualityIssues.join('; '));
+            const retryQuality = assessGroupingQuality(retry.groups, groupableTabs.length);
+            const firstUsage = aiMeta.usage || {};
+            const retryUsage = retry.meta.usage || {};
+            aiMeta = {
+              ...retry.meta,
+              latencyMs: Number(aiMeta.latencyMs || 0) + Number(retry.meta.latencyMs || 0),
+              usage: {
+                promptTokens: Number(firstUsage.promptTokens || 0) + Number(retryUsage.promptTokens || 0),
+                completionTokens: Number(firstUsage.completionTokens || 0) + Number(retryUsage.completionTokens || 0),
+                totalTokens: Number(firstUsage.totalTokens || 0) + Number(retryUsage.totalTokens || 0),
+                cachedTokens: Number(firstUsage.cachedTokens || 0) + Number(retryUsage.cachedTokens || 0)
+              }
+            };
+            finalGroups = retry.groups;
+            qualityIssues = retryQuality.issues;
+          } catch (retryErr) {
+            console.warn('[Foldnex] Quality retry failed; preserving the valid first result:', retryErr);
+            qualityIssues.push('quality_retry_failed');
+          }
+        }
       } catch (aiErr) {
         console.warn(`[Foldnex] AI provider failed or blocked: "${aiErr.message}". Falling back to Offline Smart Clusterer...`);
         fallbackUsed = true;
         fallbackReason = aiErr.message;
-        finalGroups = clusterTabsOffline(aiTabsToCluster);
+        resultSource = 'offline-fallback';
+        finalGroups = clusterTabsOffline(groupableTabs);
       }
     }
 
-    // Step 2: Feed back into Learning Engine ONLY if NOT Incognito to protect privacy
-    if (!isIncognitoWindow) {
-      const tabMap = new Map(groupableTabs.map(t => [t.id, t]));
-      const groupsWithTabs = finalGroups.map(g => ({
-        name: g.name,
-        color: g.color,
-        tabs: g.tabIds.map(id => tabMap.get(id)).filter(Boolean)
-      }));
-      await LearningCache.learnFromGroupings(groupsWithTabs);
-    } else {
-      console.log('[Foldnex] Incognito window detected: skipping persistent learning to protect privacy.');
+    finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
+    const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
+    finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+
+    // Assess the actual result that will be applied, including offline
+    // fallback and explicit-rule changes. Previously fallback runs were shown
+    // as "Passed" even when they contained oversized domain/catch-all groups.
+    const appliedQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
+    qualityIssues = [...new Set([
+      ...qualityIssues,
+      ...appliedQuality.issues
+    ])];
+
+    if (!isIncognitoWindow && !fallbackUsed) {
+      exactCacheContext ||= await ExactResultCache.makeContext(groupableTabs, cacheScope);
+      await ExactResultCache.put(exactCacheContext, finalGroups);
     }
   }
 
-  // Step 3: Tab strip ordering & anti-thrashing
+  // Tab strip ordering & anti-thrashing
   // Re-verify current live tabs to prevent "No tab with id" errors during async gap
   const currentLiveTabs = await chrome.tabs.query({ windowId: resolvedWindowId });
   const liveTabMap = new Map(currentLiveTabs.filter(t => !t.pinned).map(t => [t.id, t]));
@@ -262,8 +357,9 @@ export async function executeTabGrouping(windowId, settings) {
         createProperties: { windowId: resolvedWindowId }
       });
 
-      // Register title before API update so onUpdated ignores this programmatic event
-      knownGroupTitles.set(groupId, grp.name);
+      // Register in shared session state before the title event reaches the
+      // background worker, including when grouping runs from the Nano popup.
+      await markProgrammaticGroupUpdate(groupId, grp.name);
 
       await chrome.tabGroups.update(groupId, {
         title: grp.name,
@@ -287,7 +383,7 @@ export async function executeTabGrouping(windowId, settings) {
             tabIds: survivingIds,
             createProperties: { windowId: resolvedWindowId }
           });
-          knownGroupTitles.set(groupId, grp.name);
+          await markProgrammaticGroupUpdate(groupId, grp.name);
           await chrome.tabGroups.update(groupId, {
             title: grp.name,
             color: assignedColor,
@@ -301,16 +397,33 @@ export async function executeTabGrouping(windowId, settings) {
     }
   }
 
-  // Record stats
+  // Record privacy-safe diagnostics. Raw titles, URLs, prompts, and provider
+  // response bodies are intentionally excluded.
   if (!isIncognitoWindow) {
     const now = Date.now();
-    await chrome.storage.local.set({
-      foldnex_last_run: {
-        timestamp: now,
-        groupsCreated: groupsCreatedCount,
-        tabsGrouped: groupableTabs.length,
-        duplicateTabsClosed
-      }
+    const usage = aiMeta?.usage || {};
+    await recordRun({
+      timestamp: now,
+      groupsCreated: groupsCreatedCount,
+      tabsGrouped: groupableTabs.length,
+      duplicateTabsClosed,
+      provider,
+      model: aiMeta?.model || requestedModel,
+      source: resultSource,
+      promptVersion: PROMPT_VERSION,
+      promptTokens: Number(usage.promptTokens || 0),
+      completionTokens: Number(usage.completionTokens || 0),
+      cachedTokens: Number(usage.cachedTokens || 0),
+      latencyMs: Math.round(performance.now() - runStartedAt),
+      providerLatencyMs: Number(aiMeta?.latencyMs || 0),
+      qualityFlags: qualityIssues,
+      fallbackCode: fallbackUsed
+        ? (/429|quota/i.test(fallbackReason || '') ? 'quota' : /401|key/i.test(fallbackReason || '') ? 'auth' : 'provider_error')
+        : null,
+      fallbackDetail: fallbackUsed
+        ? String(fallbackReason || 'Provider unavailable').replace(/[\r\n\t]+/g, ' ').slice(0, 180)
+        : null,
+      groups: finalGroups.map(group => ({ name: group.name, size: group.tabIds?.length || 0 }))
     });
   }
 
@@ -324,6 +437,9 @@ export async function executeTabGrouping(windowId, settings) {
     groupsCreated: groupsCreatedCount,
     totalTabs: groupableTabs.length,
     duplicateTabsClosed,
+    source: resultSource,
+    model: aiMeta?.model || requestedModel,
+    qualityFlags: qualityIssues,
     groups: finalGroups
   };
 }

@@ -16,31 +16,33 @@ One action should leave the current window visibly cleaner: a single sensible co
 
 ## Positioning
 
-Foldnex is a practical tab-organisation utility, not an AI showcase. It combines conservative duplicate removal, local learned rules, optional AI classification, and an offline fallback rather than depending on one model or provider.
+Foldnex is a practical tab-organisation utility, not an AI showcase. It combines conservative duplicate removal, exact semantic result reuse, explicit user rules, optional AI classification, and an offline fallback rather than depending on one model or provider.
 
 ## Primary surfaces
 
 - **Popup:** tab count, cleanup action, ungroup action, active engine, local-memory summary, and direct-toolbar preference.
-- **Options:** one provider list with a shared configuration panel, learned-rule management, and behaviour preferences.
+- **Options:** one provider list with a shared configuration panel, rules and semantic-memory management, privacy-safe run diagnostics, and behaviour preferences.
 - **Toolbar and commands:** progress/result badge plus group and ungroup keyboard shortcuts.
 
 ## Core workflow
 
 1. Resolve the active Chrome window and its incognito boundary.
-2. Remove duplicate ordinary web pages using a conservative canonical URL.
+2. Remove duplicate ordinary web pages and allowlisted stateless Chrome pages using a conservative canonical URL.
 3. Exclude pinned and browser-internal tabs from grouping.
-4. Use learned rules when the entire remaining set is recognised.
-5. Otherwise use the selected engine, with offline clustering as the failure fallback.
-6. Validate every returned tab ID and reclaim omitted tabs.
-7. Create groups in their existing left-to-right order and report the result.
+4. Reuse a cached result only when the complete semantic tab set is unchanged.
+5. Otherwise use the selected engine holistically, with offline clustering as the failure fallback.
+6. Apply exact scoped rename preferences and explicit user-authored URL overrides.
+7. Validate every returned tab ID, run a bounded semantic quality check, and reclaim omitted tabs.
+8. Create groups in their existing left-to-right order and report privacy-safe diagnostics.
 
 ## Duplicate-survivor contract
 
-- Ignore fragments and normalise HTTP/HTTPS for page identity.
+- Ignore ordinary document anchors but preserve route-like fragments.
+- Keep HTTP and HTTPS identities distinct.
 - Retain query keys, values, order, host, port, and path.
 - Prefer a pinned survivor, then the active tab, then the leftmost copy.
 - Recheck both survivor and candidate immediately before removal.
-- Never deduplicate non-HTTP(S) URLs.
+- Deduplicate exact URLs for a short allowlist of stateless Chrome pages; preserve other non-HTTP(S) pages.
 
 ## Grouping contract
 
@@ -48,7 +50,9 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Group by active task or purpose, not simply by domain or media type.
 - Produce concise names and only Chrome-supported colours.
 - Assign every current groupable tab exactly once.
-- Target two to six groups unless the actual tab set requires a safe fallback.
+- Use an adaptive one-to-nine group range based on tab count and diversity.
+- Reject vague catch-all groups containing more than two tabs and retry once with the failed quality constraint.
+- Cap large groups at roughly 28% of the current window (minimum cap eight) so a shared domain cannot swallow distinct account, asset, design, and video tasks.
 - Preserve natural tab order inside groups and group order across the strip.
 
 ## Engine strategy
@@ -57,8 +61,8 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Cloud options are Google Gemini, OpenAI, xAI Grok, Groq, OpenRouter, DeepSeek, and Cerebras.
 - Ollama supports a configurable local OpenAI-compatible endpoint.
 - Provider model catalogs are discovered live and cached for six hours.
-- Groq with `qwen/qwen3.8-27b` is the recommended cloud configuration for the current structured grouping workload.
-- Groq strict-schema responses are preferred where the selected model supports them.
+- Groq with `qwen/qwen3.8-27b` is the default cloud configuration for the current grouping workload, selected from a live 36-tab comparison for better grouping quality with fewer generated tokens.
+- Groq uses JSON-object output plus local ID, coverage, color, and quality validation. This avoids strict-schema `failed_generation` errors that can otherwise turn a recoverable assignment into an HTTP 400.
 
 ## Data and privacy contract
 
@@ -67,7 +71,8 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Cloud grouping sends complete titles and sanitised semantic URLs to the selected provider.
 - Offline smart mode and a working Chrome on-device model do not make a cloud grouping request.
 - Page bodies are never read; there are no content scripts.
-- Incognito grouping does not write learned rules or learn from later group renames.
+- Incognito grouping does not write rules, exact results, diagnostics, or group-rename preferences.
+- Programmatic group updates are marked in shared session storage and cannot become user corrections.
 - Imported rule files are size-limited and schema-validated before storage.
 
 ## Chrome on-device constraint
@@ -96,13 +101,15 @@ The Prompt API may be available in extension documents but absent from a Manifes
 - Every surviving groupable tab is assigned to a group even when model output is incomplete.
 - Pinned, internal, vanished, or newly navigated tabs are handled without destructive assumptions.
 - A provider failure produces an offline result and communicates that fallback.
+- An unchanged semantic window can reuse a result, while any title or semantic URL change causes fresh classification.
+- Last-run diagnostics identify the actual engine, source, token usage, latency, groups, duplicates, fallback class, and quality flags without retaining tab content.
 - API keys are absent from sync storage, Git history, exported rules, and user-facing logs.
 - The popup and settings remain usable with keyboard focus, reduced motion, and narrow widths.
 - Current ordinary-user browser behavior is checked separately from syntax and mocked-provider checks.
 
 ## Maintained evidence
 
-- Behavior: `background.js`, `src/grouper.js`, `src/ai-engine.js`, `src/cache-engine.js`, and `src/offline-clusterer.js`.
+- Behavior: `background.js`, `src/grouper.js`, `src/ai-engine.js`, `src/cache-engine.js`, `src/group-state.js`, and `src/offline-clusterer.js`.
 - User surfaces: `popup.*` and `options/*`.
 - Permissions and entry points: `manifest.json`.
 - Product-facing setup and privacy guidance: `README.md`.
