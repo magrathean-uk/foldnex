@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark light">
-  <title>Foldnex Settings & AI Rules</title>
+  <meta name="color-scheme" content="dark">
+  <title>Foldnex Settings</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -18,15 +18,15 @@
       <nav class="nav-menu">
         <button class="nav-item active" data-tab="providers">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          AI Providers
+          Grouping engines
         </button>
         <button class="nav-item" data-tab="learning">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          Learned Rules & Cache
+          Learned rules
         </button>
         <button class="nav-item" data-tab="behavior">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Behavior & Shortcuts
+          Behaviour
         </button>
       </nav>
       <div class="sidebar-footer">
@@ -42,78 +42,29 @@
       <!-- TAB 1: AI PROVIDERS -->
       <section id="tab-providers" class="tab-panel active">
         <div class="section-header">
-          <h2>AI Provider Settings</h2>
-          <p class="section-subtitle">Choose between Chrome's local Gemini Nano, Google Gemini API, or OpenAI.</p>
+          <h2>Grouping engines</h2>
+          <p class="section-subtitle">Choose how Foldnex understands the tabs in your current window.</p>
         </div>
 
-        <!-- Provider Selection Radio Group -->
-        <div class="provider-cards">
-          <!-- Nano Card -->
-          <label class="provider-radio-card" id="card-nano">
-            <input type="radio" name="providerSelect" value="gemini_nano" checked>
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="provider-name">✨ Chrome Gemini Nano</span>
-                <span id="nanoBadge" class="status-pill checking">Checking...</span>
-              </div>
-              <p class="provider-desc">100% On-Device AI. Free, private, and runs offline without sending data to servers.</p>
-            </div>
-          </label>
-
-          <!-- Gemini API Card -->
-          <label class="provider-radio-card" id="card-gemini">
-            <input type="radio" name="providerSelect" value="gemini_api">
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="provider-name">⚡ Google Gemini API</span>
-                <span class="status-pill ready">Cloud Fast</span>
-              </div>
-              <p class="provider-desc">Ultra-fast (~300ms) with Gemini 2.0 Flash. Generous free tier from Google AI Studio.</p>
-            </div>
-          </label>
-
-          <!-- OpenAI Card -->
-          <label class="provider-radio-card" id="card-openai">
-            <input type="radio" name="providerSelect" value="openai">
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="provider-name">🤖 OpenAI & OAuth</span>
-                <span class="status-pill ready">API / OAuth</span>
-              </div>
-              <p class="provider-desc">Use gpt-4o-mini with your OpenAI API Key, OAuth Bearer token, or custom local endpoint.</p>
-            </div>
-          </label>
-
-          <!-- Offline Smart Mode Card -->
-          <label class="provider-radio-card" id="card-offline">
-            <input type="radio" name="providerSelect" value="offline">
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="provider-name">🛡️ Offline Smart Mode</span>
-                <span class="status-pill ready">Zero AI</span>
-              </div>
-              <p class="provider-desc">100% Local Heuristic Engine. Works when AI is enterprise-blocked, firewalled, or offline.</p>
-            </div>
-          </label>
-        </div>
+        <div id="providerList" class="provider-list" role="radiogroup" aria-label="Grouping engine"></div>
 
         <!-- Provider Details Configurations -->
         <!-- Nano Config Details -->
         <div id="panel-nano-details" class="provider-settings-box">
-          <h3>Chrome Built-in Gemini Nano Setup</h3>
-          <div class="nano-status-banner">
-            <div id="nanoStatusText">Detecting Chrome Prompt API...</div>
+          <h3>Chrome Gemini Nano</h3>
+          <div class="nano-status-banner" role="status" aria-live="polite">
+            <div id="nanoStatusText">Checking Chrome’s local model…</div>
           </div>
           <div class="setup-instructions">
-            <h4>How to enable Gemini Nano in Chrome:</h4>
-            <ol>
-              <li>Ensure you are using <strong>Chrome 128+</strong> or <strong>Chrome Canary</strong>.</li>
-              <li>Open <code class="code-link">chrome://flags/#optimization-guide-on-device-model</code> and set it to <strong>"Enabled BypassPerfRequirement"</strong>.</li>
-              <li>Open <code class="code-link">chrome://flags/#prompt-api-for-gemini-nano</code> and set it to <strong>"Enabled"</strong>.</li>
-              <li>Relaunch Chrome, then visit <code class="code-link">chrome://components</code> and click <strong>"Check for update"</strong> under <em>Optimization Guide On Device Model</em> to trigger the one-time model download.</li>
-            </ol>
+            <h4>Local model requirements</h4>
+            <ul>
+              <li><strong>Chrome 138+</strong> on macOS 13 or newer.</li>
+              <li><strong>22 GB free storage</strong> and either more than 4 GB VRAM or 16 GB RAM with at least four CPU cores.</li>
+              <li>An unmetered connection for the first download. Use the button below to start it.</li>
+              <li>For Chrome diagnostics, open <code class="code-link">chrome://on-device-internals</code>.</li>
+            </ul>
           </div>
-          <button id="btnRecheckNano" class="secondary-btn">🔄 Re-check Nano Availability</button>
+          <button id="btnRecheckNano" class="secondary-btn" type="button">Checking…</button>
         </div>
 
         <!-- Gemini API Config Details -->
@@ -123,18 +74,19 @@
             <label for="geminiApiKey">Gemini API Key</label>
             <div class="input-with-action">
               <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
-              <button type="button" id="btnToggleGeminiKey" class="icon-input-btn">👁️</button>
+              <button type="button" id="btnToggleGeminiKey" class="icon-input-btn" aria-label="Show or hide Gemini API key">Show</button>
             </div>
             <span class="form-help">Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</span>
           </div>
 
           <div class="form-group">
             <label for="geminiModel">Model</label>
-            <select id="geminiModel" class="form-select">
-              <option value="gemini-2.0-flash" selected>Gemini 2.0 Flash (Recommended - Fastest)</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-            </select>
+            <div class="model-picker-row">
+              <input type="text" id="geminiModel" class="form-input" list="geminiModelOptions" autocomplete="off" placeholder="gemini-flash-lite-latest">
+              <button id="btnRefreshGeminiModels" class="secondary-btn" type="button">Refresh models</button>
+            </div>
+            <datalist id="geminiModelOptions"></datalist>
+            <span id="geminiModelsStatus" class="form-help" role="status" aria-live="polite">Enter an API key to load the live catalog.</span>
           </div>
 
           <div class="action-buttons">
@@ -143,30 +95,35 @@
           </div>
         </div>
 
-        <!-- OpenAI Config Details -->
-        <div id="panel-openai-details" class="provider-settings-box hidden">
-          <h3>OpenAI & OAuth Configuration</h3>
+        <!-- OpenAI-compatible provider details -->
+        <div id="panel-compatible-details" class="provider-settings-box hidden">
+          <h3 id="compatibleProviderTitle">Provider configuration</h3>
           <div class="form-group">
-            <label for="openaiApiKey">OpenAI API Key</label>
+            <label for="compatibleApiKey" id="compatibleApiKeyLabel">API key</label>
             <div class="input-with-action">
-              <input type="password" id="openaiApiKey" placeholder="sk-proj-...">
-              <button type="button" id="btnToggleOpenaiKey" class="icon-input-btn">👁️</button>
+              <input type="password" id="compatibleApiKey" autocomplete="off" placeholder="Paste provider key">
+              <button type="button" id="btnToggleCompatibleKey" class="icon-input-btn" aria-label="Show or hide API key">Show</button>
             </div>
+            <span class="form-help">Stored only in Chrome local storage on this device.</span>
           </div>
 
           <div class="form-group">
-            <label for="openaiModel">Model</label>
-            <input type="text" id="openaiModel" value="gpt-4o-mini" class="form-input">
+            <label for="compatibleModel">Model</label>
+            <div class="model-picker-row">
+              <input type="text" id="compatibleModel" class="form-input" list="compatibleModelOptions" autocomplete="off">
+              <button id="btnRefreshCompatibleModels" class="secondary-btn" type="button">Refresh models</button>
+            </div>
+            <datalist id="compatibleModelOptions"></datalist>
+            <span id="compatibleModelsStatus" class="form-help" role="status" aria-live="polite">Add a key to load the provider’s live catalog.</span>
           </div>
 
           <div class="form-group">
-            <label for="openaiBaseUrl">Base URL (Supports Groq / Ollama / OpenRouter)</label>
-            <input type="text" id="openaiBaseUrl" value="https://api.openai.com/v1" class="form-input" placeholder="https://api.openai.com/v1">
+            <label for="compatibleBaseUrl">API base URL</label>
+            <input type="text" id="compatibleBaseUrl" class="form-input" readonly>
           </div>
 
-          <!-- OAuth Section -->
-          <div class="sub-section">
-            <h4>Or Connect via OAuth / Bearer Token</h4>
+          <div id="oauthSection" class="sub-section hidden">
+            <h4>OAuth bearer token</h4>
             <div class="form-group">
               <label for="openaiOAuthToken">OAuth Access Token</label>
               <input type="password" id="openaiOAuthToken" placeholder="eyJhbGciOi..." class="form-input">
@@ -175,8 +132,8 @@
           </div>
 
           <div class="action-buttons">
-            <button id="btnSaveOpenAI" class="primary-btn">Save OpenAI Settings</button>
-            <button id="btnTestOpenAI" class="secondary-btn">Test Connection</button>
+            <button id="btnSaveCompatible" class="primary-btn">Save provider</button>
+            <button id="btnTestCompatible" class="secondary-btn">Test connection</button>
           </div>
         </div>
 
@@ -184,7 +141,7 @@
         <div id="panel-offline-details" class="provider-settings-box hidden">
           <h3>Offline Smart Clustering (Zero-AI / Enterprise Air-Gapped)</h3>
           <div class="nano-status-banner">
-            <div>🛡️ <strong>Zero-AI Mode is Active</strong>. Tabs are grouped using pure local heuristics, URL subpath hierarchy, and TF-IDF title keyword co-occurrence.</div>
+            <div><strong>Offline mode is active.</strong> Tabs are grouped using local URL structure and title similarity.</div>
           </div>
           <div class="setup-instructions">
             <h4>Why use Offline Smart Mode?</h4>
@@ -201,8 +158,8 @@
       <!-- TAB 2: LEARNED RULES & MEMORY CACHE -->
       <section id="tab-learning" class="tab-panel">
         <div class="section-header">
-          <h2>Learned Rules & Memory Cache</h2>
-          <p class="section-subtitle">Foldnex memorizes URL patterns from past groupings. Tabs matching these rules are categorized instantly in 0ms with 0 API cost.</p>
+          <h2>Learned rules</h2>
+          <p class="section-subtitle">Foldnex reuses trusted URL patterns before asking the selected engine.</p>
         </div>
 
         <!-- Add Manual Rule Form -->
@@ -232,7 +189,7 @@
               </select>
             </div>
             <div class="form-group align-end">
-              <button id="btnAddRule" class="primary-btn">+ Add Rule</button>
+              <button id="btnAddRule" class="primary-btn">Add rule</button>
             </div>
           </div>
         </div>
@@ -271,8 +228,8 @@
       <!-- TAB 3: BEHAVIOR & SHORTCUTS -->
       <section id="tab-behavior" class="tab-panel">
         <div class="section-header">
-          <h2>Extension Behavior & Shortcuts</h2>
-          <p class="section-subtitle">Customize how Foldnex interacts with your tabs and browser.</p>
+          <h2>Behaviour</h2>
+          <p class="section-subtitle">Choose how Foldnex acts from the toolbar and after grouping.</p>
         </div>
 
         <div class="settings-list">
@@ -306,7 +263,7 @@
 
         <div class="shortcuts-box">
           <div class="shortcut-row">
-            <span>Group all tabs with AI</span>
+            <span>Clean up and group tabs</span>
             <kbd>Alt + G</kbd> (Mac: <kbd>⌘ + Shift + G</kbd>)
           </div>
           <div class="shortcut-row">

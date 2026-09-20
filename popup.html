@@ -3,112 +3,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark light">
+  <meta name="color-scheme" content="dark">
   <title>Foldnex</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
+  <main class="container">
     <header class="header">
       <div class="brand">
-        <img src="icons/icon32.png" alt="Foldnex" class="brand-icon">
-        <div class="brand-text">
-          <span class="brand-title">Foldnex</span>
-          <span class="brand-badge">AI</span>
-        </div>
+        <img src="icons/icon32.png" alt="" class="brand-icon">
+        <span class="brand-title">Foldnex</span>
       </div>
-      <div class="header-actions">
-        <button id="btnOptions" class="icon-btn" title="Open Settings & Rules">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-      </div>
+      <button id="btnOptions" class="icon-btn" type="button" aria-label="Open settings" title="Open settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.84l.05.05a2 2 0 1 1-2.83 2.83l-.05-.05a1.7 1.7 0 0 0-1.84-.34A1.7 1.7 0 0 0 14 20.9V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.08-1.57 1.7 1.7 0 0 0-1.84.34l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.1 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.08 1.7 1.7 0 0 0-.34-1.84l-.05-.05A2 2 0 1 1 7.03 4.2l.05.05a1.7 1.7 0 0 0 1.84.34A1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.08 1.5 1.7 1.7 0 0 0 1.84-.34l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05a1.7 1.7 0 0 0-.34 1.84A1.7 1.7 0 0 0 20.9 10h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>
+        </svg>
+      </button>
     </header>
 
-    <!-- Main 1-Click Action Card -->
-    <div class="action-card">
+    <section class="action-card" aria-labelledby="tabCountLabel">
       <div class="tab-summary">
-        <span id="tabCountLabel">Scanning tabs...</span>
-        <span id="tabShortcut" class="shortcut-pill">Alt+G</span>
+        <strong id="tabCountLabel">Scanning tabs…</strong>
+        <kbd id="tabShortcut" class="shortcut-pill">⌘⇧G</kbd>
       </div>
-
-      <button id="btnGroupTabs" class="primary-btn">
-        <span class="btn-sparkle">✨</span>
-        <span class="btn-text">Group Tabs Now</span>
+      <p class="action-note">Remove duplicate pages, then organise the rest into focused groups.</p>
+      <button id="btnGroupTabs" class="primary-btn" type="button">
+        <span class="btn-text">Clean up and group</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
       </button>
+      <button id="btnUngroup" class="link-btn" type="button">Ungroup current window</button>
+    </section>
 
-      <div class="sub-actions">
-        <button id="btnUngroup" class="link-btn">Ungroup all tabs</button>
-      </div>
-    </div>
-
-    <!-- Live Status / Result feedback -->
-    <div id="statusBox" class="status-box hidden">
-      <div id="statusSpinner" class="spinner hidden"></div>
+    <div id="statusBox" class="status-box hidden" role="status" aria-live="polite">
+      <div id="statusSpinner" class="spinner hidden" aria-hidden="true"></div>
       <div id="statusMessage" class="status-msg"></div>
     </div>
 
-    <!-- Active Engine Card -->
-    <div class="card engine-card">
+    <section class="card engine-card" aria-label="Grouping engine">
       <div class="card-header">
-        <span class="card-label">Active AI Engine</span>
-        <span id="engineBadge" class="badge">Checking...</span>
+        <span class="card-label">Grouping engine</span>
+        <span id="engineBadge" class="badge">Checking…</span>
       </div>
-      <div class="provider-select-row">
-        <select id="providerSelect" class="select-input">
-          <option value="gemini_nano">Chrome Gemini Nano (On-Device)</option>
-          <option value="gemini_api">Google Gemini 2.0 Flash</option>
-          <option value="openai">OpenAI / Compatible</option>
-          <option value="offline">🛡️ Offline Smart Mode (Zero AI)</option>
-        </select>
-      </div>
-      <div id="nanoHint" class="nano-hint hidden">
-        💡 Gemini Nano runs 100% locally with zero latency & full privacy.
-      </div>
-    </div>
+      <select id="providerSelect" class="select-input" aria-label="Grouping engine">
+        <option value="gemini_nano">Chrome Gemini Nano · local</option>
+        <option value="offline">Offline smart mode · local</option>
+        <option value="gemini_api">Google Gemini</option>
+        <option value="openai">OpenAI</option>
+        <option value="xai">xAI · Grok</option>
+        <option value="groq">Groq</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="cerebras">Cerebras</option>
+        <option value="ollama">Ollama · local</option>
+      </select>
+      <p id="nanoHint" class="nano-hint hidden">Runs locally in Chrome. No tab data leaves this device.</p>
+    </section>
 
-    <!-- Fast Learning Cache Stats -->
-    <div class="card stats-card">
-      <div class="stats-row">
-        <div class="stat-item">
-          <span class="stat-icon">⚡</span>
-          <div>
-            <div id="statRulesCount" class="stat-val">0</div>
-            <div class="stat-desc">Learned Rules (0ms)</div>
-          </div>
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">📊</span>
-          <div>
-            <div id="statLastGrouped" class="stat-val">-</div>
-            <div class="stat-desc">Last Grouped</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <section class="card stats-card" aria-label="Local memory">
+      <div class="stat-item"><span class="stat-desc">Learned rules</span><strong id="statRulesCount" class="stat-val">0</strong></div>
+      <div class="stat-item"><span class="stat-desc">Last cleanup</span><strong id="statLastGrouped" class="stat-val">Never</strong></div>
+    </section>
 
-    <!-- Direct 1-Click Toolbar Mode Toggle -->
     <div class="setting-toggle-row">
       <div class="toggle-info">
-        <span class="toggle-title">Direct Toolbar 1-Click</span>
-        <span class="toggle-desc">Clicking extension icon groups immediately</span>
+        <span class="toggle-title">Run from toolbar</span>
+        <span class="toggle-desc">Skip this popup when the icon is clicked</span>
       </div>
-      <label class="switch">
+      <label class="switch" aria-label="Run directly from toolbar">
         <input type="checkbox" id="toggleOneClickMode">
-        <span class="slider round"></span>
+        <span class="slider"></span>
       </label>
     </div>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <span>Foldnex v1.0.0</span>
-      <a href="#" id="linkManageRules">Manage Rules & Memory →</a>
-    </footer>
-  </div>
-
+    <footer class="footer"><span>Foldnex 1.0</span><a href="#" id="linkManageRules">Rules and settings</a></footer>
+  </main>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

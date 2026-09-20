@@ -7,6 +7,10 @@ import { executeTabGrouping, ungroupAllTabs, knownGroupTitles } from './src/grou
 import { LearningCache } from './src/cache-engine.js';
 import { checkChromeNanoStatus } from './src/ai-engine.js';
 
+// API keys live in storage.local and should only be readable by trusted
+// extension pages and the service worker, never by a future content script.
+chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+
 // Transient runtime locks & timers
 let activeBadgeTimer = null;
 let isGroupingActive = false;
@@ -180,8 +184,6 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (!current.provider) {
     await chrome.storage.sync.set({
       provider: 'gemini_nano',
-      geminiModel: 'gemini-2.0-flash',
-      openaiModel: 'gpt-4o-mini',
       oneClickIconMode: false,
       collapseGroupsOnCreation: false
     });

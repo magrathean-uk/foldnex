@@ -3,7 +3,12 @@
  */
 
 import { LearningCache } from './src/cache-engine.js';
-import { checkChromeNanoStatus } from './src/ai-engine.js';
+import { executeTabGrouping } from './src/grouper.js';
+import {
+  checkChromeNanoStatus,
+  PROVIDER_CATALOG,
+  providerSettingKey
+} from './src/ai-engine.js';
 
 // DOM elements
 const tabCountLabel = document.getElementById('tabCountLabel');
@@ -66,51 +71,72 @@ async function refreshTabCount() {
 /**
  * Update active engine diagnosis badge
  */
+function renderProviderSelect() {
+  providerSelect.textContent = '';
+  Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = provider.mode === 'local' || provider.local
+      ? `${provider.name} · local`
+      : provider.name;
+    providerSelect.append(option);
+  });
+}
+
 async function refreshEngineStatus() {
-  const syncSettings = await chrome.storage.sync.get(['provider', 'geminiApiKey', 'openaiApiKey', 'openaiOAuthToken']);
-  const localSettings = await chrome.storage.local.get(['geminiApiKey', 'openaiApiKey', 'openaiOAuthToken']);
+  const localKeyNames = Object.keys(PROVIDER_CATALOG)
+    .filter(id => PROVIDER_CATALOG[id].mode === 'compatible')
+    .map(id => providerSettingKey(id, 'apiKey'));
+  const secretNames = ['geminiApiKey', 'openaiOAuthToken', ...localKeyNames];
+  const [syncSettings, localSettings] = await Promise.all([
+    chrome.storage.sync.get(['provider', ...secretNames]),
+    chrome.storage.local.get(secretNames)
+  ]);
+  const secrets = { ...syncSettings, ...localSettings };
 
   const provider = syncSettings.provider || 'gemini_nano';
+  const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
   providerSelect.value = provider;
 
-  const hasGeminiKey = Boolean(localSettings.geminiApiKey || syncSettings.geminiApiKey);
-  const hasOpenAIAuth = Boolean(localSettings.openaiApiKey || syncSettings.openaiApiKey || localSettings.openaiOAuthToken || syncSettings.openaiOAuthToken);
+  const hasGeminiKey = Boolean(secrets.geminiApiKey);
 
   if (provider === 'gemini_nano') {
     nanoHint.classList.remove('hidden');
     const nanoStatus = await checkChromeNanoStatus();
     if (nanoStatus.status === 'ready') {
       engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'Nano Ready (Local)';
+      engineBadge.textContent = 'Nano ready';
     } else if (nanoStatus.status === 'downloadable' || nanoStatus.status === 'downloading') {
       engineBadge.className = 'badge warning';
-      engineBadge.textContent = 'Downloading Model';
+      engineBadge.textContent = 'Downloading';
     } else {
       engineBadge.className = 'badge danger';
-      engineBadge.textContent = 'Setup Needed';
+      engineBadge.textContent = 'Setup needed';
     }
   } else if (provider === 'gemini_api') {
     nanoHint.classList.add('hidden');
     if (hasGeminiKey) {
       engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'Gemini 2.0 Flash';
+      engineBadge.textContent = 'Gemini ready';
     } else {
       engineBadge.className = 'badge danger';
-      engineBadge.textContent = 'Key Missing';
+      engineBadge.textContent = 'Key missing';
     }
-  } else if (provider === 'openai') {
+  } else if (config.mode === 'compatible') {
     nanoHint.classList.add('hidden');
-    if (hasOpenAIAuth) {
+    const apiKey = secrets[providerSettingKey(provider, 'apiKey')];
+    const hasAuth = Boolean(apiKey || (provider === 'openai' && secrets.openaiOAuthToken));
+    if (hasAuth || config.keyOptional) {
       engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'OpenAI Ready';
+      engineBadge.textContent = `${config.name} ready`;
     } else {
       engineBadge.className = 'badge danger';
-      engineBadge.textContent = 'Auth Missing';
+      engineBadge.textContent = 'Key missing';
     }
   } else if (provider === 'offline') {
     nanoHint.classList.add('hidden');
     engineBadge.className = 'badge ready';
-    engineBadge.textContent = 'Zero AI (100% Local)';
+    engineBadge.textContent = 'Local';
   }
 }
 
@@ -141,39 +167,46 @@ async function refreshStats() {
 // Event: Group tabs with actionable fallback diagnostics
 btnGroupTabs.addEventListener('click', async () => {
   showStatus('Analyzing tabs & organizing...', 'loading');
-  chrome.runtime.sendMessage({ type: 'TRIGGER_GROUPING' }, (response) => {
-    if (chrome.runtime.lastError) {
-      showStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
+  try {
+    // Run from this extension document so Chrome's Prompt API is available.
+    // Manifest V3 service workers cannot access LanguageModel.
+    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const res = await executeTabGrouping(activeTab?.windowId);
+    const duplicates = res.duplicateTabsClosed || 0;
+    const duplicateSummary = duplicates === 1
+      ? ' Removed 1 duplicate tab.'
+      : duplicates > 1
+        ? ` Removed ${duplicates} duplicate tabs.`
+        : '';
+
+    if (res.groupsCreated === 0) {
+      if (duplicates > 0) {
+        showStatus(`Cleanup complete.${duplicateSummary}`, 'success');
+      } else {
+        showStatus(res.message || 'Need at least 2 unpinned tabs to create groups.', 'warning');
+      }
+      setTimeout(hideStatus, 3500);
       return;
     }
 
-    if (response?.success) {
-      const res = response.result;
-      if (res.groupsCreated === 0) {
-        showStatus(res.message || 'Need at least 2 unpinned tabs to create groups.', 'warning');
-        setTimeout(hideStatus, 3500);
-        return;
+    if (res.fallbackUsed) {
+      let reasonSnippet = 'AI unavailable';
+      if (res.fallbackReason?.includes('429') || res.fallbackReason?.toLowerCase().includes('quota')) {
+        reasonSnippet = 'AI quota exceeded';
+      } else if (res.fallbackReason?.includes('401') || res.fallbackReason?.toLowerCase().includes('key')) {
+        reasonSnippet = 'Invalid API key';
       }
-
-      if (res.fallbackUsed) {
-        let reasonSnippet = 'AI unavailable';
-        if (res.fallbackReason?.includes('429') || res.fallbackReason?.toLowerCase().includes('quota')) {
-          reasonSnippet = 'AI quota exceeded';
-        } else if (res.fallbackReason?.includes('401') || res.fallbackReason?.toLowerCase().includes('key')) {
-          reasonSnippet = 'Invalid API key';
-        }
-        showStatus(`Grouped ${res.groupsCreated} groups via Offline Mode (${reasonSnippet}).`, 'warning');
-      } else {
-        showStatus(`Organized into ${res.groupsCreated} smart groups!`, 'success');
-      }
-
-      refreshTabCount();
-      refreshStats();
-      setTimeout(hideStatus, 3500);
+      showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else {
-      showStatus(response?.error || 'Grouping failed. Check options.', 'error');
+      showStatus(`Created ${res.groupsCreated} groups.${duplicateSummary}`, 'success');
     }
-  });
+
+    refreshTabCount();
+    refreshStats();
+    setTimeout(hideStatus, 3500);
+  } catch (error) {
+    showStatus(error.message || 'Grouping failed. Check options.', 'error');
+  }
 });
 
 // Event: Ungroup
@@ -214,7 +247,7 @@ linkManageRules.addEventListener('click', (e) => {
 // Reactive Storage Synchronization across windows/popups
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync') {
-    if (changes.provider || changes.geminiApiKey || changes.openaiApiKey || changes.openaiOAuthToken) {
+    if (changes.provider) {
       refreshEngineStatus();
     }
     if (changes.oneClickIconMode !== undefined) {
@@ -222,7 +255,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
   }
   if (areaName === 'local') {
-    if (changes.geminiApiKey || changes.openaiApiKey || changes.openaiOAuthToken) {
+    if (Object.keys(changes).some(key => key === 'geminiApiKey' || key === 'openaiOAuthToken' || key.endsWith('ApiKey'))) {
       refreshEngineStatus();
     }
     if (changes[LearningCache.STORAGE_KEY] || changes.foldnex_last_run) {
@@ -233,6 +266,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
+  renderProviderSelect();
   await Promise.all([
     refreshTabCount(),
     refreshEngineStatus(),

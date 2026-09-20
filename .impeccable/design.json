@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-20T11:45:00+01:00",
+  "title": "Design System: Foldnex",
+  "extensions": {
+    "colorMeta": {
+      "page-navy": { "role": "neutral", "displayName": "Deep Working Navy", "canonical": "#121a2c", "tonalRamp": ["#080c15", "#0d1321", "#121a2c", "#25304a", "#43506d", "#6f7d98", "#abb6c8", "#edf1f6"] },
+      "action-ice": { "role": "primary", "displayName": "Icy Action", "canonical": "#dbeaf2", "tonalRamp": ["#102536", "#1d3d52", "#37647d", "#6191a9", "#91bacd", "#b7d3e0", "#dbeaf2", "#f5fbfe"] },
+      "primary-ink": { "role": "neutral", "displayName": "Primary Ink", "canonical": "#f5f7f8", "tonalRamp": ["#191b1c", "#303335", "#515659", "#777d81", "#a0a6aa", "#c7cbce", "#e2e5e7", "#f5f7f8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Options-page titles." },
+      "body": { "displayName": "Body", "purpose": "Explanations and working copy." },
+      "label": { "displayName": "Label", "purpose": "Controls, metadata, and status." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "state", "value": "160ms ease", "purpose": "Hover and focus colour changes." },
+      { "name": "reveal", "value": "220ms cubic-bezier(.22,1,.36,1)", "purpose": "Panel and toast entry." }
+    ],
+    "breakpoints": [
+      { "name": "compact-nav", "value": "920px" },
+      { "name": "stacked-controls", "value": "620px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single high-emphasis action on a surface.",
+      "html": "<button class=\"ds-btn-primary\">Clean up and group</button>",
+      "css": ".ds-btn-primary{min-height:46px;padding:12px 18px;border:0;border-radius:10px;background:#dbeaf2;color:#102536;font:600 14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;cursor:pointer;transition:background-color 160ms ease}.ds-btn-primary:hover{background:#edf6fa}.ds-btn-primary:focus-visible{outline:2px solid #9fd8ff;outline-offset:3px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "Quiet bordered actions such as testing a provider.",
+      "html": "<button class=\"ds-btn-secondary\">Test connection</button>",
+      "css": ".ds-btn-secondary{min-height:43px;padding:10px 18px;border:1px solid rgba(219,234,242,.32);border-radius:10px;background:transparent;color:#f5f7f8;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;cursor:pointer}.ds-btn-secondary:hover{background:rgba(255,255,255,.065)}.ds-btn-secondary:focus-visible{outline:2px solid #9fd8ff;outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Provider models, rules, and credential inputs.",
+      "html": "<input class=\"ds-input\" value=\"qwen/qwen3.8-27b\" aria-label=\"Model\">",
+      "css": ".ds-input{width:100%;min-height:43px;padding:0 12px;border:1px solid rgba(219,234,242,.32);border-radius:10px;background:rgba(255,255,255,.035);color:#f5f7f8;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;outline:0}.ds-input:hover{border-color:rgba(219,234,242,.48)}.ds-input:focus{border-color:#9fd8ff;background:rgba(255,255,255,.055)}"
+    },
+    {
+      "name": "Provider Row",
+      "kind": "custom",
+      "refersTo": "provider-row",
+      "description": "One scannable engine choice in the unified list.",
+      "html": "<label class=\"ds-provider\"><input type=\"radio\" checked><span><strong>Groq</strong><small>Fast, high-accuracy structured grouping</small></span><b>Cloud</b></label>",
+      "css": ".ds-provider{display:grid;grid-template-columns:22px 1fr auto;gap:14px;align-items:center;min-height:66px;padding:10px 12px 10px 4px;border-bottom:1px solid rgba(219,234,242,.18);color:#f5f7f8;background:rgba(255,255,255,.065);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;cursor:pointer}.ds-provider:hover{background:rgba(255,255,255,.035)}.ds-provider span{display:flex;flex-direction:column}.ds-provider strong{font-size:14px}.ds-provider small,.ds-provider b{color:#9aa9b8;font-size:12px;font-weight:500}"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "description": "Current options section.",
+      "html": "<button class=\"ds-nav-active\">Grouping engines</button>",
+      "css": ".ds-nav-active{min-height:44px;padding:0 12px;border:0;border-radius:10px;background:#dbeaf2;color:#102536;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;cursor:pointer}.ds-nav-active:hover{background:#edf6fa}.ds-nav-active:focus-visible{outline:2px solid #9fd8ff;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Quiet Mission Control",
+    "overview": "Foldnex should feel like a focused Magrathean utility: precise, calm, and built for repeated use. Deep navy fields, pale controls, open rows, and thin structural rules keep attention on the tab-cleanup task rather than on the technology behind it. The interface is compact without feeling cramped. AI is treated as an engine choice, not a visual theme.",
+    "keyCharacteristics": ["Deep-blue working surfaces with restrained tonal separation.", "A single pale action colour reserved for selection and primary action.", "Open, scannable rows separated by fine rules.", "Direct, sentence-case copy with visible outcomes."],
+    "rules": [
+      { "name": "The One Light Rule", "body": "Use the pale action colour for the current navigation item and the primary action; do not scatter it across decorative accents.", "section": "colors" },
+      { "name": "The Sentence Case Rule", "body": "Keep interface copy in sentence case; reserve uppercase styling for none of the ordinary controls.", "section": "typography" },
+      { "name": "The Flat Utility Rule", "body": "Do not add ambient shadows or glass effects; use a one-pixel rule or a subtle surface tint to express structure.", "section": "elevation" }
+    ],
+    "dos": ["Do keep cleanup and grouping as the first and strongest action.", "Do state concrete results such as groups created and duplicates removed.", "Do use thin rules and whitespace to organise dense settings.", "Do keep local-versus-cloud status visible in provider selection."],
+    "donts": ["Don't use AI gradients, neon glows, emoji badges, or decorative model artwork.", "Don't split providers into separate promotional cards.", "Don't hide important outcomes behind generic success language.", "Don't introduce shadows where a divider or tonal shift is sufficient."]
+  }
+}

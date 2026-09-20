@@ -3,7 +3,14 @@
  */
 
 import { LearningCache, safeGlobToRegExp } from '../src/cache-engine.js';
-import { checkChromeNanoStatus, CHROME_GROUP_COLORS } from '../src/ai-engine.js';
+import {
+  checkChromeNanoStatus,
+  prepareChromeNano,
+  CHROME_GROUP_COLORS,
+  PROVIDER_CATALOG,
+  listProviderModels,
+  providerSettingKey
+} from '../src/ai-engine.js';
 import { OAuthHelper } from '../src/oauth-helper.js';
 
 // DOM elements - Navigation
@@ -12,31 +19,39 @@ const tabPanels = document.querySelectorAll('.tab-panel');
 const toast = document.getElementById('toast');
 
 // Provider elements
-const providerRadios = document.querySelectorAll('input[name="providerSelect"]');
+const providerList = document.getElementById('providerList');
 const panelNanoDetails = document.getElementById('panel-nano-details');
 const panelGeminiDetails = document.getElementById('panel-gemini-details');
-const panelOpenaiDetails = document.getElementById('panel-openai-details');
+const panelCompatibleDetails = document.getElementById('panel-compatible-details');
 const panelOfflineDetails = document.getElementById('panel-offline-details');
 
 const nanoStatusText = document.getElementById('nanoStatusText');
-const nanoBadge = document.getElementById('nanoBadge');
 const btnRecheckNano = document.getElementById('btnRecheckNano');
 
 // Gemini fields
 const geminiApiKey = document.getElementById('geminiApiKey');
 const geminiModel = document.getElementById('geminiModel');
+const geminiModelOptions = document.getElementById('geminiModelOptions');
+const geminiModelsStatus = document.getElementById('geminiModelsStatus');
+const btnRefreshGeminiModels = document.getElementById('btnRefreshGeminiModels');
 const btnToggleGeminiKey = document.getElementById('btnToggleGeminiKey');
 const btnSaveGemini = document.getElementById('btnSaveGemini');
 const btnTestGemini = document.getElementById('btnTestGemini');
 
-// OpenAI fields
-const openaiApiKey = document.getElementById('openaiApiKey');
-const openaiModel = document.getElementById('openaiModel');
-const openaiBaseUrl = document.getElementById('openaiBaseUrl');
+// OpenAI-compatible provider fields
+const compatibleProviderTitle = document.getElementById('compatibleProviderTitle');
+const compatibleApiKeyLabel = document.getElementById('compatibleApiKeyLabel');
+const compatibleApiKey = document.getElementById('compatibleApiKey');
+const compatibleModel = document.getElementById('compatibleModel');
+const compatibleModelOptions = document.getElementById('compatibleModelOptions');
+const compatibleModelsStatus = document.getElementById('compatibleModelsStatus');
+const btnRefreshCompatibleModels = document.getElementById('btnRefreshCompatibleModels');
+const compatibleBaseUrl = document.getElementById('compatibleBaseUrl');
 const openaiOAuthToken = document.getElementById('openaiOAuthToken');
-const btnToggleOpenaiKey = document.getElementById('btnToggleOpenaiKey');
-const btnSaveOpenAI = document.getElementById('btnSaveOpenAI');
-const btnTestOpenAI = document.getElementById('btnTestOpenAI');
+const oauthSection = document.getElementById('oauthSection');
+const btnToggleCompatibleKey = document.getElementById('btnToggleCompatibleKey');
+const btnSaveCompatible = document.getElementById('btnSaveCompatible');
+const btnTestCompatible = document.getElementById('btnTestCompatible');
 const oauthRedirectUri = document.getElementById('oauthRedirectUri');
 
 // Rules elements
@@ -57,6 +72,9 @@ const prefOneClickMode = document.getElementById('prefOneClickMode');
 const prefCollapseGroups = document.getElementById('prefCollapseGroups');
 
 let cachedRules = [];
+let selectedCompatibleProvider = 'openai';
+let lastNanoStatus = 'checking';
+const MODEL_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Display toast notification
@@ -84,22 +102,168 @@ navItems.forEach(item => {
   });
 });
 
-/**
- * Switch provider config panels
- */
-function updateProviderPanels(provider) {
-  panelNanoDetails.classList.toggle('hidden', provider !== 'gemini_nano');
-  panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
-  panelOpenaiDetails.classList.toggle('hidden', provider !== 'openai');
-  panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
+function renderProviderList() {
+  providerList.textContent = '';
+  Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
+    const label = document.createElement('label');
+    label.className = 'provider-row';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'providerSelect';
+    radio.value = id;
+
+    const copy = document.createElement('span');
+    copy.className = 'provider-row-copy';
+    const name = document.createElement('strong');
+    name.textContent = provider.name;
+    const description = document.createElement('span');
+    description.textContent = provider.description;
+    copy.append(name, description);
+
+    const mode = document.createElement('span');
+    mode.className = 'status-pill';
+    mode.textContent = provider.mode === 'local' || provider.local ? 'Local' : 'Cloud';
+    if (id === 'gemini_nano') mode.id = 'nanoBadge';
+
+    label.append(radio, copy, mode);
+    providerList.append(label);
+  });
 }
 
-providerRadios.forEach(radio => {
+function getProviderRadios() {
+  return document.querySelectorAll('input[name="providerSelect"]');
+}
+
+function modelCatalogCacheKey(provider) {
+  return providerSettingKey(provider, 'modelCatalog');
+}
+
+function modelUi(provider) {
+  if (provider === 'gemini_api') {
+    return {
+      input: geminiModel,
+      options: geminiModelOptions,
+      status: geminiModelsStatus,
+      button: btnRefreshGeminiModels
+    };
+  }
+  return {
+    input: compatibleModel,
+    options: compatibleModelOptions,
+    status: compatibleModelsStatus,
+    button: btnRefreshCompatibleModels
+  };
+}
+
+function renderModelOptions(provider, models, fetchedAt = 0) {
+  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
+  const ui = modelUi(provider);
+  ui.options.textContent = '';
+  for (const model of models) {
+    const option = document.createElement('option');
+    option.value = model;
+    ui.options.append(option);
+  }
+  const age = fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString()}` : '';
+  ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}.`;
+}
+
+async function refreshModelCatalog(provider, { force = false } = {}) {
+  const config = PROVIDER_CATALOG[provider];
+  if (!config || !['gemini', 'compatible'].includes(config.mode)) return;
+  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
+
+  const ui = modelUi(provider);
+  const cacheKey = modelCatalogCacheKey(provider);
+  const cached = (await chrome.storage.local.get(cacheKey))[cacheKey];
+  if (Array.isArray(cached?.models) && cached.models.length) {
+    renderModelOptions(provider, cached.models, cached.fetchedAt);
+    if (!force && Date.now() - Number(cached.fetchedAt || 0) < MODEL_CACHE_MAX_AGE_MS) return;
+  }
+  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
+
+  const apiKey = provider === 'gemini_api'
+    ? geminiApiKey.value.trim()
+    : compatibleApiKey.value.trim() || (provider === 'openai' ? openaiOAuthToken.value.trim() : '');
+  const baseUrl = provider === 'gemini_api' ? '' : compatibleBaseUrl.value.trim();
+
+  ui.button.disabled = true;
+  ui.button.textContent = 'Loading…';
+  ui.status.textContent = 'Loading the live model catalog…';
+  try {
+    const models = await listProviderModels(provider, { apiKey, baseUrl });
+    if (!models.length) throw new Error('The provider returned no models');
+    const catalog = { models, fetchedAt: Date.now() };
+    await chrome.storage.local.set({ [cacheKey]: catalog });
+    renderModelOptions(provider, models, catalog.fetchedAt);
+  } catch (error) {
+    if (provider === 'gemini_api' || selectedCompatibleProvider === provider) {
+      ui.status.textContent = error.message;
+    }
+  } finally {
+    if (provider === 'gemini_api' || selectedCompatibleProvider === provider) {
+      ui.button.disabled = false;
+      ui.button.textContent = 'Refresh models';
+    }
+  }
+}
+
+async function loadCompatibleProvider(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  if (!config || config.mode !== 'compatible') return;
+  selectedCompatibleProvider = provider;
+
+  const [syncData, localData] = await Promise.all([
+    chrome.storage.sync.get([
+      providerSettingKey(provider, 'model'),
+      providerSettingKey(provider, 'baseUrl'),
+      providerSettingKey(provider, 'apiKey'),
+      'openaiOAuthToken'
+    ]),
+    chrome.storage.local.get([
+      providerSettingKey(provider, 'apiKey'),
+      'openaiOAuthToken'
+    ])
+  ]);
+
+  if (selectedCompatibleProvider !== provider) return;
+
+  compatibleProviderTitle.textContent = `${config.name} configuration`;
+  compatibleApiKeyLabel.textContent = config.keyOptional ? 'API key (optional)' : `${config.name} API key`;
+  compatibleApiKey.placeholder = config.keyOptional ? 'Optional for this local endpoint' : 'Paste provider key';
+  compatibleApiKey.value = localData[providerSettingKey(provider, 'apiKey')]
+    || syncData[providerSettingKey(provider, 'apiKey')]
+    || '';
+  compatibleModel.value = syncData[providerSettingKey(provider, 'model')] || config.defaultModel || '';
+  compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
+  oauthSection.classList.toggle('hidden', provider !== 'openai');
+  if (provider === 'openai') {
+    openaiOAuthToken.value = localData.openaiOAuthToken || syncData.openaiOAuthToken || '';
+  }
+  compatibleModelOptions.textContent = '';
+  compatibleModelsStatus.textContent = 'Loading the provider’s model catalog…';
+  await refreshModelCatalog(provider);
+}
+
+/** Switch the single details area to the selected engine. */
+function updateProviderPanels(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  panelNanoDetails.classList.toggle('hidden', provider !== 'gemini_nano');
+  panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
+  panelCompatibleDetails.classList.toggle('hidden', config?.mode !== 'compatible');
+  panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
+  if (config?.mode === 'compatible') loadCompatibleProvider(provider);
+  if (provider === 'gemini_api') refreshModelCatalog(provider);
+}
+
+renderProviderList();
+getProviderRadios().forEach(radio => {
   radio.addEventListener('change', async (e) => {
     const provider = e.target.value;
     updateProviderPanels(provider);
     await chrome.storage.sync.set({ provider });
-    showToast(`Active AI engine changed to ${provider.replace('_', ' ').toUpperCase()}`);
+    showToast(`${PROVIDER_CATALOG[provider].name} selected.`);
   });
 });
 
@@ -107,35 +271,72 @@ providerRadios.forEach(radio => {
  * Check and refresh Gemini Nano diagnostic status (safe DOM updates, no innerHTML)
  */
 async function refreshNanoDiagnostics() {
-  nanoStatusText.textContent = 'Detecting Chrome Prompt API & Gemini Nano...';
+  const nanoBadge = document.getElementById('nanoBadge');
+  nanoStatusText.textContent = 'Checking Chrome’s local model…';
   nanoBadge.className = 'status-pill checking';
-  nanoBadge.textContent = 'Checking...';
+  nanoBadge.textContent = 'Checking…';
+  btnRecheckNano.disabled = true;
+  btnRecheckNano.textContent = 'Checking…';
 
-  const status = await checkChromeNanoStatus();
-  nanoStatusText.textContent = '';
+  try {
+    const status = await checkChromeNanoStatus();
+    lastNanoStatus = status.status;
+    nanoStatusText.textContent = '';
 
-  if (status.status === 'ready') {
-    nanoBadge.className = 'status-pill ready';
-    nanoBadge.textContent = 'Ready';
-    const strong = document.createElement('strong');
-    strong.textContent = 'Chrome Gemini Nano is ready! ';
-    nanoStatusText.append('✅ ', strong, 'Foldnex can cluster your tabs locally on-device without any API keys or network latency.');
-  } else if (status.status === 'downloadable' || status.status === 'downloading') {
-    nanoBadge.className = 'status-pill checking';
-    nanoBadge.textContent = 'Downloading';
-    const strong = document.createElement('strong');
-    strong.textContent = String(status.detail ?? '') + '. ';
-    nanoStatusText.append('⏳ ', strong, 'Chrome is preparing the on-device model. Open chrome://components and check "Optimization Guide On Device Model".');
-  } else {
-    nanoBadge.className = 'status-pill checking';
-    nanoBadge.textContent = 'Not Active';
-    const strong = document.createElement('strong');
-    strong.textContent = String(status.detail ?? '') + '. ';
-    nanoStatusText.append('⚠️ ', strong, 'Follow the setup steps below to enable Gemini Nano, or configure a Gemini Flash / OpenAI API key as fallback.');
+    if (status.status === 'ready') {
+      nanoBadge.className = 'status-pill ready';
+      nanoBadge.textContent = 'Ready';
+      btnRecheckNano.textContent = 'Check again';
+      const strong = document.createElement('strong');
+      strong.textContent = 'Local model ready. ';
+      nanoStatusText.append(strong, 'Keep the Foldnex popup open while grouping with Nano.');
+    } else if (status.status === 'downloadable') {
+      nanoBadge.className = 'status-pill checking';
+      nanoBadge.textContent = 'Download needed';
+      btnRecheckNano.textContent = 'Download local model';
+      const strong = document.createElement('strong');
+      strong.textContent = 'One-time download required. ';
+      nanoStatusText.append(strong, 'Start it below; Chrome keeps tab data on this device.');
+    } else if (status.status === 'downloading') {
+      nanoBadge.className = 'status-pill checking';
+      nanoBadge.textContent = 'Downloading';
+      btnRecheckNano.textContent = 'Resume model download';
+      const strong = document.createElement('strong');
+      strong.textContent = 'Chrome is downloading the local model. ';
+      nanoStatusText.append(strong, 'You can keep this page open to follow progress.');
+    } else {
+      nanoBadge.className = 'status-pill checking';
+      nanoBadge.textContent = 'Unavailable';
+      btnRecheckNano.textContent = 'Check again';
+      const strong = document.createElement('strong');
+      strong.textContent = `${String(status.detail || 'Prompt API unavailable')}. `;
+      nanoStatusText.append(strong, 'Check the requirements below or select another engine.');
+    }
+  } finally {
+    btnRecheckNano.disabled = false;
   }
 }
 
-btnRecheckNano.addEventListener('click', refreshNanoDiagnostics);
+btnRecheckNano.addEventListener('click', async () => {
+  if (!['downloadable', 'downloading'].includes(lastNanoStatus)) {
+    await refreshNanoDiagnostics();
+    return;
+  }
+
+  btnRecheckNano.disabled = true;
+  btnRecheckNano.textContent = 'Preparing…';
+  nanoStatusText.textContent = 'Starting Chrome’s local model download…';
+  try {
+    await prepareChromeNano(percent => {
+      nanoStatusText.textContent = `Downloading local model… ${percent}%`;
+    });
+    showToast('Chrome Gemini Nano is ready.');
+  } catch (error) {
+    showToast(`Local model setup failed: ${error.message}`, 'error');
+  } finally {
+    await refreshNanoDiagnostics();
+  }
+});
 
 /**
  * Load initial settings (securely loading keys from storage.local with sync fallback)
@@ -144,38 +345,25 @@ async function loadSettings() {
   const syncData = await chrome.storage.sync.get([
     'provider',
     'geminiModel',
-    'openaiModel',
-    'openaiBaseUrl',
     'oneClickIconMode',
     'collapseGroupsOnCreation',
-    'geminiApiKey', // check for legacy migration
-    'openaiApiKey',
-    'openaiOAuthToken'
+    'geminiApiKey'
   ]);
 
   const localData = await chrome.storage.local.get([
-    'geminiApiKey',
-    'openaiApiKey',
-    'openaiOAuthToken'
+    'geminiApiKey'
   ]);
 
   const currentProvider = syncData.provider || 'gemini_nano';
   const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${currentProvider}"]`);
   if (matchingRadio) matchingRadio.checked = true;
-  updateProviderPanels(currentProvider);
 
   // Securely prefer local storage for keys
   const geminiKey = localData.geminiApiKey || syncData.geminiApiKey || '';
-  const openAIKey = localData.openaiApiKey || syncData.openaiApiKey || '';
-  const openAIToken = localData.openaiOAuthToken || syncData.openaiOAuthToken || '';
-
   if (geminiKey) geminiApiKey.value = geminiKey;
-  if (syncData.geminiModel) geminiModel.value = syncData.geminiModel;
+  geminiModel.value = syncData.geminiModel || PROVIDER_CATALOG.gemini_api.defaultModel;
 
-  if (openAIKey) openaiApiKey.value = openAIKey;
-  if (syncData.openaiModel) openaiModel.value = syncData.openaiModel;
-  if (syncData.openaiBaseUrl) openaiBaseUrl.value = syncData.openaiBaseUrl;
-  if (openAIToken) openaiOAuthToken.value = openAIToken;
+  updateProviderPanels(currentProvider);
 
   prefOneClickMode.checked = Boolean(syncData.oneClickIconMode);
   prefCollapseGroups.checked = Boolean(syncData.collapseGroupsOnCreation);
@@ -197,10 +385,19 @@ async function loadSettings() {
 function setupPasswordToggle(btn, input) {
   btn.addEventListener('click', () => {
     input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
   });
 }
 setupPasswordToggle(btnToggleGeminiKey, geminiApiKey);
-setupPasswordToggle(btnToggleOpenaiKey, openaiApiKey);
+setupPasswordToggle(btnToggleCompatibleKey, compatibleApiKey);
+
+btnRefreshGeminiModels.addEventListener('click', () => {
+  refreshModelCatalog('gemini_api', { force: true });
+});
+
+btnRefreshCompatibleModels.addEventListener('click', () => {
+  refreshModelCatalog(selectedCompatibleProvider, { force: true });
+});
 
 /**
  * Helper to parse and format actionable API test errors
@@ -234,7 +431,7 @@ async function formatApiErrorMessage(res) {
  */
 btnSaveGemini.addEventListener('click', async () => {
   const key = geminiApiKey.value.trim();
-  const model = geminiModel.value;
+  const model = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
 
   await chrome.storage.local.set({ geminiApiKey: key });
   await chrome.storage.sync.set({ geminiModel: model });
@@ -242,6 +439,7 @@ btnSaveGemini.addEventListener('click', async () => {
   await chrome.storage.sync.remove('geminiApiKey');
 
   showToast('Gemini settings saved successfully!');
+  await refreshModelCatalog('gemini_api', { force: true });
 });
 
 /**
@@ -271,10 +469,10 @@ btnTestGemini.addEventListener('click', async () => {
     });
 
     if (res.ok) {
-      showToast('✅ Gemini API connected successfully!', 'success');
+      showToast('Gemini API connected.', 'success');
     } else {
       const errMsg = await formatApiErrorMessage(res);
-      showToast(`❌ ${errMsg}`, 'error');
+      showToast(errMsg, 'error');
     }
   } catch (e) {
     showToast(`Error: ${e.message}`, 'error');
@@ -284,67 +482,74 @@ btnTestGemini.addEventListener('click', async () => {
   }
 });
 
-/**
- * Save OpenAI Settings securely to storage.local
- */
-btnSaveOpenAI.addEventListener('click', async () => {
-  const key = openaiApiKey.value.trim();
-  const token = openaiOAuthToken.value.trim();
+/** Save the selected compatible provider without syncing its secret. */
+btnSaveCompatible.addEventListener('click', async () => {
+  const provider = selectedCompatibleProvider;
+  const config = PROVIDER_CATALOG[provider];
+  const apiKeyName = providerSettingKey(provider, 'apiKey');
+  const modelName = providerSettingKey(provider, 'model');
+  const baseUrlName = providerSettingKey(provider, 'baseUrl');
 
   await chrome.storage.local.set({
-    openaiApiKey: key,
-    openaiOAuthToken: token
+    [apiKeyName]: compatibleApiKey.value.trim(),
+    ...(provider === 'openai' ? { openaiOAuthToken: openaiOAuthToken.value.trim() } : {})
   });
   await chrome.storage.sync.set({
-    openaiModel: openaiModel.value.trim() || 'gpt-4o-mini',
-    openaiBaseUrl: openaiBaseUrl.value.trim() || 'https://api.openai.com/v1'
+    [modelName]: compatibleModel.value.trim() || config.defaultModel,
+    [baseUrlName]: compatibleBaseUrl.value.trim() || config.baseUrl
   });
-  // Clean up from sync if previously stored there
-  await chrome.storage.sync.remove(['openaiApiKey', 'openaiOAuthToken']);
-
-  showToast('OpenAI settings saved successfully!');
+  await chrome.storage.sync.remove([apiKeyName, 'openaiOAuthToken']);
+  showToast(`${config.name} settings saved.`);
+  await refreshModelCatalog(provider, { force: true });
 });
 
-/**
- * Test OpenAI Connection
- */
-btnTestOpenAI.addEventListener('click', async () => {
-  const keyOrToken = openaiApiKey.value.trim() || openaiOAuthToken.value.trim();
-  if (!keyOrToken) {
-    showToast('Please enter an OpenAI API Key or OAuth token first.', 'error');
+/** Make a minimal live completion request to the selected provider. */
+btnTestCompatible.addEventListener('click', async () => {
+  const provider = selectedCompatibleProvider;
+  const config = PROVIDER_CATALOG[provider];
+  const keyOrToken = compatibleApiKey.value.trim()
+    || (provider === 'openai' ? openaiOAuthToken.value.trim() : '');
+  if (!keyOrToken && !config.keyOptional) {
+    showToast(`Enter a ${config.name} API key first.`, 'error');
     return;
   }
 
-  btnTestOpenAI.textContent = 'Testing...';
-  btnTestOpenAI.disabled = true;
+  btnTestCompatible.textContent = 'Testing…';
+  btnTestCompatible.disabled = true;
 
   try {
-    const base = openaiBaseUrl.value.trim() || 'https://api.openai.com/v1';
-    const endpoint = `${base.replace(/\/+$/, '')}/chat/completions`;
-    const res = await fetch(endpoint, {
+    const base = compatibleBaseUrl.value.trim() || config.baseUrl;
+    const headers = { 'Content-Type': 'application/json' };
+    if (keyOrToken) headers.Authorization = `Bearer ${keyOrToken}`;
+    if (provider === 'openrouter') {
+      headers['HTTP-Referer'] = 'https://github.com/magrathean-uk/foldnex';
+      headers['X-Title'] = 'Foldnex';
+    }
+
+    const payload = {
+      model: compatibleModel.value.trim() || config.defaultModel,
+      messages: [{ role: 'user', content: 'Reply with the single word ok.' }],
+      temperature: 0
+    };
+    if (provider === 'openai') payload.max_completion_tokens = 32;
+    else payload.max_tokens = 32;
+
+    const res = await fetch(`${base.replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${keyOrToken}`
-      },
-      body: JSON.stringify({
-        model: openaiModel.value.trim() || 'gpt-4o-mini',
-        messages: [{ role: 'user', content: 'Reply "ok"' }],
-        max_tokens: 5
-      })
+      headers,
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      showToast('✅ OpenAI connected successfully!', 'success');
+      showToast(`${config.name} connected.`, 'success');
     } else {
-      const errMsg = await formatApiErrorMessage(res);
-      showToast(`❌ ${errMsg}`, 'error');
+      showToast(await formatApiErrorMessage(res), 'error');
     }
   } catch (e) {
-    showToast(`Error: ${e.message}`, 'error');
+    showToast(`Connection failed: ${e.message}`, 'error');
   } finally {
-    btnTestOpenAI.textContent = 'Test Connection';
-    btnTestOpenAI.disabled = false;
+    btnTestCompatible.textContent = 'Test connection';
+    btnTestCompatible.disabled = false;
   }
 });
 

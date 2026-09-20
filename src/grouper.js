@@ -11,6 +11,86 @@ import { clusterTabsOffline } from './offline-clusterer.js';
 export const knownGroupTitles = new Map(); // groupId -> title
 
 /**
+ * Return a stable identity for ordinary web pages only. URL fragments identify
+ * a position within a document, not a different document, so they are omitted.
+ * Query-string order and values are deliberately retained: changing either can
+ * be meaningful to a web application, and deduplication must be conservative.
+ */
+export function getDuplicateTabKey(tab) {
+  const rawUrl = tab?.url || tab?.pendingUrl;
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+
+  try {
+    const url = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+
+    url.hash = '';
+    // Treat the secure and insecure variants of the same web location as one
+    // page identity. Host, explicit port, path, and query remain significant.
+    url.protocol = 'https:';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Close redundant ordinary web tabs before grouping. Pinned tabs always win;
+ * otherwise preserve the active tab, then the leftmost tab, as the canonical
+ * survivor. Special browser URLs are never candidates for removal.
+ */
+export async function eliminateDuplicateTabs(tabs, windowId) {
+  const duplicatesByUrl = new Map();
+  for (const tab of tabs) {
+    const key = getDuplicateTabKey(tab);
+    if (!key) continue;
+    const duplicates = duplicatesByUrl.get(key) || [];
+    duplicates.push(tab);
+    duplicatesByUrl.set(key, duplicates);
+  }
+
+  let closedCount = 0;
+  for (const [key, duplicates] of duplicatesByUrl) {
+    if (duplicates.length < 2) continue;
+
+    const [survivor, ...candidates] = [...duplicates].sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+      if (Boolean(a.active) !== Boolean(b.active)) return a.active ? -1 : 1;
+      return (a.index ?? Infinity) - (b.index ?? Infinity);
+    });
+
+    // Do not remove a copy if the chosen canonical tab vanished or navigated.
+    let survivorIsPinned = false;
+    try {
+      const liveSurvivor = await chrome.tabs.get(survivor.id);
+      if (liveSurvivor.windowId !== windowId || getDuplicateTabKey(liveSurvivor) !== key) continue;
+      survivorIsPinned = Boolean(liveSurvivor.pinned);
+    } catch {
+      continue;
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const liveCandidate = await chrome.tabs.get(candidate.id);
+        if (
+          liveCandidate.windowId === windowId &&
+          // Never remove a pinned tab in favour of a now-unpinned survivor.
+          !(liveCandidate.pinned && !survivorIsPinned) &&
+          getDuplicateTabKey(liveCandidate) === key
+        ) {
+          await chrome.tabs.remove(candidate.id);
+          closedCount++;
+        }
+      } catch {
+        // The user may close or navigate tabs while grouping is in progress.
+      }
+    }
+  }
+
+  return closedCount;
+}
+
+/**
  * Filter valid groupable tabs from window
  * Pinned tabs and internal browser pages cannot be grouped by Chrome tabGroups API.
  */
@@ -54,18 +134,37 @@ export async function executeTabGrouping(windowId, settings) {
 
   // Enforce single window & matching incognito boundary
   const boundedTabs = allTabs.filter(t => t.windowId === resolvedWindowId && Boolean(t.incognito) === isIncognitoWindow);
-  const groupableTabs = getGroupableTabs(boundedTabs);
+  const duplicateTabsClosed = await eliminateDuplicateTabs(boundedTabs, resolvedWindowId);
+
+  // Refresh after closing duplicates so AI, learning, and grouping see only
+  // the canonical copies and current tab state.
+  const tabsAfterDeduplication = await chrome.tabs.query({ windowId: resolvedWindowId });
+  const groupableTabs = getGroupableTabs(
+    tabsAfterDeduplication.filter(t => Boolean(t.incognito) === isIncognitoWindow)
+  );
 
   if (groupableTabs.length <= 1) {
     return {
       success: true,
       message: 'Not enough tabs to group (minimum 2 unpinned tabs required)',
       groupsCreated: 0,
-      totalTabs: groupableTabs.length
+      totalTabs: groupableTabs.length,
+      duplicateTabsClosed
     };
   }
 
-  const effectiveSettings = settings || (await chrome.storage.sync.get());
+  let effectiveSettings = settings;
+  if (!effectiveSettings) {
+    const [syncSettings, localSecrets] = await Promise.all([
+      chrome.storage.sync.get(),
+      chrome.storage.local.get([
+        'geminiApiKey', 'openaiApiKey', 'openaiOAuthToken',
+        'xaiApiKey', 'groqApiKey', 'openrouterApiKey',
+        'deepseekApiKey', 'cerebrasApiKey', 'ollamaApiKey'
+      ])
+    ]);
+    effectiveSettings = { ...syncSettings, ...localSecrets };
+  }
   let fallbackUsed = false;
   let fallbackReason = null;
 
@@ -209,7 +308,8 @@ export async function executeTabGrouping(windowId, settings) {
       foldnex_last_run: {
         timestamp: now,
         groupsCreated: groupsCreatedCount,
-        tabsGrouped: groupableTabs.length
+        tabsGrouped: groupableTabs.length,
+        duplicateTabsClosed
       }
     });
   }
@@ -223,6 +323,7 @@ export async function executeTabGrouping(windowId, settings) {
       : `Successfully organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups!`,
     groupsCreated: groupsCreatedCount,
     totalTabs: groupableTabs.length,
+    duplicateTabsClosed,
     groups: finalGroups
   };
 }

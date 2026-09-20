@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Foldnex - AI One-Click Tab Grouper",
   "version": "1.0.0",
-  "description": "One-click intelligent tab grouping with Chrome Gemini Nano, Gemini Flash, or OpenAI. Fast local learning memory for 0ms speed.",
+  "description": "Remove duplicate tabs and organize the rest with local or cloud AI providers, including Gemini, OpenAI, Grok, Groq, and more.",
   "minimum_chrome_version": "120",
   "icons": {
     "16": "icons/icon16.png",
@@ -23,7 +23,14 @@
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
-    "https://api.openai.com/*"
+    "https://api.openai.com/*",
+    "https://api.x.ai/*",
+    "https://api.groq.com/*",
+    "https://openrouter.ai/*",
+    "https://api.deepseek.com/*",
+    "https://api.cerebras.ai/*",
+    "http://localhost:11434/*",
+    "http://127.0.0.1:11434/*"
   ],
   "action": {
     "default_icon": {
