@@ -195,6 +195,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (!current.provider) {
     await chrome.storage.sync.set({
       provider: 'gemini_nano',
+      groupingStrategy: 'task',
       oneClickIconMode: false,
       collapseGroupsOnCreation: false
     });

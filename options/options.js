@@ -70,6 +70,7 @@ const importFileInput = document.getElementById('importFileInput');
 // Behavior elements
 const prefOneClickMode = document.getElementById('prefOneClickMode');
 const prefCollapseGroups = document.getElementById('prefCollapseGroups');
+const groupingStrategyInputs = document.querySelectorAll('input[name="groupingStrategy"]');
 const diagEngine = document.getElementById('diagEngine');
 const diagSource = document.getElementById('diagSource');
 const diagOutcome = document.getElementById('diagOutcome');
@@ -352,6 +353,7 @@ async function loadSettings() {
   const syncData = await chrome.storage.sync.get([
     'provider',
     'geminiModel',
+    'groupingStrategy',
     'oneClickIconMode',
     'collapseGroupsOnCreation',
     'geminiApiKey'
@@ -374,6 +376,9 @@ async function loadSettings() {
 
   prefOneClickMode.checked = Boolean(syncData.oneClickIconMode);
   prefCollapseGroups.checked = Boolean(syncData.collapseGroupsOnCreation);
+  const strategy = syncData.groupingStrategy === 'site' ? 'site' : 'task';
+  const strategyInput = document.querySelector(`input[name="groupingStrategy"][value="${strategy}"]`);
+  if (strategyInput) strategyInput.checked = true;
 
   // Set OAuth redirect URI display
   try {
@@ -392,7 +397,9 @@ async function loadRunDiagnostics() {
   if (!run) return;
 
   const providerName = PROVIDER_CATALOG[run.provider]?.name || run.provider || 'Unknown';
-  diagEngine.textContent = run.model ? `${providerName} · ${run.model}` : providerName;
+  diagEngine.textContent = run.strategy === 'site'
+    ? 'Site categories · local'
+    : run.model ? `${providerName} · ${run.model}` : providerName;
   diagSource.textContent = String(run.source || 'unknown').replaceAll('-', ' ');
   diagOutcome.textContent = `${run.tabsGrouped || 0} tabs · ${run.groupsCreated || 0} groups · ${run.duplicateTabsClosed || 0} duplicates`;
   diagTokens.textContent = run.promptTokens || run.completionTokens
@@ -887,6 +894,16 @@ if (btnImportRules && importFileInput) {
 }
 
 // Behavior Toggles
+groupingStrategyInputs.forEach(input => {
+  input.addEventListener('change', async (e) => {
+    if (!e.target.checked) return;
+    await chrome.storage.sync.set({ groupingStrategy: e.target.value });
+    showToast(e.target.value === 'site'
+      ? 'Site-category grouping selected.'
+      : 'Task-aware grouping selected.');
+  });
+});
+
 prefOneClickMode.addEventListener('change', async (e) => {
   await chrome.storage.sync.set({ oneClickIconMode: e.target.checked });
   showToast(e.target.checked ? '1-Click icon mode enabled!' : 'Popup menu mode enabled.');
@@ -907,6 +924,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         matchingRadio.checked = true;
         updateProviderPanels(newProv);
       }
+    }
+    if (changes.groupingStrategy) {
+      const strategy = changes.groupingStrategy.newValue === 'site' ? 'site' : 'task';
+      const strategyInput = document.querySelector(`input[name="groupingStrategy"][value="${strategy}"]`);
+      if (strategyInput) strategyInput.checked = true;
     }
     if (changes.oneClickIconMode !== undefined) {
       prefOneClickMode.checked = Boolean(changes.oneClickIconMode.newValue);

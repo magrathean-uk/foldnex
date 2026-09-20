@@ -20,6 +20,7 @@ const statusBox = document.getElementById('statusBox');
 const statusSpinner = document.getElementById('statusSpinner');
 const statusMessage = document.getElementById('statusMessage');
 const engineBadge = document.getElementById('engineBadge');
+const strategySelect = document.getElementById('strategySelect');
 const providerSelect = document.getElementById('providerSelect');
 const nanoHint = document.getElementById('nanoHint');
 const statRulesCount = document.getElementById('statRulesCount');
@@ -89,14 +90,27 @@ async function refreshEngineStatus() {
     .map(id => providerSettingKey(id, 'apiKey'));
   const secretNames = ['geminiApiKey', 'openaiOAuthToken', ...localKeyNames];
   const [syncSettings, localSettings] = await Promise.all([
-    chrome.storage.sync.get(['provider', ...secretNames]),
+    chrome.storage.sync.get(['provider', 'groupingStrategy', ...secretNames]),
     chrome.storage.local.get(secretNames)
   ]);
   const secrets = { ...syncSettings, ...localSettings };
 
   const provider = syncSettings.provider || 'gemini_nano';
+  const groupingStrategy = syncSettings.groupingStrategy === 'site' ? 'site' : 'task';
   const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
+  strategySelect.value = groupingStrategy;
   providerSelect.value = provider;
+  providerSelect.disabled = groupingStrategy === 'site';
+
+  if (groupingStrategy === 'site') {
+    nanoHint.classList.remove('hidden');
+    nanoHint.textContent = 'Groups locally by address. X, Reddit, and Slack become Social; ChatGPT and Grok become AI.';
+    engineBadge.className = 'badge ready';
+    engineBadge.textContent = 'Local · no AI';
+    return;
+  }
+
+  nanoHint.textContent = 'Runs locally in Chrome. No tab data leaves this device.';
 
   const hasGeminiKey = Boolean(secrets.geminiApiKey);
 
@@ -169,15 +183,15 @@ async function refreshStats() {
 btnGroupTabs.addEventListener('click', async () => {
   showStatus('Analyzing tabs & organizing...', 'loading');
   try {
-    const [[activeTab], { provider = 'gemini_nano' }] = await Promise.all([
+    const [[activeTab], { provider = 'gemini_nano', groupingStrategy = 'task' }] = await Promise.all([
       chrome.tabs.query({ active: true, lastFocusedWindow: true }),
-      chrome.storage.sync.get('provider')
+      chrome.storage.sync.get(['provider', 'groupingStrategy'])
     ]);
 
     // Nano must execute in an extension document. Cloud and offline engines run
     // through the background worker so one context owns orchestration and locks.
     let res;
-    if (provider === 'gemini_nano') {
+    if (groupingStrategy !== 'site' && provider === 'gemini_nano') {
       res = await executeTabGrouping(activeTab?.windowId);
     } else {
       const response = await chrome.runtime.sendMessage({
@@ -241,6 +255,11 @@ btnUngroup.addEventListener('click', async () => {
 });
 
 // Event: Provider changed
+strategySelect.addEventListener('change', async (e) => {
+  await chrome.storage.sync.set({ groupingStrategy: e.target.value });
+  await refreshEngineStatus();
+});
+
 providerSelect.addEventListener('change', async (e) => {
   const newProvider = e.target.value;
   await chrome.storage.sync.set({ provider: newProvider });
@@ -264,7 +283,7 @@ linkManageRules.addEventListener('click', (e) => {
 // Reactive Storage Synchronization across windows/popups
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync') {
-    if (changes.provider) {
+    if (changes.provider || changes.groupingStrategy) {
       refreshEngineStatus();
     }
     if (changes.oneClickIconMode !== undefined) {

@@ -229,10 +229,28 @@
       <section id="tab-behavior" class="tab-panel">
         <div class="section-header">
           <h2>Behaviour</h2>
-          <p class="section-subtitle">Choose how Foldnex acts from the toolbar and after grouping.</p>
+          <p class="section-subtitle">Choose how Foldnex groups tabs, acts from the toolbar, and presents the result.</p>
         </div>
 
         <div class="settings-list">
+          <fieldset class="setting-item strategy-setting">
+            <legend class="visually-hidden">Grouping strategy</legend>
+            <div class="setting-text">
+              <div class="setting-name">Grouping strategy</div>
+              <div class="setting-description">Choose whether Foldnex follows the task in each title or keeps sites together by address.</div>
+            </div>
+            <div class="strategy-choice" role="radiogroup" aria-label="Grouping strategy">
+              <label>
+                <input type="radio" name="groupingStrategy" value="task">
+                <span><strong>By task</strong><small>Title-aware</small></span>
+              </label>
+              <label>
+                <input type="radio" name="groupingStrategy" value="site">
+                <span><strong>By site category</strong><small>Local · no AI</small></span>
+              </label>
+            </div>
+          </fieldset>
+
           <div class="setting-item">
             <div class="setting-text">
               <div class="setting-name">Direct 1-Click Toolbar Icon</div>

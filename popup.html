@@ -40,11 +40,16 @@
       <div id="statusMessage" class="status-msg"></div>
     </div>
 
-    <section class="card engine-card" aria-label="Grouping engine">
+    <section class="card engine-card" aria-label="Grouping method">
       <div class="card-header">
-        <span class="card-label">Grouping engine</span>
+        <span class="card-label">Grouping strategy</span>
         <span id="engineBadge" class="badge">Checking…</span>
       </div>
+      <select id="strategySelect" class="select-input" aria-label="Grouping strategy">
+        <option value="task">By task · title-aware</option>
+        <option value="site">By site category · local</option>
+      </select>
+      <label class="secondary-field-label" for="providerSelect">Task engine</label>
       <select id="providerSelect" class="select-input" aria-label="Grouping engine">
         <option value="gemini_nano">Chrome Gemini Nano · local</option>
         <option value="offline">Offline smart mode · local</option>

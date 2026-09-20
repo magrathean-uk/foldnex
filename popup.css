@@ -64,6 +64,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .badge.danger { color: var(--danger); }
 .select-input { width: 100%; min-height: 40px; padding: 0 34px 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--ink); background-color: rgba(255,255,255,.035); cursor: pointer; }
 .select-input:hover { border-color: rgba(219,234,242,.48); }
+.select-input:disabled { cursor: not-allowed; opacity: .5; }
+.secondary-field-label { display: block; margin: 13px 0 7px; color: var(--quiet); font-size: 11px; font-weight: 650; }
 .nano-hint { margin: 9px 0 0; color: var(--quiet); font-size: 12px; }
 .stats-card { display: grid; grid-template-columns: 1fr 1.35fr; gap: 22px; }
 .stat-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

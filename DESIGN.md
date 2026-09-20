@@ -144,6 +144,12 @@ Provider selection is always one vertical radio list. Each row contains the prov
 
 The selected row reveals one shared configuration area below the list. Do not duplicate credential, model, base-URL, or test controls across provider-specific cards. Model choices may be refreshed from the provider, but the field remains editable for exact model IDs.
 
+### Grouping Strategy
+
+Expose the two grouping strategies as one compact binary choice: **By task** and **By site category**. In the popup, place the strategy before the task-engine selector and visibly disable the engine while site-category mode is active. In Behaviour settings, use a single segmented radio control inside the existing open settings list; do not introduce a card grid.
+
+State the consequence, not the implementation: By task is title-aware; By site category is local and uses no AI. Site-category examples may clarify the taxonomy (Social for X, Reddit, and Slack; Email for Outlook and Gmail; AI · Assistants for ChatGPT and Grok) without promotional AI language.
+
 ### Result and Status Copy
 
 - Use concrete outcomes: groups created, duplicate tabs removed, fallback used, or setup required.

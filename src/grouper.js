@@ -12,6 +12,7 @@ import {
   providerSettingKey
 } from './ai-engine.js';
 import { clusterTabsOffline } from './offline-clusterer.js';
+import { clusterTabsBySite } from './site-clusterer.js';
 import { markProgrammaticGroupUpdate } from './group-state.js';
 
 const RUN_HISTORY_KEY = 'foldnex_run_history_v1';
@@ -227,14 +228,23 @@ export async function executeTabGrouping(windowId, settings) {
   await LearningCache.ensureSchema();
   const provider = effectiveSettings.provider || 'gemini_nano';
   const requestedModel = modelForSettings(effectiveSettings);
-  const cacheScope = `${PROMPT_VERSION}:${provider}:${requestedModel}`;
+  const groupingStrategy = effectiveSettings.groupingStrategy === 'site' ? 'site' : 'task';
+  const cacheScope = `${PROMPT_VERSION}:${groupingStrategy}:${provider}:${requestedModel}`;
 
   console.log(`[Foldnex] Starting grouping for ${groupableTabs.length} tabs in window ${resolvedWindowId}...`);
 
   let finalGroups = [];
   let exactCacheContext = null;
 
-  if (!isIncognitoWindow) {
+  if (groupingStrategy === 'site') {
+    finalGroups = clusterTabsBySite(groupableTabs);
+    resultSource = 'site-category';
+    console.log(`[Foldnex] Grouped ${groupableTabs.length} tabs locally by site category.`);
+
+    finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
+    const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
+    finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+  } else if (!isIncognitoWindow) {
     const cached = await ExactResultCache.get(groupableTabs, cacheScope);
     exactCacheContext = cached.context;
     if (cached.groups?.length) {
@@ -295,16 +305,18 @@ export async function executeTabGrouping(windowId, settings) {
     const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
     finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
 
-    // Assess the actual result that will be applied, including offline
-    // fallback and explicit-rule changes. Previously fallback runs were shown
-    // as "Passed" even when they contained oversized domain/catch-all groups.
-    const appliedQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
-    qualityIssues = [...new Set([
-      ...qualityIssues,
-      ...appliedQuality.issues
-    ])];
+    // Site-category mode deliberately permits large same-site groups (for
+    // example all Envato pages), so semantic breadth checks only apply to the
+    // title-aware strategy.
+    if (groupingStrategy === 'task') {
+      const appliedQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
+      qualityIssues = [...new Set([
+        ...qualityIssues,
+        ...appliedQuality.issues
+      ])];
+    }
 
-    if (!isIncognitoWindow && !fallbackUsed) {
+    if (!isIncognitoWindow && !fallbackUsed && groupingStrategy === 'task') {
       exactCacheContext ||= await ExactResultCache.makeContext(groupableTabs, cacheScope);
       await ExactResultCache.put(exactCacheContext, finalGroups);
     }
@@ -407,8 +419,9 @@ export async function executeTabGrouping(windowId, settings) {
       groupsCreated: groupsCreatedCount,
       tabsGrouped: groupableTabs.length,
       duplicateTabsClosed,
+      strategy: groupingStrategy,
       provider,
-      model: aiMeta?.model || requestedModel,
+      model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
       source: resultSource,
       promptVersion: PROMPT_VERSION,
       promptTokens: Number(usage.promptTokens || 0),
@@ -431,14 +444,17 @@ export async function executeTabGrouping(windowId, settings) {
     success: true,
     fallbackUsed,
     fallbackReason,
-    message: fallbackUsed
-      ? `Organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups using Offline Smart Mode (AI unavailable/blocked).`
-      : `Successfully organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups!`,
+    message: groupingStrategy === 'site'
+      ? `Organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups by site category.`
+      : fallbackUsed
+        ? `Organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups using Offline Smart Mode (AI unavailable/blocked).`
+        : `Successfully organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups!`,
     groupsCreated: groupsCreatedCount,
     totalTabs: groupableTabs.length,
     duplicateTabsClosed,
+    strategy: groupingStrategy,
     source: resultSource,
-    model: aiMeta?.model || requestedModel,
+    model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
     qualityFlags: qualityIssues,
     groups: finalGroups
   };

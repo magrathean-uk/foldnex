@@ -7,7 +7,9 @@ It combines exact semantic result reuse, explicit local rules, an offline cluste
 ## What it does
 
 - Removes conservative, exact-page duplicates before grouping.
-- Uses complete page titles and privacy-sanitised URLs to infer the user's active tasks.
+- Offers two grouping strategies: title-aware **By task** and deterministic **By site category**.
+- Uses complete page titles and privacy-sanitised URLs to infer the user's active tasks in By task mode.
+- Keeps same-site pages together in By site category mode and maps known services into stable categories such as Social and AI.
 - Uses an adaptive one-to-nine group range based on the size and diversity of the window.
 - Preserves pinned and browser-internal tabs instead of attempting to group them.
 - Reuses only an unchanged semantic tab set; changed titles return to title-aware classification.
@@ -27,6 +29,17 @@ Foldnex treats two pages as duplicates when their conservative page identity mat
 - Other Chrome pages, extension pages, developer tools, and non-web URLs are never removed as duplicates.
 
 The tab list is refreshed after duplicate removal, so only surviving tabs are classified and grouped.
+
+## Grouping strategies
+
+- **By task** is the default. It uses the selected grouping engine, complete page titles, and sanitised URL context to separate distinct tasks even when they share a domain.
+- **By site category** runs locally without an AI request. It uses a stable 30-name taxonomy derived from aggregated browsing patterns: AI assistants, AI platforms, social, email, media, creative work, engineering, work, discovery, commerce, and personal administration. Envato account, asset, and content pages remain together as **Envato**; YouTube and Tesla also receive dedicated groups.
+
+AI assistants such as ChatGPT, Grok, Claude, Gemini, and Perplexity are grouped as **AI · Assistants**. Provider consoles and documentation such as OpenAI, Groq, Hugging Face, and OpenRouter are **AI · Platforms**. Neither category can fall into Code, Cloud, or generic technology groups. X, Reddit, Slack, and similar services are **Social**, while Gmail and Outlook are **Email**.
+
+For crowded 100–200-tab windows, a multi-service category splits after 15 tabs at stable site boundaries. Examples include **Social · X**, **Social · Reddit**, **AI · ChatGPT**, and **AI · Grok**. Dedicated services such as YouTube and Envato stay whole. Repeated unknown sites use their readable site name; unrelated one-off sites enter bounded **Review Later** groups of at most eight tabs.
+
+Choose the strategy in the popup or under **Behaviour** in settings. Explicit URL rules still take precedence in either mode. The extension does not request Chrome history access; the taxonomy is static and personal site mappings stay in local rules rather than source control.
 
 ## Grouping engines
 
@@ -70,6 +83,7 @@ After changing source files, use **Reload** on the Foldnex card at `chrome://ext
 ## Use Foldnex
 
 - Open the popup and select **Clean up and group**.
+- Choose **By task** for title-aware grouping or **By site category** to keep sites together locally.
 - Press `Alt+G` on Windows/Linux or `Command+Shift+G` on macOS to group the current window.
 - Press `Alt+U` on Windows/Linux or `Command+Shift+U` on macOS to ungroup the current window.
 - Enable **Run directly from toolbar** in Behaviour settings to make the toolbar icon run grouping without opening the popup.
@@ -86,7 +100,7 @@ The toolbar badge shows progress and then the number of groups created. The popu
 
 Secrets are stored in `chrome.storage.local`, restricted to trusted extension contexts, and removed from Chrome sync storage. Provider choice, model IDs, base URLs, and non-secret preferences may use `chrome.storage.sync`.
 
-Selecting a cloud engine means complete tab titles and sanitised URLs from the current window are sent to that provider when grouping runs. Offline smart mode and Chrome Gemini Nano do not send that tab data to a cloud provider.
+Selecting a cloud engine means complete tab titles and sanitised URLs from the current window are sent to that provider when By task grouping runs. By site category, offline smart mode, and Chrome Gemini Nano do not send that tab data to a cloud provider.
 
 ## Chrome Gemini Nano
 
@@ -134,6 +148,7 @@ src/cache-engine.js    Exact-result cache, explicit rules, scoped preferences, a
 src/group-state.js     Cross-context programmatic group-update suppression
 src/offline-clusterer.js
                        Zero-cloud fallback clustering
+src/site-clusterer.js  Deterministic address and service-category grouping
 DESIGN.md              Maintained visual-system reference
 PRODUCT.md             Product scope and behavioural contract
 ```

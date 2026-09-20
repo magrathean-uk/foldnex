@@ -9,6 +9,7 @@ import {
 } from '../src/ai-engine.js';
 import { ExactResultCache, LearningCache } from '../src/cache-engine.js';
 import { executeTabGrouping, getDuplicateTabKey } from '../src/grouper.js';
+import { clusterTabsBySite, getSiteCategory } from '../src/site-clusterer.js';
 import {
   consumeProgrammaticGroupUpdate,
   getGroupTitleBaseline,
@@ -56,6 +57,105 @@ test('duplicate identity preserves routes and schemes but removes document ancho
   );
   assert.equal(getDuplicateTabKey({ url: 'chrome://extensions/' }), 'chrome://extensions/');
   assert.equal(getDuplicateTabKey({ url: 'chrome-extension://abc/options.html' }), null);
+});
+
+test('site-category grouping keeps brands together and uses the requested taxonomy', () => {
+  const groups = clusterTabsBySite([
+    { id: 1, url: 'https://elements.envato.com/3d' },
+    { id: 2, url: 'https://account.envato.com/subscriptions' },
+    { id: 3, url: 'https://x.com/home' },
+    { id: 4, url: 'https://www.reddit.com/r/chrome/' },
+    { id: 5, url: 'https://app.slack.com/client/workspace/channel' },
+    { id: 6, url: 'https://chatgpt.com/c/123' },
+    { id: 7, url: 'https://grok.com/' },
+    { id: 8, url: 'https://docs.acme.co.uk/start' },
+    { id: 9, url: 'https://app.acme.co.uk/dashboard' }
+  ]);
+
+  assert.deepEqual(groups.find(group => group.name === 'Envato')?.tabIds, [1, 2]);
+  assert.deepEqual(groups.find(group => group.name === 'Social')?.tabIds, [3, 4, 5]);
+  assert.deepEqual(groups.find(group => group.name === 'AI · Assistants')?.tabIds, [6, 7]);
+  assert.deepEqual(groups.find(group => group.name === 'Acme')?.tabIds, [8, 9]);
+  assert.equal(getSiteCategory('https://app.slack.com/client').name, 'Social');
+});
+
+test('address taxonomy separates AI, code, email, social, and dedicated heavy services', () => {
+  const groups = clusterTabsBySite([
+    { id: 1, url: 'https://chatgpt.com/c/one' },
+    { id: 2, url: 'https://grok.com/' },
+    { id: 3, url: 'https://platform.openai.com/docs' },
+    { id: 4, url: 'https://console.groq.com/docs' },
+    { id: 5, url: 'https://github.com/example/repo' },
+    { id: 6, url: 'https://outlook.live.com/mail/' },
+    { id: 7, url: 'https://x.com/home' },
+    { id: 8, url: 'https://studio.youtube.com/channel/example' },
+    { id: 9, url: 'https://www.linkedin.com/jobs/search/' },
+    { id: 10, url: 'https://www.linkedin.com/feed/' }
+  ]);
+
+  assert.deepEqual(groups.find(group => group.name === 'AI · Assistants')?.tabIds, [1, 2]);
+  assert.deepEqual(groups.find(group => group.name === 'AI · Platforms')?.tabIds, [3, 4]);
+  assert.deepEqual(groups.find(group => group.name === 'Code & Repositories')?.tabIds, [5]);
+  assert.deepEqual(groups.find(group => group.name === 'Email')?.tabIds, [6]);
+  assert.deepEqual(groups.find(group => group.name === 'Social')?.tabIds, [7, 10]);
+  assert.deepEqual(groups.find(group => group.name === 'YouTube')?.tabIds, [8]);
+  assert.deepEqual(groups.find(group => group.name === 'Careers')?.tabIds, [9]);
+});
+
+test('oversized multi-service categories split at site boundaries', () => {
+  const tabs = [
+    ...Array.from({ length: 7 }, (_, index) => ({ id: index + 1, url: `https://x.com/post/${index}` })),
+    ...Array.from({ length: 5 }, (_, index) => ({ id: index + 8, url: `https://reddit.com/r/test/${index}` })),
+    ...Array.from({ length: 5 }, (_, index) => ({ id: index + 13, url: `https://app.slack.com/client/team/${index}` }))
+  ];
+  const groups = clusterTabsBySite(tabs);
+
+  assert.deepEqual(groups.map(group => group.name), ['Social · X', 'Social · Reddit', 'Social · Slack']);
+  assert.deepEqual(groups.map(group => group.tabIds.length), [7, 5, 5]);
+});
+
+test('dedicated services remain whole and one-off unknowns use bounded review groups', () => {
+  const youtube = Array.from({ length: 24 }, (_, index) => ({
+    id: index + 1,
+    url: `https://${index % 2 ? 'studio' : 'www'}.youtube.com/watch?v=${index}`
+  }));
+  const unknown = Array.from({ length: 17 }, (_, index) => ({
+    id: index + 100,
+    url: `https://one-off-${index}.example-${index}.com/page`
+  }));
+  const groups = clusterTabsBySite([...youtube, ...unknown]);
+
+  assert.equal(groups.find(group => group.name === 'YouTube')?.tabIds.length, 24);
+  assert.deepEqual(
+    groups.filter(group => group.name.startsWith('Review Later')).map(group => group.tabIds.length),
+    [8, 8, 1]
+  );
+});
+
+test('a 200-tab address window stays deterministic, complete, and below 30 groups', () => {
+  const families = [
+    'x.com', 'reddit.com', 'app.slack.com', 'chatgpt.com', 'grok.com',
+    'platform.openai.com', 'console.groq.com', 'youtube.com', 'elements.envato.com',
+    'github.com', 'localhost', 'dash.cloudflare.com', 'unifi.ui.com',
+    'appstoreconnect.apple.com', 'analytics.google.com', 'google.com',
+    'bbc.co.uk', 'uk.indeed.com', 'sportsdirect.com', 'amazon.co.uk',
+    'booking.com', 'zoopla.co.uk', 'paypal.com', 'luma.com', 'support.apple.com'
+  ];
+  const tabs = Array.from({ length: 200 }, (_, index) => {
+    const host = families[index % families.length];
+    const path = host === 'google.com' ? `/search?q=${index}` : `/page/${index}`;
+    return { id: index + 1, url: `https://${host}${path}` };
+  });
+  const first = clusterTabsBySite(tabs);
+  const second = clusterTabsBySite(tabs);
+  const assigned = first.flatMap(group => group.tabIds);
+
+  assert.deepEqual(first, second);
+  assert.equal(new Set(assigned).size, tabs.length);
+  assert.equal(assigned.length, tabs.length);
+  assert.ok(first.length >= 15);
+  assert.ok(first.length <= 30);
+  assert.ok(!first.some(group => /tech/i.test(group.name)));
 });
 
 test('prompt retains complete titles and uses compact local ordinals', () => {
@@ -249,6 +349,48 @@ test('orchestrator calls AI once, records diagnostics, then reuses an identical 
     assert.equal(second.groupsCreated, 2);
     assert.equal(fetchCount, 1);
     assert.equal(groupUpdates.length, 4);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('site-category strategy bypasses AI and accepts a large same-site group', async () => {
+  const { local } = installChromeStorageMock();
+  const tabs = Array.from({ length: 10 }, (_, index) => ({
+    id: 300 + index,
+    windowId: 8,
+    index,
+    active: index === 0,
+    pinned: false,
+    incognito: false,
+    title: `Different Envato task ${index}`,
+    url: `https://${index % 2 ? 'account' : 'elements'}.envato.com/item/${index}`
+  }));
+  let groupId = 500;
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return groupId++; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = { async update() {} };
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('site grouping must not call a provider'); };
+  try {
+    const result = await executeTabGrouping(8, {
+      groupingStrategy: 'site',
+      provider: 'groq',
+      groqApiKey: 'test-only'
+    });
+    assert.equal(result.source, 'site-category');
+    assert.equal(result.model, null);
+    assert.equal(result.groupsCreated, 1);
+    assert.deepEqual(result.groups[0].tabIds, tabs.map(tab => tab.id));
+    assert.deepEqual(result.qualityFlags, []);
+    assert.equal(local.foldnex_last_run.strategy, 'site');
+    assert.equal(local.foldnex_last_run.promptTokens, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
