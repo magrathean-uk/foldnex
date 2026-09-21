@@ -2,7 +2,7 @@
 
 Foldnex is a Manifest V3 Chrome extension that removes duplicate pages and organises the remaining tabs in the current window into focused, named Chrome tab groups.
 
-It combines exact semantic result reuse, explicit local rules, an offline clusterer, Chrome's on-device Prompt API, and optional cloud AI providers. The interface follows a restrained Magrathean/Teslatlas design language and keeps engine configuration secondary to the main cleanup action.
+It combines exact semantic result reuse, explicit local rules, an offline clusterer, Chrome's on-device Prompt API, and optional cloud AI providers. 
 
 ## What it does
 
