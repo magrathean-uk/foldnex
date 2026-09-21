@@ -55,9 +55,10 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Repeated unknown sites use a readable site name. One-off unknowns enter Review Later groups capped at eight tabs rather than producing one group per tab or one unbounded catch-all.
 - Produce concise names and only Chrome-supported colours.
 - Assign every current groupable tab exactly once.
-- In By task mode, use an adaptive one-to-nine group range based on tab count and diversity.
+- In By task mode, use an adaptive group range based on tab count and diversity: up to eight groups for ordinary windows and up to fourteen for windows above 140 tabs.
 - In By task mode, reject vague catch-all groups containing more than two tabs and retry once with the failed quality constraint.
-- In By task mode, cap large groups at roughly 28% of the current window (minimum cap eight) so a shared domain cannot swallow distinct account, asset, design, and video tasks. By site category deliberately permits large same-site groups.
+- In By task mode, reject regional labels contradicted by a member's country-code domain and retry with an accurate country, region, or inclusive parent-region label.
+- In By task mode, cap large groups at roughly 28% of ordinary windows and 20% above 80 tabs (minimum cap eight) so one broad theme cannot swallow distinct tasks or regions. By site category deliberately permits large same-site groups.
 - Preserve natural tab order inside groups and group order across the strip.
 
 ## Engine strategy

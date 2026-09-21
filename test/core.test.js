@@ -175,6 +175,7 @@ test('prompt retains complete titles and uses compact local ordinals', () => {
 
 test('adaptive grouping expands for a crowded window and rejects broad catch-alls', () => {
   assert.deepEqual(getAdaptiveGroupRange(34), { min: 4, max: 8 });
+  assert.deepEqual(getAdaptiveGroupRange(105), { min: 7, max: 12 });
   const quality = assessGroupingQuality([
     { name: 'General', tabIds: [1, 2, 3, 4, 5, 6, 7] },
     { name: 'Video', tabIds: [8, 9, 10, 11, 12, 13, 14, 15] },
@@ -184,6 +185,114 @@ test('adaptive grouping expands for a crowded window and rejects broad catch-all
   assert.equal(quality.passed, false);
   assert.ok(quality.issues.some(issue => issue.includes('vague group')));
   assert.ok(quality.issues.some(issue => issue.includes('too broad')));
+});
+
+test('crowded windows reject groups that consume more than one fifth of the strip', () => {
+  const groups = [
+    { name: 'Germany & France', tabIds: Array.from({ length: 24 }, (_, index) => index + 1) },
+    ...Array.from({ length: 8 }, (_, groupIndex) => ({
+      name: `Region ${groupIndex + 1}`,
+      tabIds: Array.from({ length: groupIndex === 7 ? 11 : 10 }, (_, index) => 25 + groupIndex * 10 + index)
+    }))
+  ];
+  const quality = assessGroupingQuality(groups, 105);
+  assert.equal(quality.passed, false);
+  assert.ok(quality.issues.some(issue => issue.includes('too broad at 24 tabs')));
+});
+
+test('regional quality rejects country outliers and accepts an inclusive label', () => {
+  const tabs = [
+    { id: 1, url: 'https://www.governo.it/' },
+    { id: 2, url: 'https://www.ulisboa.pt/' },
+    { id: 3, url: 'https://www.gov.pl/' },
+    { id: 4, url: 'https://www.uw.edu.pl/' }
+  ];
+
+  const inaccurate = assessGroupingQuality([
+    { name: 'Southern Europe', tabIds: [1, 2, 3, 4] }
+  ], tabs);
+  assert.equal(inaccurate.passed, false);
+  assert.ok(inaccurate.issues.some(issue => issue.includes('Polish tabs outside its label')));
+
+  const inclusive = assessGroupingQuality([
+    { name: 'Southern Europe', tabIds: [1, 2] },
+    { name: 'Central Europe', tabIds: [3, 4] }
+  ], tabs);
+  assert.equal(inclusive.passed, true);
+});
+
+test('regional quality rejects arbitrary country pairs but accepts coherent neighbours', () => {
+  const mixed = assessGroupingQuality([
+    { name: 'Poland & Denmark', tabIds: [1, 2] }
+  ], [
+    { id: 1, url: 'https://www.gov.pl/' },
+    { id: 2, url: 'https://www.dr.dk/' }
+  ]);
+  assert.equal(mixed.passed, false);
+  assert.ok(mixed.issues.some(issue => issue.includes('arbitrary cross-region country pair')));
+
+  const neighbours = assessGroupingQuality([
+    { name: 'Austria & Switzerland', tabIds: [1, 2] }
+  ], [
+    { id: 1, url: 'https://www.orf.at/' },
+    { id: 2, url: 'https://www.srf.ch/' }
+  ]);
+  assert.equal(neighbours.passed, true);
+});
+
+test('orchestrator retries a geographically inaccurate model result', async () => {
+  installChromeStorageMock();
+  const tabs = [
+    { id: 41, windowId: 14, index: 0, active: true, pinned: false, incognito: false, title: 'Italian Government', url: 'https://www.governo.it/' },
+    { id: 42, windowId: 14, index: 1, active: false, pinned: false, incognito: false, title: 'University of Lisbon', url: 'https://www.ulisboa.pt/' },
+    { id: 43, windowId: 14, index: 2, active: false, pinned: false, incognito: false, title: 'Polish Government', url: 'https://www.gov.pl/' },
+    { id: 44, windowId: 14, index: 3, active: false, pinned: false, incognito: false, title: 'University of Warsaw', url: 'https://www.uw.edu.pl/' }
+  ];
+  let groupId = 800;
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return groupId++; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = { async update() {} };
+
+  const originalFetch = globalThis.fetch;
+  let fetchCount = 0;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    const groups = fetchCount === 1
+      ? [{ name: 'Southern Europe', color: 'orange', tabIds: [0, 1, 2, 3] }]
+      : [
+          { name: 'Southern Europe', color: 'orange', tabIds: [0, 1] },
+          { name: 'Central Europe', color: 'blue', tabIds: [2, 3] }
+        ];
+    return {
+      ok: true,
+      async json() {
+        return {
+          model: 'qwen/qwen3.8-27b',
+          choices: [{ message: { content: JSON.stringify({ groups }) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 }
+        };
+      }
+    };
+  };
+
+  try {
+    const result = await executeTabGrouping(14, {
+      provider: 'groq',
+      groqApiKey: 'test-only',
+      groqModel: 'qwen/qwen3.8-27b'
+    });
+
+    assert.equal(fetchCount, 2);
+    assert.deepEqual(result.groups.map(group => group.name), ['Southern Europe', 'Central Europe']);
+    assert.deepEqual(result.qualityFlags, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('title-aware grouping moves X and Reddit out of an AI-created admin group', async () => {

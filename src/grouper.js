@@ -17,7 +17,7 @@ import { markProgrammaticGroupUpdate } from './group-state.js';
 
 const RUN_HISTORY_KEY = 'foldnex_run_history_v1';
 const RUN_HISTORY_LIMIT = 20;
-const PROMPT_VERSION = 'semantic-v7';
+const PROMPT_VERSION = 'semantic-v9';
 const SAFE_INTERNAL_DUPLICATE_PAGES = new Set([
   'extensions', 'downloads', 'history', 'bookmarks'
 ]);
@@ -291,13 +291,13 @@ export async function executeTabGrouping(windowId, settings) {
         aiMeta = aiResult.meta;
         resultSource = aiMeta.provider === 'gemini_nano' ? 'nano' : 'cloud';
 
-        const firstQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
+        const firstQuality = assessGroupingQuality(finalGroups, groupableTabs);
         qualityIssues = firstQuality.issues;
         if (!firstQuality.passed) {
           console.warn(`[Foldnex] Retrying one semantic quality failure: ${qualityIssues.join('; ')}`);
           try {
             const retry = await clusterTabsWithAI(groupableTabs, effectiveSettings, qualityIssues.join('; '));
-            const retryQuality = assessGroupingQuality(retry.groups, groupableTabs.length);
+            const retryQuality = assessGroupingQuality(retry.groups, groupableTabs);
             const firstUsage = aiMeta.usage || {};
             const retryUsage = retry.meta.usage || {};
             aiMeta = {
@@ -310,8 +310,13 @@ export async function executeTabGrouping(windowId, settings) {
                 cachedTokens: Number(firstUsage.cachedTokens || 0) + Number(retryUsage.cachedTokens || 0)
               }
             };
-            finalGroups = retry.groups;
-            qualityIssues = retryQuality.issues;
+            if (retryQuality.passed || retryQuality.issues.length < firstQuality.issues.length) {
+              finalGroups = retry.groups;
+              qualityIssues = retryQuality.issues;
+            } else {
+              console.warn('[Foldnex] Quality retry did not improve the result; preserving the first result.');
+              qualityIssues = firstQuality.issues;
+            }
           } catch (retryErr) {
             console.warn('[Foldnex] Quality retry failed; preserving the valid first result:', retryErr);
             qualityIssues.push('quality_retry_failed');
@@ -340,7 +345,7 @@ export async function executeTabGrouping(windowId, settings) {
     // example all Envato pages), so semantic breadth checks only apply to the
     // title-aware strategy.
     if (groupingStrategy === 'task') {
-      const appliedQuality = assessGroupingQuality(finalGroups, groupableTabs.length);
+      const appliedQuality = assessGroupingQuality(finalGroups, groupableTabs);
       qualityIssues = [...new Set([
         ...qualityIssues,
         ...appliedQuality.issues

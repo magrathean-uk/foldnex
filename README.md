@@ -10,7 +10,7 @@ It combines exact semantic result reuse, explicit local rules, an offline cluste
 - Offers two grouping strategies: title-aware **By task** and deterministic **By site category**.
 - Uses complete page titles and privacy-sanitised URLs to infer the user's active tasks in By task mode.
 - Keeps same-site pages together in By site category mode and maps known services into stable categories such as Socials and AI.
-- Uses an adaptive one-to-nine group range based on the size and diversity of the window.
+- Uses an adaptive group range based on the size and diversity of the window, allowing extra groups in very large windows instead of forcing unrelated tabs together.
 - Preserves pinned and browser-internal tabs instead of attempting to group them.
 - Reuses only an unchanged semantic tab set; changed titles return to title-aware classification.
 - Applies explicit URL rules and remembers manual group renames only for the exact renamed cohort.
