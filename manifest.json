@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Foldnex - AI One-Click Tab Grouper",
+  "name": "Foldnex - Tab Organizer",
   "version": "1.0.0",
-  "description": "Remove duplicate tabs and organize the rest with local or cloud AI providers, including Gemini, OpenAI, Grok, Groq, and more.",
+  "description": "Remove exact duplicate tabs and organize the current window into clear groups using local or optional cloud engines.",
   "minimum_chrome_version": "120",
   "icons": {
     "16": "icons/icon16.png",
@@ -17,9 +17,7 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "storage",
-    "identity",
-    "commands"
+    "storage"
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
@@ -29,8 +27,7 @@
     "https://openrouter.ai/*",
     "https://api.deepseek.com/*",
     "https://api.cerebras.ai/*",
-    "http://localhost:11434/*",
-    "http://127.0.0.1:11434/*"
+    "http://localhost:11434/*"
   ],
   "action": {
     "default_icon": {
@@ -39,7 +36,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Foldnex - One-Click AI Tab Grouping",
+    "default_title": "Foldnex - Clean up and group tabs",
     "default_popup": "popup.html"
   },
   "options_ui": {
@@ -52,7 +49,7 @@
         "default": "Alt+G",
         "mac": "Command+Shift+G"
       },
-      "description": "One-click group all tabs with AI"
+      "description": "Clean up and group tabs in the current window"
     },
     "ungroup-tabs": {
       "suggested_key": {

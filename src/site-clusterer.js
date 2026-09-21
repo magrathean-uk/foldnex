@@ -80,7 +80,7 @@ const CATEGORY_DEFINITIONS = [
     ]
   },
   {
-    name: 'Social', color: 'blue', overflowPrefix: 'Social',
+    name: 'Socials', color: 'blue', overflowPrefix: 'Socials',
     services: [
       service('X', ['x.com', 'twitter.com', 't.co']), service('Reddit', ['reddit.com']),
       service('Slack', ['slack.com']),
@@ -373,6 +373,11 @@ function resolveSite(rawUrl) {
 export function getSiteCategory(rawUrl) {
   const category = resolveSite(rawUrl);
   return { name: category.name, color: category.color };
+}
+
+/** True for services that must remain in the stable Socials group. */
+export function isSocialSite(rawUrl) {
+  return resolveSite(rawUrl).name === 'Socials';
 }
 
 function overflowGroupName(category, serviceName) {

@@ -11,7 +11,6 @@ import {
   listProviderModels,
   providerSettingKey
 } from '../src/ai-engine.js';
-import { OAuthHelper } from '../src/oauth-helper.js';
 
 // DOM elements - Navigation
 const navItems = document.querySelectorAll('.nav-item');
@@ -52,7 +51,6 @@ const oauthSection = document.getElementById('oauthSection');
 const btnToggleCompatibleKey = document.getElementById('btnToggleCompatibleKey');
 const btnSaveCompatible = document.getElementById('btnSaveCompatible');
 const btnTestCompatible = document.getElementById('btnTestCompatible');
-const oauthRedirectUri = document.getElementById('oauthRedirectUri');
 
 // Rules elements
 const rulesTableBody = document.getElementById('rulesTableBody');
@@ -379,13 +377,6 @@ async function loadSettings() {
   const strategy = syncData.groupingStrategy === 'site' ? 'site' : 'task';
   const strategyInput = document.querySelector(`input[name="groupingStrategy"][value="${strategy}"]`);
   if (strategyInput) strategyInput.checked = true;
-
-  // Set OAuth redirect URI display
-  try {
-    oauthRedirectUri.textContent = OAuthHelper.getRedirectUri();
-  } catch {
-    oauthRedirectUri.textContent = 'chrome://extensions';
-  }
 
   await loadLearnedRules();
   await loadRunDiagnostics();

@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-09-21",
+  "product": "Foldnex - Tab Organizer",
+  "assets": [
+    {
+      "file": "store-icon-128.png",
+      "dimensions": "128x128",
+      "source": "icon-concepts/foldnex-icon-concept-4-tab-tray.png",
+      "method": "Lanczos downscale of the selected full-resolution concept; byte-for-byte copy of icons/icon128.png"
+    },
+    {
+      "file": "screenshot-popup-1280x800.png",
+      "dimensions": "1280x800",
+      "source": "real popup.html rendering plus icons/icon128.png",
+      "method": "Playwright browser capture composed deterministically with ImageMagick"
+    },
+    {
+      "file": "small-promo-440x280.png",
+      "dimensions": "440x280",
+      "source": "icons/icon128.png and maintained store copy",
+      "method": "deterministic ImageMagick composition"
+    }
+  ],
+  "notes": "Artwork uses the selected Foldnex tab-tray icon, established colours, typography direction, and actual popup UI. The icon was generated specifically for Foldnex and contains no third-party stock imagery."
+}

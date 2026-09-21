@@ -31,6 +31,11 @@
       </nav>
       <div class="sidebar-footer">
         <span class="version-label">Foldnex v1.0.0</span>
+        <div class="sidebar-footer-links">
+          <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
+          <span aria-hidden="true">·</span>
+          <a href="https://github.com/magrathean-uk/foldnex/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+        </div>
       </div>
     </aside>
 
@@ -123,11 +128,11 @@
           </div>
 
           <div id="oauthSection" class="sub-section hidden">
-            <h4>OAuth bearer token</h4>
+            <h4>Bearer token (optional)</h4>
             <div class="form-group">
-              <label for="openaiOAuthToken">OAuth Access Token</label>
+              <label for="openaiOAuthToken">OpenAI bearer token</label>
               <input type="password" id="openaiOAuthToken" placeholder="eyJhbGciOi..." class="form-input">
-              <span class="form-help">Redirect URI for your OAuth Client: <code id="oauthRedirectUri"></code></span>
+              <span class="form-help">Optional bearer token supplied by you and stored only in Chrome local storage on this device.</span>
             </div>
           </div>
 

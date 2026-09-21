@@ -196,6 +196,7 @@ Rules:
 8. A shared domain is not enough to justify a group. Account, billing, communication, administration, media, and creative assets are different purposes even when hosted by the same company.
 9. Do not combine unrelated companies, brands, or account/admin pages merely to avoid a small group. Cross-domain grouping requires a genuinely shared task.
 10. Treat design-studio, portfolio, and motion-studio pages as creative references when the complete title and URL support that meaning; never infer a category from one ambiguous word such as "play".
+11. X, Reddit, Slack, LinkedIn feeds, Facebook, Instagram, Threads, Discord, Bluesky, Mastodon, and TikTok belong in Socials, never in system or administration groups.
 
 Respond strictly with valid JSON conforming to this schema:
 {
@@ -327,7 +328,7 @@ export function formatTabsPrompt(tabs, qualityFeedback = '') {
 
 function compactUrlHint(rawUrl) {
   const clean = sanitizeSemanticUrl(rawUrl).replace(/[\u0000-\u001F\u007F-\u009F]+/g, '');
-  const [pathPart, queryPart] = clean.split('?');
+  const [pathPart] = clean.split('?');
   const segments = pathPart.split('/');
   const host = segments.shift() || '';
   const semanticSegments = segments.slice(0, 3).map(segment => {
@@ -335,7 +336,7 @@ function compactUrlHint(rawUrl) {
     return segment.slice(0, 48);
   });
   const path = [host, ...semanticSegments].filter(Boolean).join('/');
-  return `${path}${queryPart ? `?${queryPart.slice(0, 80)}` : ''}`;
+  return path;
 }
 
 export function getAdaptiveGroupRange(tabCount) {

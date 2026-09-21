@@ -104,7 +104,7 @@ async function refreshEngineStatus() {
 
   if (groupingStrategy === 'site') {
     nanoHint.classList.remove('hidden');
-    nanoHint.textContent = 'Groups locally by address. X, Reddit, and Slack become Social; ChatGPT and Grok become AI.';
+    nanoHint.textContent = 'Groups locally by address. X, Reddit, and Slack become Socials; ChatGPT and Grok become AI.';
     engineBadge.className = 'badge ready';
     engineBadge.textContent = 'Local · no AI';
     return;
@@ -128,7 +128,8 @@ async function refreshEngineStatus() {
       engineBadge.textContent = 'Setup needed';
     }
   } else if (provider === 'gemini_api') {
-    nanoHint.classList.add('hidden');
+    nanoHint.classList.remove('hidden');
+    nanoHint.textContent = 'Cloud mode sends complete tab titles and host/path hints to Google Gemini when you group.';
     if (hasGeminiKey) {
       engineBadge.className = 'badge ready';
       engineBadge.textContent = 'Gemini ready';
@@ -137,7 +138,10 @@ async function refreshEngineStatus() {
       engineBadge.textContent = 'Key missing';
     }
   } else if (config.mode === 'compatible') {
-    nanoHint.classList.add('hidden');
+    nanoHint.classList.remove('hidden');
+    nanoHint.textContent = config.local
+      ? 'Runs through the Ollama server on this device. No tab data is sent to a cloud provider.'
+      : `Cloud mode sends complete tab titles and host/path hints to ${config.name} when you group.`;
     const apiKey = secrets[providerSettingKey(provider, 'apiKey')];
     const hasAuth = Boolean(apiKey || (provider === 'openai' && secrets.openaiOAuthToken));
     if (hasAuth || config.keyOptional) {

@@ -38,7 +38,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .nav-item svg { flex: none; opacity: .8; }
 .nav-item:hover { color: var(--ink); background: var(--surface); }
 .nav-item.active { color: var(--action-ink); background: var(--action); }
-.sidebar-footer { padding: 12px 8px 0; color: var(--quiet); font-size: 11px; }
+.sidebar-footer { display: flex; flex-direction: column; gap: 4px; padding: 12px 8px 0; color: var(--quiet); font-size: 11px; }
+.sidebar-footer-links { display: flex; align-items: center; gap: 7px; }
+.sidebar-footer a { color: var(--muted); text-decoration: none; }
+.sidebar-footer a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .main-content { position: relative; width: 100%; max-width: 1120px; padding: 56px clamp(42px, 6vw, 84px) 84px; overflow-x: hidden; }
 .tab-panel { display: none; max-width: 920px; }
@@ -157,7 +160,7 @@ kbd { padding: 4px 7px; color: var(--ink); font-size: 11px; }
   .sidebar-brand { padding: 0 0 16px; }
   .nav-menu { flex-direction: row; gap: 4px; padding: 10px 0; overflow-x: auto; }
   .nav-item { flex: 0 0 auto; }
-  .sidebar-footer { display: none; }
+  .sidebar-footer { flex-direction: row; justify-content: space-between; padding: 0 0 14px; }
   .main-content { padding: 38px 24px 64px; }
   .add-rule-grid { grid-template-columns: 1fr 1fr; }
   .table-toolbar { align-items: stretch; flex-direction: column; }

@@ -12,12 +12,12 @@ import {
   providerSettingKey
 } from './ai-engine.js';
 import { clusterTabsOffline } from './offline-clusterer.js';
-import { clusterTabsBySite } from './site-clusterer.js';
+import { clusterTabsBySite, isSocialSite } from './site-clusterer.js';
 import { markProgrammaticGroupUpdate } from './group-state.js';
 
 const RUN_HISTORY_KEY = 'foldnex_run_history_v1';
 const RUN_HISTORY_LIMIT = 20;
-const PROMPT_VERSION = 'semantic-v6';
+const PROMPT_VERSION = 'semantic-v7';
 const SAFE_INTERNAL_DUPLICATE_PAGES = new Set([
   'extensions', 'downloads', 'history', 'bookmarks'
 ]);
@@ -74,6 +74,29 @@ function mergeExplicitGroups(groups, explicitGroups) {
     if (existing) existing.tabIds.push(...ids);
     else retained.push({ name: explicit.name, color: explicit.color || 'blue', tabIds: ids });
   }
+  return retained;
+}
+
+/**
+ * Keep public social services out of misleading task groups such as
+ * "System & Admin". This runs before explicit local rules, so a user's own
+ * mapping remains authoritative.
+ */
+function enforceSocialGroup(groups, tabs) {
+  const socialTabs = (tabs || []).filter(tab => isSocialSite(tab.url || tab.pendingUrl || ''));
+  if (socialTabs.length === 0) return groups || [];
+
+  const socialIds = new Set(socialTabs.map(tab => tab.id));
+  const retained = (groups || []).map(group => ({
+    ...group,
+    tabIds: (group.tabIds || []).filter(id => !socialIds.has(id))
+  })).filter(group => group.tabIds.length > 0);
+
+  retained.push({
+    name: 'Socials',
+    color: 'blue',
+    tabIds: socialTabs.map(tab => tab.id)
+  });
   return retained;
 }
 
@@ -225,7 +248,7 @@ export async function executeTabGrouping(windowId, settings) {
   let aiMeta = null;
   let qualityIssues = [];
 
-  await LearningCache.ensureSchema();
+  if (!isIncognitoWindow) await LearningCache.ensureSchema();
   const provider = effectiveSettings.provider || 'gemini_nano';
   const requestedModel = modelForSettings(effectiveSettings);
   const groupingStrategy = effectiveSettings.groupingStrategy === 'site' ? 'site' : 'task';
@@ -241,9 +264,11 @@ export async function executeTabGrouping(windowId, settings) {
     resultSource = 'site-category';
     console.log(`[Foldnex] Grouped ${groupableTabs.length} tabs locally by site category.`);
 
-    finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
-    const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
-    finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+    if (!isIncognitoWindow) {
+      finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
+      const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
+      finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+    }
   } else if (!isIncognitoWindow) {
     const cached = await ExactResultCache.get(groupableTabs, cacheScope);
     exactCacheContext = cached.context;
@@ -301,9 +326,15 @@ export async function executeTabGrouping(windowId, settings) {
       }
     }
 
-    finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
-    const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
-    finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+    if (groupingStrategy === 'task') {
+      finalGroups = enforceSocialGroup(finalGroups, groupableTabs);
+    }
+
+    if (!isIncognitoWindow) {
+      finalGroups = await LearningCache.applyGroupPreferences(finalGroups, groupableTabs);
+      const { matchedGroups: explicitGroups } = await LearningCache.classifyExplicit(groupableTabs);
+      finalGroups = mergeExplicitGroups(finalGroups, explicitGroups);
+    }
 
     // Site-category mode deliberately permits large same-site groups (for
     // example all Envato pages), so semantic breadth checks only apply to the

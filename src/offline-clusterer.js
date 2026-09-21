@@ -54,7 +54,7 @@ function identifyKnownService(url) {
       return { category: 'Communication', color: 'purple', priority: 8 };
     }
     if (['twitter.com', 'x.com', 'reddit.com', 'linkedin.com'].includes(host)) {
-      return { category: 'Social & Feed', color: 'orange', priority: 7 };
+      return { category: 'Socials', color: 'blue', priority: 7 };
     }
 
     // Media & Video

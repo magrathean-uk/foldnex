@@ -73,10 +73,10 @@ test('site-category grouping keeps brands together and uses the requested taxono
   ]);
 
   assert.deepEqual(groups.find(group => group.name === 'Envato')?.tabIds, [1, 2]);
-  assert.deepEqual(groups.find(group => group.name === 'Social')?.tabIds, [3, 4, 5]);
+  assert.deepEqual(groups.find(group => group.name === 'Socials')?.tabIds, [3, 4, 5]);
   assert.deepEqual(groups.find(group => group.name === 'AI · Assistants')?.tabIds, [6, 7]);
   assert.deepEqual(groups.find(group => group.name === 'Acme')?.tabIds, [8, 9]);
-  assert.equal(getSiteCategory('https://app.slack.com/client').name, 'Social');
+  assert.equal(getSiteCategory('https://app.slack.com/client').name, 'Socials');
 });
 
 test('address taxonomy separates AI, code, email, social, and dedicated heavy services', () => {
@@ -97,7 +97,7 @@ test('address taxonomy separates AI, code, email, social, and dedicated heavy se
   assert.deepEqual(groups.find(group => group.name === 'AI · Platforms')?.tabIds, [3, 4]);
   assert.deepEqual(groups.find(group => group.name === 'Code & Repositories')?.tabIds, [5]);
   assert.deepEqual(groups.find(group => group.name === 'Email')?.tabIds, [6]);
-  assert.deepEqual(groups.find(group => group.name === 'Social')?.tabIds, [7, 10]);
+  assert.deepEqual(groups.find(group => group.name === 'Socials')?.tabIds, [7, 10]);
   assert.deepEqual(groups.find(group => group.name === 'YouTube')?.tabIds, [8]);
   assert.deepEqual(groups.find(group => group.name === 'Careers')?.tabIds, [9]);
 });
@@ -110,7 +110,7 @@ test('oversized multi-service categories split at site boundaries', () => {
   ];
   const groups = clusterTabsBySite(tabs);
 
-  assert.deepEqual(groups.map(group => group.name), ['Social · X', 'Social · Reddit', 'Social · Slack']);
+  assert.deepEqual(groups.map(group => group.name), ['Socials · X', 'Socials · Reddit', 'Socials · Slack']);
   assert.deepEqual(groups.map(group => group.tabIds.length), [7, 5, 5]);
 });
 
@@ -161,13 +161,14 @@ test('a 200-tab address window stays deterministic, complete, and below 30 group
 test('prompt retains complete titles and uses compact local ordinals', () => {
   const longTitle = `Detailed task ${'context '.repeat(30)}— Site`;
   const prompt = formatTabsPrompt([
-    { id: 98273465, title: longTitle, url: 'https://app.example.com/projects/1234567890123456/details', active: true },
+    { id: 98273465, title: longTitle, url: 'https://app.example.com/projects/1234567890123456/details?q=private+search', active: true },
     { id: 11223344, title: 'Second title', url: 'https://example.com/#/settings', active: false }
   ]);
 
   assert.match(prompt, /\[id, completeTitle, urlHint, active\]/);
   assert.ok(prompt.includes(longTitle));
   assert.ok(!prompt.includes('98273465'));
+  assert.ok(!prompt.includes('private'));
   assert.ok(prompt.includes('app.example.com/projects/:id/details'));
   assert.ok(prompt.includes('example.com#/settings'));
 });
@@ -183,6 +184,58 @@ test('adaptive grouping expands for a crowded window and rejects broad catch-all
   assert.equal(quality.passed, false);
   assert.ok(quality.issues.some(issue => issue.includes('vague group')));
   assert.ok(quality.issues.some(issue => issue.includes('too broad')));
+});
+
+test('title-aware grouping moves X and Reddit out of an AI-created admin group', async () => {
+  installChromeStorageMock();
+  const tabs = [
+    { id: 1, windowId: 9, index: 0, active: true, pinned: false, incognito: false, title: 'Home / X', url: 'https://x.com/home' },
+    { id: 2, windowId: 9, index: 1, active: false, pinned: false, incognito: false, title: '/r/Chrome', url: 'https://www.reddit.com/r/chrome/' },
+    { id: 3, windowId: 9, index: 2, active: false, pinned: false, incognito: false, title: 'Dashboard | Pathfinder', url: 'https://unifi.ui.com/consoles/pathfinder/protect/dashboard' },
+    { id: 4, windowId: 9, index: 3, active: false, pinned: false, incognito: false, title: 'Billing', url: 'https://secure.backblaze.com/billing_card.htm' }
+  ];
+  let groupId = 600;
+  const groupUpdates = [];
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return groupId++; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = {
+    async update(id, details) { groupUpdates.push({ id, ...details }); }
+  };
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    async json() {
+      return {
+        model: 'qwen/qwen3.8-27b',
+        choices: [{ message: { content: JSON.stringify({ groups: [
+          { name: 'System & Admin', color: 'grey', tabIds: [0, 1, 2, 3] }
+        ] }) } }],
+        usage: { prompt_tokens: 120, completion_tokens: 24, total_tokens: 144 }
+      };
+    }
+  });
+
+  try {
+    const result = await executeTabGrouping(9, {
+      provider: 'groq',
+      groqApiKey: 'test-only',
+      groqModel: 'qwen/qwen3.8-27b'
+    });
+
+    assert.deepEqual(result.groups.map(group => ({ name: group.name, tabIds: group.tabIds })), [
+      { name: 'Socials', tabIds: [1, 2] },
+      { name: 'System & Admin', tabIds: [3, 4] }
+    ]);
+    assert.deepEqual(groupUpdates.map(group => group.title), ['Socials', 'System & Admin']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('Groq request uses compact JSON output and maps ordinals back to Chrome IDs', async () => {
@@ -394,4 +447,31 @@ test('site-category strategy bypasses AI and accepts a large same-site group', a
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('incognito site grouping leaves persistent extension storage untouched', async () => {
+  const { local } = installChromeStorageMock();
+  const tabs = [
+    { id: 901, windowId: 12, index: 0, active: true, pinned: false, incognito: true, title: 'Home / X', url: 'https://x.com/home' },
+    { id: 902, windowId: 12, index: 1, active: false, pinned: false, incognito: true, title: '/r/Chrome', url: 'https://reddit.com/r/chrome/' },
+    { id: 903, windowId: 12, index: 2, active: false, pinned: false, incognito: true, title: 'Messages', url: 'https://app.slack.com/client/team/channel' }
+  ];
+  let groupId = 900;
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return groupId++; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = { async update() {} };
+
+  const result = await executeTabGrouping(12, {
+    groupingStrategy: 'site',
+    provider: 'offline'
+  });
+
+  assert.equal(result.source, 'site-category');
+  assert.deepEqual(result.groups.map(group => group.name), ['Socials']);
+  assert.deepEqual(local, {});
 });
