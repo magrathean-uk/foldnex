@@ -87,6 +87,90 @@ export function providerSettingKey(provider, suffix) {
   return `${provider}${suffix[0].toUpperCase()}${suffix.slice(1)}`;
 }
 
+/** Current OpenAI reasoning models reject sampling controls such as temperature. */
+export function isOpenAIReasoningModel(model) {
+  const modelId = String(model || '').toLowerCase().split('/').at(-1) || '';
+  if (/(?:^|-)chat(?:-|$)/.test(modelId)) return false;
+  return /^gpt-(?:[5-9]|[1-9]\d)(?:[.-]|$)/.test(modelId)
+    || /^o[1-9](?:-|$)/.test(modelId);
+}
+
+/**
+ * Reasoning controls are model-specific even across OpenAI-compatible APIs.
+ * Only opt in for documented model families so a non-reasoning model never
+ * receives a foreign parameter and fails with HTTP 400.
+ */
+export function isCompatibleReasoningModel(provider, model) {
+  const modelId = String(model || '').toLowerCase();
+  const leafId = modelId.split('/').at(-1) || '';
+
+  if (provider === 'openai') return isOpenAIReasoningModel(modelId);
+  if (provider === 'xai') {
+    return /^grok-3-mini(?:-|$)/.test(leafId)
+      || /^grok-4\.(?:[5-9]|\d{2,})(?:-|$)/.test(leafId);
+  }
+  if (provider === 'groq') {
+    return /^openai\/gpt-oss-(?:20b|120b)$/.test(modelId)
+      || /^qwen\/qwen3\.8(?:-|$)/.test(modelId);
+  }
+  if (provider === 'openrouter') {
+    return isOpenAIReasoningModel(leafId)
+      || /^grok-3-mini(?:-|$)/.test(leafId)
+      || /^grok-4\.(?:[5-9]|\d{2,})(?:-|$)/.test(leafId)
+      || /^gemini-(?:2\.5|3(?:[.-]|$))/.test(leafId)
+      || /^claude-(?:3[.-]7|[4-9])/.test(leafId)
+      || /(?:^|[-/])(?:gpt-oss|qwen3|deepseek-r1|deepseek-reasoner|deepseek-v3\.1|deepseek-v4)(?:[-/:.]|$)/.test(modelId)
+      || /(?:^|[-/])thinking(?:[-/:.]|$)/.test(modelId);
+  }
+  if (provider === 'deepseek') return /^deepseek-/.test(leafId);
+  if (provider === 'cerebras') {
+    return /^gpt-oss-(?:20b|120b)$/.test(leafId) || /^zai-glm-4\.7(?:-|$)/.test(leafId);
+  }
+  if (provider === 'ollama') {
+    return /(?:^|[-/:])(?:gpt-oss|qwen3|deepseek-r1|deepseek-v3\.1|thinking)(?:[-/:.]|$)/.test(modelId);
+  }
+  return false;
+}
+
+export function getCompatibleRequestControls(provider, model) {
+  if (!isCompatibleReasoningModel(provider, model)) return { temperature: 0 };
+
+  if (provider === 'openrouter') {
+    return { reasoning: { effort: 'low', exclude: true } };
+  }
+  if (provider === 'deepseek') {
+    return { reasoning_effort: 'low', thinking: { type: 'enabled' } };
+  }
+  if (provider === 'groq') {
+    return { temperature: 0, reasoning_effort: 'low', include_reasoning: false };
+  }
+  if (provider === 'cerebras') {
+    return { temperature: 0, reasoning_effort: 'low', reasoning_format: 'hidden' };
+  }
+  if (provider === 'ollama') {
+    return { temperature: 0, reasoning_effort: 'low' };
+  }
+  return { reasoning_effort: 'low' };
+}
+
+export function getGeminiGenerationConfig(model, config = {}) {
+  const modelId = String(model || '').toLowerCase().replace(/^models\//, '');
+  const generationConfig = { ...config };
+  const isGemini3 = /^gemini-3(?:[.-]|$)/.test(modelId);
+  const supportsThinking = isGemini3
+    || /^gemini-2\.5(?:[.-]|$)/.test(modelId)
+    || modelId === 'gemini-flash-lite-latest';
+
+  if (!supportsThinking) return generationConfig;
+  if (isGemini3) {
+    delete generationConfig.temperature;
+    generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+  } else {
+    generationConfig.thinkingConfig = { thinkingBudget: 512 };
+  }
+  return generationConfig;
+}
+
 const MODEL_LIST_TIMEOUT_MS = 15000;
 
 async function fetchModelPage(url, headers) {
@@ -580,10 +664,10 @@ async function callGeminiAPI(tabs, apiKey, model = PROVIDER_CATALOG.gemini_api.d
         parts: [{ text: promptText }]
       }
     ],
-    generationConfig: {
+    generationConfig: getGeminiGenerationConfig(model, {
       responseMimeType: 'application/json',
       temperature: 0.2
-    }
+    })
   };
 
   const response = await fetch(endpoint, {
@@ -622,12 +706,13 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
   const promptText = formatTabsPrompt(tabs, qualityFeedback);
 
   const selectedModel = model || config.defaultModel;
+  const usesOpenAIReasoning = provider === 'openai' && isOpenAIReasoningModel(selectedModel);
   const payload = {
     model: selectedModel,
-    temperature: 0,
+    ...getCompatibleRequestControls(provider, selectedModel),
     response_format: { type: 'json_object' },
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: usesOpenAIReasoning ? 'developer' : 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: promptText }
     ]
   };
@@ -638,8 +723,6 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
     // with HTTP 400 (failed_generation). Foldnex validates IDs, coverage,
     // colors, and quality locally, avoiding a second paid inference retry.
     payload.messages = [{ role: 'user', content: `${SYSTEM_PROMPT}\n\n${promptText}` }];
-    payload.reasoning_effort = selectedModel.startsWith('qwen/') ? 'none' : 'low';
-    payload.include_reasoning = false;
   }
   // The budget includes hidden reasoning tokens on GPT-OSS as well as the JSON
   // assignment. A too-small cap makes Groq reject truncated JSON with

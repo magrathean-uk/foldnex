@@ -60,6 +60,8 @@ All engines appear in one list in the popup and settings page.
 
 Provider model fields are populated from each provider's live models endpoint and cached for six hours. A model ID can also be entered manually when it is not returned by the catalog.
 
+Foldnex applies low reasoning effort to supported reasoning models using each provider's native request shape. Sampling controls such as `temperature` are omitted where the selected reasoning model rejects them; non-reasoning models receive only their supported deterministic controls. The connection test and real grouping request share these rules.
+
 ### Recommended Groq configuration
 
 The Groq default is `qwen/qwen3.8-27b`. On a saved 36-tab acceptance window it produced a substantially cleaner, lower-token result than `openai/gpt-oss-20b`, especially when asked to split a large same-domain bucket by purpose. Foldnex uses JSON-object output, compact local tab ordinals, local coverage and quality validation, and a bounded completion budget. Users can still select any compatible model returned by Groq's live catalog.

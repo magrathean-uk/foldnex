@@ -5,7 +5,11 @@ import {
   assessGroupingQuality,
   clusterTabsWithAI,
   formatTabsPrompt,
-  getAdaptiveGroupRange
+  getAdaptiveGroupRange,
+  getCompatibleRequestControls,
+  getGeminiGenerationConfig,
+  isCompatibleReasoningModel,
+  isOpenAIReasoningModel
 } from '../src/ai-engine.js';
 import { ExactResultCache, LearningCache } from '../src/cache-engine.js';
 import { executeTabGrouping, getDuplicateTabKey } from '../src/grouper.js';
@@ -390,6 +394,116 @@ test('Groq request uses compact JSON output and maps ordinals back to Chrome IDs
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('OpenAI reasoning models omit temperature and request low reasoning effort', async () => {
+  assert.equal(isOpenAIReasoningModel('gpt-5.4-nano'), true);
+  assert.equal(isOpenAIReasoningModel('gpt-4o-mini'), false);
+  assert.deepEqual(
+    getCompatibleRequestControls('openai', 'gpt-5.4-nano'),
+    { reasoning_effort: 'low' }
+  );
+  assert.deepEqual(
+    getCompatibleRequestControls('openai', 'gpt-4o-mini'),
+    { temperature: 0 }
+  );
+
+  const originalFetch = globalThis.fetch;
+  let requestPayload;
+  globalThis.fetch = async (_url, options) => {
+    requestPayload = JSON.parse(options.body);
+    return {
+      ok: true,
+      async json() {
+        return {
+          model: 'gpt-5.4-nano',
+          choices: [{ message: { content: JSON.stringify({
+            groups: [{ name: 'Build', color: 'blue', tabIds: [0, 1] }]
+          }) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 }
+        };
+      }
+    };
+  };
+
+  try {
+    await clusterTabsWithAI([
+      { id: 710001, title: 'Issue implementation', url: 'https://github.com/org/repo/issues/1' },
+      { id: 710002, title: 'API reference', url: 'https://docs.example.com/api' }
+    ], {
+      provider: 'openai',
+      openaiApiKey: 'test-only',
+      openaiModel: 'gpt-5.4-nano'
+    });
+
+    assert.equal('temperature' in requestPayload, false);
+    assert.equal(requestPayload.reasoning_effort, 'low');
+    assert.equal(requestPayload.messages[0].role, 'developer');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('provider request controls use each reasoning API without leaking unsupported fields', () => {
+  const cases = [
+    ['xai', 'grok-4.6', { reasoning_effort: 'low' }],
+    ['groq', 'qwen/qwen3.8-27b', {
+      temperature: 0,
+      reasoning_effort: 'low',
+      include_reasoning: false
+    }],
+    ['openrouter', 'google/gemini-2.5-flash-lite', {
+      reasoning: { effort: 'low', exclude: true }
+    }],
+    ['deepseek', 'deepseek-flash', {
+      reasoning_effort: 'low',
+      thinking: { type: 'enabled' }
+    }],
+    ['cerebras', 'gpt-oss-120b', {
+      temperature: 0,
+      reasoning_effort: 'low',
+      reasoning_format: 'hidden'
+    }],
+    ['ollama', 'qwen3:8b', { temperature: 0, reasoning_effort: 'low' }]
+  ];
+
+  for (const [provider, model, expected] of cases) {
+    assert.equal(isCompatibleReasoningModel(provider, model), true, `${provider}:${model}`);
+    assert.deepEqual(getCompatibleRequestControls(provider, model), expected);
+  }
+
+  assert.equal(isCompatibleReasoningModel('cerebras', 'qwen-3.8-27b'), false);
+  assert.deepEqual(getCompatibleRequestControls('cerebras', 'qwen-3.8-27b'), { temperature: 0 });
+  assert.equal(isCompatibleReasoningModel('ollama', 'qwen2.5-coder:32b'), false);
+  assert.deepEqual(getCompatibleRequestControls('ollama', 'qwen2.5-coder:32b'), { temperature: 0 });
+});
+
+test('Gemini thinking controls are version-aware', () => {
+  assert.deepEqual(
+    getGeminiGenerationConfig('gemini-2.5-flash-lite', {
+      responseMimeType: 'application/json',
+      temperature: 0.2
+    }),
+    {
+      responseMimeType: 'application/json',
+      temperature: 0.2,
+      thinkingConfig: { thinkingBudget: 512 }
+    }
+  );
+  assert.deepEqual(
+    getGeminiGenerationConfig('gemini-3.5-flash', {
+      responseMimeType: 'application/json',
+      temperature: 0.2
+    }),
+    {
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingLevel: 'LOW' }
+    }
+  );
+  assert.deepEqual(
+    getGeminiGenerationConfig('gemini-2.0-flash', { temperature: 0.2 }),
+    { temperature: 0.2 }
+  );
 });
 
 function optionsContainChromeIds(payload, ids) {

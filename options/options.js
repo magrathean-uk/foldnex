@@ -8,6 +8,9 @@ import {
   prepareChromeNano,
   CHROME_GROUP_COLORS,
   PROVIDER_CATALOG,
+  getCompatibleRequestControls,
+  getGeminiGenerationConfig,
+  isCompatibleReasoningModel,
   listProviderModels,
   providerSettingKey
 } from '../src/ai-engine.js';
@@ -676,7 +679,8 @@ btnTestGemini.addEventListener('click', async () => {
   btnTestGemini.disabled = true;
 
   try {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel.value)}:generateContent`;
+    const selectedModel = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`;
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -684,7 +688,8 @@ btnTestGemini.addEventListener('click', async () => {
         'x-goog-api-key': key
       },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Respond with: {"status":"ok"}' }] }]
+        contents: [{ role: 'user', parts: [{ text: 'Respond with: {"status":"ok"}' }] }],
+        generationConfig: getGeminiGenerationConfig(selectedModel)
       })
     });
 
@@ -746,13 +751,15 @@ btnTestCompatible.addEventListener('click', async () => {
       headers['X-Title'] = 'Foldnex';
     }
 
+    const selectedModel = compatibleModel.value.trim() || config.defaultModel;
     const payload = {
-      model: compatibleModel.value.trim() || config.defaultModel,
+      model: selectedModel,
       messages: [{ role: 'user', content: 'Reply with the single word ok.' }],
-      temperature: 0
+      ...getCompatibleRequestControls(provider, selectedModel)
     };
-    if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = 32;
-    else payload.max_tokens = 32;
+    const testBudget = isCompatibleReasoningModel(provider, selectedModel) ? 128 : 32;
+    if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = testBudget;
+    else payload.max_tokens = testBudget;
 
     const res = await fetch(`${base.replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',

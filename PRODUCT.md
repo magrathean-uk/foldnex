@@ -69,6 +69,7 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - By site category is a deterministic local strategy independent of the selected task engine and consumes no provider tokens.
 - Site-category grouping does not request browser-history permission. The generic public taxonomy is maintained in source; personal mappings remain explicit local rules.
 - Provider model catalogs are discovered live and cached for six hours.
+- Provider requests select low reasoning effort only for documented reasoning model families, using the provider's native parameter shape and omitting incompatible sampling controls. Connection tests and grouping use the same compatibility rules.
 - Groq with `qwen/qwen3.8-27b` is the default cloud configuration for the current grouping workload, selected from a live 36-tab comparison for better grouping quality with fewer generated tokens.
 - Groq uses JSON-object output plus local ID, coverage, color, and quality validation. This avoids strict-schema `failed_generation` errors that can otherwise turn a recoverable assignment into an HTTP 400.
 
