@@ -29,6 +29,8 @@ FILES=(
   icons/icon32.png
   icons/icon48.png
   icons/icon128.png
+  icons/material-symbols-rounded.ttf
+  icons/material-symbols-LICENSE.txt
 )
 
 for file in "${FILES[@]}"; do

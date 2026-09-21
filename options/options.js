@@ -18,6 +18,12 @@ const tabPanels = document.querySelectorAll('.tab-panel');
 const toast = document.getElementById('toast');
 
 // Provider elements
+const providerPicker = document.getElementById('providerPicker');
+const providerSelector = document.getElementById('providerSelector');
+const providerSelectorName = document.getElementById('providerSelectorName');
+const providerSelectorDescription = document.getElementById('providerSelectorDescription');
+const providerSelectorMode = document.getElementById('providerSelectorMode');
+const providerSelectorAction = document.getElementById('providerSelectorAction');
 const providerList = document.getElementById('providerList');
 const panelNanoDetails = document.getElementById('panel-nano-details');
 const panelGeminiDetails = document.getElementById('panel-gemini-details');
@@ -78,8 +84,11 @@ const diagQuality = document.getElementById('diagQuality');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
+let selectedProvider = 'gemini_nano';
+let providerTransitionId = 0;
 let lastNanoStatus = 'checking';
 const MODEL_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
  * Display toast notification
@@ -104,6 +113,9 @@ navItems.forEach(item => {
 
     item.classList.add('active');
     document.getElementById(`tab-${targetTab}`)?.classList.add('active');
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
   });
 });
 
@@ -138,6 +150,160 @@ function renderProviderList() {
 
 function getProviderRadios() {
   return document.querySelectorAll('input[name="providerSelect"]');
+}
+
+function providerPanel(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  if (provider === 'gemini_nano') return panelNanoDetails;
+  if (provider === 'gemini_api') return panelGeminiDetails;
+  if (provider === 'offline') return panelOfflineDetails;
+  if (config?.mode === 'compatible') return panelCompatibleDetails;
+  return null;
+}
+
+function syncProviderSelector(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  if (!config) return;
+  selectedProvider = provider;
+  providerSelectorName.textContent = config.name;
+  providerSelectorDescription.textContent = config.description;
+  providerSelectorMode.textContent = config.mode === 'local' || config.local ? 'Local' : 'Cloud';
+}
+
+function setProviderPickerA11y(collapsed) {
+  providerSelector.setAttribute('aria-expanded', String(!collapsed));
+  providerSelectorAction.textContent = collapsed ? 'Change' : 'Close';
+  providerList.toggleAttribute('inert', collapsed);
+  providerList.setAttribute('aria-hidden', String(collapsed));
+}
+
+function waitForMotion(duration) {
+  return new Promise(resolve => setTimeout(resolve, duration));
+}
+
+function animateProviderRowsIntoSelector(provider) {
+  const target = providerSelector.getBoundingClientRect();
+  const targetX = target.left + Math.min(target.width * .56, 320);
+  const targetY = target.top + target.height / 2;
+  return [...providerList.querySelectorAll('.provider-row')].map((row, index) => {
+    const rect = row.getBoundingClientRect();
+    const dx = targetX - (rect.left + rect.width / 2);
+    const dy = targetY - (rect.top + rect.height / 2);
+    const isSelected = row.querySelector('input')?.value === provider;
+    return row.animate([
+      {
+        transform: 'translate(0, 0) scale(1)',
+        opacity: 1,
+        filter: 'blur(0)',
+        clipPath: 'inset(0 round 10px)'
+      },
+      {
+        offset: .7,
+        transform: `translate(${dx * .7}px, ${dy * .72}px) scale(${isSelected ? .94 : .88}, .52)`,
+        opacity: isSelected ? .82 : .38,
+        filter: 'blur(.5px)',
+        clipPath: 'inset(18% 4% round 10px)'
+      },
+      {
+        transform: `translate(${dx}px, ${dy}px) scale(.7, .12)`,
+        opacity: 0,
+        filter: 'blur(1.5px)',
+        clipPath: 'inset(46% 10% round 10px)'
+      }
+    ], {
+      duration: isSelected ? 320 : 260,
+      delay: Math.min(index * 16, 128),
+      easing: 'cubic-bezier(.16, 1, .3, 1)',
+      fill: 'forwards'
+    });
+  });
+}
+
+function animateProviderRowsOutOfSelector() {
+  return [...providerList.querySelectorAll('.provider-row')].map((row, index) => row.animate([
+    {
+      transform: 'translateY(-12px) scale(.985)',
+      opacity: 0,
+      clipPath: 'inset(42% 7% round 10px)'
+    },
+    {
+      transform: 'translateY(0) scale(1)',
+      opacity: 1,
+      clipPath: 'inset(0 round 10px)'
+    }
+  ], {
+    duration: 240,
+    delay: Math.min(index * 14, 112),
+    easing: 'cubic-bezier(.16, 1, .3, 1)'
+  }));
+}
+
+function focusProviderDetails(provider) {
+  const panel = providerPanel(provider);
+  if (!panel || !document.getElementById('tab-providers')?.classList.contains('active')) return;
+
+  panel.classList.remove('is-provider-entering');
+  requestAnimationFrame(() => {
+    panel.classList.add('is-provider-entering');
+    let target = panel;
+    if (provider === 'gemini_api') target = geminiApiKey;
+    if (PROVIDER_CATALOG[provider]?.mode === 'compatible') {
+      target = PROVIDER_CATALOG[provider].keyOptional ? compatibleModel : compatibleApiKey;
+    }
+    if (provider === 'gemini_nano' && !btnRecheckNano.disabled) target = btnRecheckNano;
+    target.focus({ preventScroll: true });
+    panel.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'nearest' });
+    setTimeout(() => panel.classList.remove('is-provider-entering'), 420);
+  });
+}
+
+async function collapseProviderPicker(provider, { animate = false, focusDetails = false } = {}) {
+  const transitionId = ++providerTransitionId;
+  syncProviderSelector(provider);
+  setProviderPickerA11y(true);
+
+  const shouldAnimate = animate && !reducedMotion.matches && !providerPicker.classList.contains('is-collapsed');
+  providerPicker.classList.add('is-animating');
+  providerSelector.disabled = true;
+  const animations = shouldAnimate ? animateProviderRowsIntoSelector(provider) : [];
+
+  if (shouldAnimate) {
+    requestAnimationFrame(() => providerPicker.classList.add('is-collapsed'));
+  } else {
+    providerPicker.classList.add('is-collapsed');
+  }
+  if (shouldAnimate) {
+    await Promise.all([
+      ...animations.map(animation => animation.finished.catch(() => undefined)),
+      waitForMotion(360)
+    ]);
+  }
+
+  if (transitionId !== providerTransitionId) return;
+  animations.forEach(animation => animation.cancel());
+  providerPicker.classList.remove('is-animating');
+  providerPicker.classList.add('is-ready');
+  providerSelector.disabled = false;
+  if (focusDetails) focusProviderDetails(provider);
+}
+
+async function expandProviderPicker() {
+  if (!providerPicker.classList.contains('is-collapsed')) return;
+  const transitionId = ++providerTransitionId;
+  setProviderPickerA11y(false);
+  providerPicker.classList.remove('is-collapsed');
+
+  let animations = [];
+  if (!reducedMotion.matches) {
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    animations = animateProviderRowsOutOfSelector();
+    await Promise.all(animations.map(animation => animation.finished.catch(() => undefined)));
+  }
+
+  if (transitionId !== providerTransitionId) return;
+  animations.forEach(animation => animation.cancel());
+  const selectedRadio = document.querySelector(`input[name="providerSelect"][value="${selectedProvider}"]`);
+  selectedRadio?.focus({ preventScroll: true });
 }
 
 function modelCatalogCacheKey(provider) {
@@ -264,12 +430,36 @@ function updateProviderPanels(provider) {
 }
 
 renderProviderList();
+providerSelector.addEventListener('click', () => {
+  if (providerPicker.classList.contains('is-collapsed')) {
+    expandProviderPicker();
+  } else {
+    collapseProviderPicker(selectedProvider, { animate: true });
+  }
+});
+
 getProviderRadios().forEach(radio => {
   radio.addEventListener('change', async (e) => {
+    if (!e.target.checked) return;
     const provider = e.target.value;
     updateProviderPanels(provider);
-    await chrome.storage.sync.set({ provider });
-    showToast(`${PROVIDER_CATALOG[provider].name} selected.`);
+    let saveError = null;
+    let savePromise;
+    try {
+      savePromise = chrome.storage.sync.set({ provider }).catch(error => {
+        saveError = error;
+      });
+    } catch (error) {
+      saveError = error;
+      savePromise = Promise.resolve();
+    }
+    await collapseProviderPicker(provider, { animate: true, focusDetails: true });
+    await savePromise;
+    if (!saveError) {
+      showToast(`${PROVIDER_CATALOG[provider].name} selected.`);
+    } else {
+      showToast('The engine changed here, but Chrome could not save the selection.', 'error');
+    }
   });
 });
 
@@ -371,6 +561,7 @@ async function loadSettings() {
   geminiModel.value = syncData.geminiModel || PROVIDER_CATALOG.gemini_api.defaultModel;
 
   updateProviderPanels(currentProvider);
+  await collapseProviderPicker(currentProvider);
 
   prefOneClickMode.checked = Boolean(syncData.oneClickIconMode);
   prefCollapseGroups.checked = Boolean(syncData.collapseGroupsOnCreation);
@@ -410,7 +601,11 @@ async function loadRunDiagnostics() {
 function setupPasswordToggle(btn, input) {
   btn.addEventListener('click', () => {
     input.type = input.type === 'password' ? 'text' : 'password';
-    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
+    const isHidden = input.type === 'password';
+    const icon = btn.querySelector('.material-symbols-rounded');
+    if (icon) icon.textContent = isHidden ? 'visibility' : 'visibility_off';
+    btn.setAttribute('aria-label', `${isHidden ? 'Show' : 'Hide'} API key`);
+    btn.title = `${isHidden ? 'Show' : 'Hide'} API key`;
   });
 }
 setupPasswordToggle(btnToggleGeminiKey, geminiApiKey);
@@ -632,7 +827,11 @@ function renderRules(rules) {
     const tdAction = document.createElement('td');
     const btnDelete = document.createElement('button');
     btnDelete.className = 'danger-btn small-btn';
-    btnDelete.textContent = 'Delete';
+    const deleteIcon = document.createElement('span');
+    deleteIcon.className = 'material-symbols-rounded';
+    deleteIcon.setAttribute('aria-hidden', 'true');
+    deleteIcon.textContent = 'delete';
+    btnDelete.append(deleteIcon, document.createTextNode('Delete'));
     btnDelete.addEventListener('click', async () => {
       await LearningCache.deleteRule(rule.pattern);
       showToast(`Deleted rule for ${rule.pattern}`);
@@ -906,7 +1105,8 @@ prefCollapseGroups.addEventListener('change', async (e) => {
 });
 
 // Reactive Storage Synchronization across windows/popups
-chrome.storage.onChanged.addListener((changes, areaName) => {
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync') {
     if (changes.provider) {
       const newProv = changes.provider.newValue;
@@ -914,6 +1114,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       if (matchingRadio && !matchingRadio.checked) {
         matchingRadio.checked = true;
         updateProviderPanels(newProv);
+        collapseProviderPicker(newProv);
       }
     }
     if (changes.groupingStrategy) {
@@ -932,7 +1133,19 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes[LearningCache.STORAGE_KEY]) loadLearnedRules();
     if (changes.foldnex_last_run) loadRunDiagnostics();
   }
-});
+  });
+}
 
 // Initial boot
-document.addEventListener('DOMContentLoaded', loadSettings);
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await loadSettings();
+  } catch (error) {
+    console.warn('[Foldnex] Settings could not be loaded; keeping the engine chooser available.', error);
+    const firstRadio = getProviderRadios()[0];
+    if (firstRadio) firstRadio.checked = true;
+    syncProviderSelector(firstRadio?.value || 'gemini_nano');
+    providerPicker.classList.add('is-ready');
+    await expandProviderPicker();
+  }
+});

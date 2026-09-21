@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
   <title>Foldnex Settings</title>
   <link rel="stylesheet" href="options.css">
 </head>
@@ -17,15 +17,15 @@
       </div>
       <nav class="nav-menu">
         <button class="nav-item active" data-tab="providers">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span class="material-symbols-rounded" aria-hidden="true">tune</span>
           Grouping engines
         </button>
         <button class="nav-item" data-tab="learning">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span class="material-symbols-rounded" aria-hidden="true">rule</span>
           Rules & memory
         </button>
         <button class="nav-item" data-tab="behavior">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="material-symbols-rounded" aria-hidden="true">settings</span>
           Behaviour
         </button>
       </nav>
@@ -51,11 +51,27 @@
           <p class="section-subtitle">Choose how Foldnex understands the tabs in your current window.</p>
         </div>
 
-        <div id="providerList" class="provider-list" role="radiogroup" aria-label="Grouping engine"></div>
+        <div id="providerPicker" class="provider-picker is-collapsed">
+          <button id="providerSelector" class="provider-selector" type="button" aria-expanded="false" aria-controls="providerList">
+            <span class="provider-selector-icon material-symbols-rounded" aria-hidden="true">tune</span>
+            <span class="provider-selector-copy">
+              <span class="provider-selector-label">Selected engine</span>
+              <strong id="providerSelectorName">Choose a grouping engine</strong>
+              <span id="providerSelectorDescription">Select an engine to configure it.</span>
+            </span>
+            <span id="providerSelectorMode" class="status-pill">Engine</span>
+            <span id="providerSelectorAction" class="provider-selector-action">Change</span>
+          </button>
+          <div id="providerOptionsShell" class="provider-options-shell">
+            <div class="provider-options-clip">
+              <div id="providerList" class="provider-list" role="radiogroup" aria-label="Grouping engine" aria-hidden="true" inert></div>
+            </div>
+          </div>
+        </div>
 
         <!-- Provider Details Configurations -->
         <!-- Nano Config Details -->
-        <div id="panel-nano-details" class="provider-settings-box">
+        <div id="panel-nano-details" class="provider-settings-box" tabindex="-1">
           <h3>Chrome Gemini Nano</h3>
           <div class="nano-status-banner" role="status" aria-live="polite">
             <div id="nanoStatusText">Checking Chrome’s local model…</div>
@@ -73,13 +89,13 @@
         </div>
 
         <!-- Gemini API Config Details -->
-        <div id="panel-gemini-details" class="provider-settings-box hidden">
+        <div id="panel-gemini-details" class="provider-settings-box hidden" tabindex="-1">
           <h3>Google Gemini API Configuration</h3>
           <div class="form-group">
             <label for="geminiApiKey">Gemini API Key</label>
             <div class="input-with-action">
               <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
-              <button type="button" id="btnToggleGeminiKey" class="icon-input-btn" aria-label="Show or hide Gemini API key">Show</button>
+              <button type="button" id="btnToggleGeminiKey" class="icon-input-btn" aria-label="Show Gemini API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
             </div>
             <span class="form-help">Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</span>
           </div>
@@ -101,13 +117,13 @@
         </div>
 
         <!-- OpenAI-compatible provider details -->
-        <div id="panel-compatible-details" class="provider-settings-box hidden">
+        <div id="panel-compatible-details" class="provider-settings-box hidden" tabindex="-1">
           <h3 id="compatibleProviderTitle">Provider configuration</h3>
           <div class="form-group">
             <label for="compatibleApiKey" id="compatibleApiKeyLabel">API key</label>
             <div class="input-with-action">
               <input type="password" id="compatibleApiKey" autocomplete="off" placeholder="Paste provider key">
-              <button type="button" id="btnToggleCompatibleKey" class="icon-input-btn" aria-label="Show or hide API key">Show</button>
+              <button type="button" id="btnToggleCompatibleKey" class="icon-input-btn" aria-label="Show API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
             </div>
             <span class="form-help">Stored only in Chrome local storage on this device.</span>
           </div>
@@ -143,7 +159,7 @@
         </div>
 
         <!-- Offline Smart Mode Details -->
-        <div id="panel-offline-details" class="provider-settings-box hidden">
+        <div id="panel-offline-details" class="provider-settings-box hidden" tabindex="-1">
           <h3>Offline Smart Clustering (Zero-AI / Enterprise Air-Gapped)</h3>
           <div class="nano-status-banner">
             <div><strong>Offline mode is active.</strong> Tabs are grouped using local URL structure and title similarity.</div>
@@ -194,7 +210,7 @@
               </select>
             </div>
             <div class="form-group align-end">
-              <button id="btnAddRule" class="primary-btn">Add rule</button>
+              <button id="btnAddRule" class="primary-btn"><span class="material-symbols-rounded" aria-hidden="true">add</span>Add rule</button>
             </div>
           </div>
         </div>
@@ -205,9 +221,9 @@
             <input type="text" id="searchRulesInput" placeholder="Filter patterns..." class="search-input">
             <div class="toolbar-actions">
               <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
-              <button id="btnImportRules" class="secondary-btn small-btn">Import JSON</button>
-              <button id="btnExportRules" class="secondary-btn small-btn">Export JSON</button>
-              <button id="btnClearRules" class="danger-btn small-btn">Clear All Rules</button>
+              <button id="btnImportRules" class="secondary-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import JSON</button>
+              <button id="btnExportRules" class="secondary-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">download</span>Export JSON</button>
+              <button id="btnClearRules" class="danger-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Clear all rules</button>
             </div>
           </div>
 
@@ -258,8 +274,8 @@
 
           <div class="setting-item">
             <div class="setting-text">
-              <div class="setting-name">Direct 1-Click Toolbar Icon</div>
-              <div class="setting-description">Clicking the Foldnex icon in the Chrome toolbar will group all tabs immediately without opening the popup window.</div>
+              <div class="setting-name">Run from toolbar</div>
+              <div class="setting-description">Skip the popup and clean the current window immediately.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefOneClickMode">
@@ -269,8 +285,8 @@
 
           <div class="setting-item">
             <div class="setting-text">
-              <div class="setting-name">Auto-Collapse Groups on Creation</div>
-              <div class="setting-description">Automatically collapse tab groups after Foldnex creates them to keep your tab strip clean and compact.</div>
+              <div class="setting-name">Auto-collapse new groups</div>
+              <div class="setting-description">Leave the active group open and collapse the rest.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefCollapseGroups">
@@ -295,18 +311,24 @@
         </dl>
 
         <div class="section-header" style="margin-top: 32px;">
-          <h3>Keyboard Shortcuts</h3>
+          <h3>Keyboard shortcuts</h3>
           <p class="section-subtitle">Group or ungroup tabs instantly using global hotkeys.</p>
         </div>
 
         <div class="shortcuts-box">
           <div class="shortcut-row">
             <span>Clean up and group tabs</span>
-            <kbd>Alt + G</kbd> (Mac: <kbd>⌘ + Shift + G</kbd>)
+            <span class="shortcut-keys">
+              <span class="shortcut-key-group"><kbd>Alt + G</kbd></span>
+              <span class="shortcut-key-group">(Mac: <kbd>⌘ + Shift + G</kbd>)</span>
+            </span>
           </div>
           <div class="shortcut-row">
             <span>Ungroup all tabs</span>
-            <kbd>Alt + U</kbd> (Mac: <kbd>⌘ + Shift + U</kbd>)
+            <span class="shortcut-keys">
+              <span class="shortcut-key-group"><kbd>Alt + U</kbd></span>
+              <span class="shortcut-key-group">(Mac: <kbd>⌘ + Shift + U</kbd>)</span>
+            </span>
           </div>
           <p class="shortcut-tip">You can customize these hotkeys at any time by visiting <a href="chrome://extensions/shortcuts" target="_blank">chrome://extensions/shortcuts</a>.</p>
         </div>
