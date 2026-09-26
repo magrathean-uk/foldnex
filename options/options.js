@@ -8,9 +8,7 @@ import {
   prepareChromeNano,
   CHROME_GROUP_COLORS,
   PROVIDER_CATALOG,
-  getCompatibleRequestControls,
-  getGeminiGenerationConfig,
-  isCompatibleReasoningModel,
+  clusterTabsWithAI,
   listProviderModels,
   providerSettingKey
 } from '../src/ai-engine.js';
@@ -84,6 +82,8 @@ const diagOutcome = document.getElementById('diagOutcome');
 const diagTokens = document.getElementById('diagTokens');
 const diagLatency = document.getElementById('diagLatency');
 const diagQuality = document.getElementById('diagQuality');
+const btnClearDiagnostics = document.getElementById('btnClearDiagnostics');
+const diagFallback = document.getElementById('diagFallback');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
@@ -97,10 +97,13 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
  * Display toast notification
  */
 function showToast(msg, type = 'success') {
+  clearTimeout(showToast.timer);
   toast.className = `toast ${type}`;
   toast.textContent = msg;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   toast.classList.remove('hidden');
-  setTimeout(() => {
+  showToast.timer = setTimeout(() => {
     toast.classList.add('hidden');
   }, 3500);
 }
@@ -108,17 +111,31 @@ function showToast(msg, type = 'success') {
 /**
  * Switch tabs in options layout
  */
-navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    const targetTab = item.dataset.tab;
-    navItems.forEach(i => i.classList.remove('active'));
-    tabPanels.forEach(p => p.classList.remove('active'));
+function activateSettingsTab(item) {
+  navItems.forEach(navItem => {
+    const active = navItem === item;
+    navItem.classList.toggle('active', active);
+    navItem.setAttribute('aria-selected', String(active));
+    navItem.tabIndex = active ? 0 : -1;
+  });
+  tabPanels.forEach(panel => panel.classList.toggle('active', panel.id === `tab-${item.dataset.tab}`));
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  });
+}
 
-    item.classList.add('active');
-    document.getElementById(`tab-${targetTab}`)?.classList.add('active');
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    });
+navItems.forEach((item, index) => {
+  item.addEventListener('click', () => activateSettingsTab(item));
+  item.addEventListener('keydown', event => {
+    let nextIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % navItems.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + navItems.length) % navItems.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = navItems.length - 1;
+    else return;
+    event.preventDefault();
+    activateSettingsTab(navItems[nextIndex]);
+    navItems[nextIndex].focus();
   });
 });
 
@@ -579,7 +596,13 @@ async function loadSettings() {
 async function loadRunDiagnostics() {
   if (!diagEngine) return;
   const { foldnex_last_run: run } = await chrome.storage.local.get('foldnex_last_run');
-  if (!run) return;
+  if (!run) {
+    diagEngine.textContent = 'No run recorded';
+    for (const field of [diagSource, diagOutcome, diagTokens, diagLatency, diagQuality, diagFallback]) {
+      field.textContent = '—';
+    }
+    return;
+  }
 
   const providerName = PROVIDER_CATALOG[run.provider]?.name || run.provider || 'Unknown';
   diagEngine.textContent = run.strategy === 'site'
@@ -592,11 +615,15 @@ async function loadRunDiagnostics() {
     : 'Local or cache result';
   diagLatency.textContent = run.latencyMs ? `${run.latencyMs} ms total` : '—';
   diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
-  const diagFallback = document.getElementById('diagFallback');
-  if (diagFallback) {
-    diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
-  }
+  diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
 }
+
+btnClearDiagnostics.addEventListener('click', async () => {
+  if (!confirm('Clear Foldnex run history?')) return;
+  await chrome.storage.local.remove(['foldnex_last_run', 'foldnex_run_history_v1']);
+  await loadRunDiagnostics();
+  showToast('Run history cleared.');
+});
 
 /**
  * Toggle password field visibility
@@ -623,31 +650,24 @@ btnRefreshCompatibleModels.addEventListener('click', () => {
 });
 
 /**
- * Helper to parse and format actionable API test errors
+ * Keep connection-test errors actionable without displaying provider response
+ * bodies, which can echo request content.
  */
-async function formatApiErrorMessage(res) {
-  let errorDetail = '';
-  try {
-    const errorJson = await res.json();
-    errorDetail = errorJson?.error?.message || '';
-  } catch {
-    // Non-JSON response
-  }
-
-  if (res.status === 401 || (res.status === 400 && errorDetail.toLowerCase().includes('key'))) {
-    return 'Invalid API Key. Please verify your key.';
-  }
-  if (res.status === 429 || errorDetail.toLowerCase().includes('quota')) {
-    return 'Quota exceeded (Rate limit / Plan limit). Check your AI Studio / OpenAI billing.';
-  }
-  if (res.status === 403) {
-    return 'Access forbidden. Your account or region may not have access to this model.';
-  }
-  if (res.status === 404) {
-    return 'Model not found. Please verify the model name.';
-  }
-  return `Error (HTTP ${res.status}): ${errorDetail || res.statusText || 'Request failed'}`;
+function connectionErrorMessage(error) {
+  const message = String(error?.message || '');
+  if (/HTTP 401|API key is not configured/i.test(message)) return 'Invalid API key. Check the saved key.';
+  if (/HTTP 429|quota/i.test(message)) return 'Provider quota or rate limit reached.';
+  if (/HTTP 403/i.test(message)) return 'This account cannot access the selected model.';
+  if (/HTTP 404/i.test(message)) return 'Model not found. Check the model name.';
+  if (/timed out|abort/i.test(message)) return 'Provider timed out. Try again later.';
+  const status = message.match(/HTTP (\d{3})/i)?.[1];
+  return status ? `Provider returned HTTP ${status}.` : 'Grouping test failed. Check the model and provider status.';
 }
+
+const CONNECTION_TEST_TABS = [
+  { id: 1, title: 'Project plan', url: 'https://example.com/planning' },
+  { id: 2, title: 'Project notes', url: 'https://example.com/notes' }
+];
 
 /**
  * Save Gemini Settings securely to storage.local
@@ -666,7 +686,7 @@ btnSaveGemini.addEventListener('click', async () => {
 });
 
 /**
- * Test Gemini Connection with x-goog-api-key header (no key in query string)
+ * Test the actual grouping request with two synthetic tabs.
  */
 btnTestGemini.addEventListener('click', async () => {
   const key = geminiApiKey.value.trim();
@@ -680,27 +700,14 @@ btnTestGemini.addEventListener('click', async () => {
 
   try {
     const selectedModel = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': key
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Respond with: {"status":"ok"}' }] }],
-        generationConfig: getGeminiGenerationConfig(selectedModel)
-      })
+    await clusterTabsWithAI(CONNECTION_TEST_TABS, {
+      provider: 'gemini_api',
+      geminiApiKey: key,
+      geminiModel: selectedModel
     });
-
-    if (res.ok) {
-      showToast('Gemini API connected.', 'success');
-    } else {
-      const errMsg = await formatApiErrorMessage(res);
-      showToast(errMsg, 'error');
-    }
+    showToast('Gemini grouping test passed.', 'success');
   } catch (e) {
-    showToast(`Error: ${e.message}`, 'error');
+    showToast(connectionErrorMessage(e), 'error');
   } finally {
     btnTestGemini.textContent = 'Test Connection';
     btnTestGemini.disabled = false;
@@ -728,7 +735,7 @@ btnSaveCompatible.addEventListener('click', async () => {
   await refreshModelCatalog(provider, { force: true });
 });
 
-/** Make a minimal live completion request to the selected provider. */
+/** Test the actual grouping request with two synthetic tabs. */
 btnTestCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
@@ -744,36 +751,16 @@ btnTestCompatible.addEventListener('click', async () => {
 
   try {
     const base = compatibleBaseUrl.value.trim() || config.baseUrl;
-    const headers = { 'Content-Type': 'application/json' };
-    if (keyOrToken) headers.Authorization = `Bearer ${keyOrToken}`;
-    if (provider === 'openrouter') {
-      headers['HTTP-Referer'] = 'https://github.com/magrathean-uk/foldnex';
-      headers['X-Title'] = 'Foldnex';
-    }
-
     const selectedModel = compatibleModel.value.trim() || config.defaultModel;
-    const payload = {
-      model: selectedModel,
-      messages: [{ role: 'user', content: 'Reply with the single word ok.' }],
-      ...getCompatibleRequestControls(provider, selectedModel)
-    };
-    const testBudget = isCompatibleReasoningModel(provider, selectedModel) ? 128 : 32;
-    if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = testBudget;
-    else payload.max_tokens = testBudget;
-
-    const res = await fetch(`${base.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload)
+    await clusterTabsWithAI(CONNECTION_TEST_TABS, {
+      provider,
+      [providerSettingKey(provider, 'apiKey')]: keyOrToken,
+      [providerSettingKey(provider, 'model')]: selectedModel,
+      [providerSettingKey(provider, 'baseUrl')]: base
     });
-
-    if (res.ok) {
-      showToast(`${config.name} connected.`, 'success');
-    } else {
-      showToast(await formatApiErrorMessage(res), 'error');
-    }
+    showToast(`${config.name} grouping test passed.`, 'success');
   } catch (e) {
-    showToast(`Connection failed: ${e.message}`, 'error');
+    showToast(connectionErrorMessage(e), 'error');
   } finally {
     btnTestCompatible.textContent = 'Test connection';
     btnTestCompatible.disabled = false;

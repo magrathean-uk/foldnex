@@ -335,6 +335,7 @@ input::placeholder { color: #999b92; }
 .diagnostics-grid div:nth-last-child(-n+3) { border-bottom: 0; }
 .diagnostics-grid dt { margin-bottom: 5px; color: var(--quiet); font-size: 11px; font-weight: 760; letter-spacing: .09em; text-transform: uppercase; }
 .diagnostics-grid dd { overflow-wrap: anywhere; margin: 0; color: var(--ink); font-size: 13px; font-weight: 620; }
+.diagnostics-actions { display: flex; justify-content: flex-end; margin: -6px 0 16px; }
 .setting-item { display: flex; align-items: center; justify-content: space-between; gap: 42px; padding: 19px 0; border-bottom: 1px solid var(--line); }
 .setting-item:last-child { border-bottom: 0; }
 .setting-name { margin-bottom: 3px; font-size: 14px; font-weight: 700; }

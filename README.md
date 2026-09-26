@@ -98,7 +98,7 @@ The toolbar badge shows progress and then the number of groups created. The popu
 1. Open **Rules and settings** from the popup, or use Chrome's extension Options action.
 2. Choose an engine from the unified list.
 3. For a cloud provider, enter its API key, select or type a model, and save the provider.
-4. Use **Test connection** to make a minimal provider request.
+4. Use **Test connection** to verify Foldnex's grouping request with two synthetic example tabs. This does not send your current window's tabs.
 
 Secrets are stored in `chrome.storage.local`, restricted to trusted extension contexts, and removed from Chrome sync storage. Provider choice, model IDs, base URLs, and non-secret preferences may use `chrome.storage.sync`.
 

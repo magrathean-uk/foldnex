@@ -15,16 +15,16 @@
         <img src="../icons/icon32.png" alt="Foldnex Logo" class="brand-logo">
         <span class="brand-name">Foldnex</span>
       </div>
-      <nav class="nav-menu">
-        <button class="nav-item active" data-tab="providers">
+      <nav class="nav-menu" role="tablist" aria-label="Settings sections">
+        <button id="nav-providers" class="nav-item active" type="button" role="tab" aria-controls="tab-providers" aria-selected="true" tabindex="0" data-tab="providers">
           <span class="material-symbols-rounded" aria-hidden="true">tune</span>
           Grouping engines
         </button>
-        <button class="nav-item" data-tab="learning">
+        <button id="nav-learning" class="nav-item" type="button" role="tab" aria-controls="tab-learning" aria-selected="false" tabindex="-1" data-tab="learning">
           <span class="material-symbols-rounded" aria-hidden="true">rule</span>
           Rules & memory
         </button>
-        <button class="nav-item" data-tab="behavior">
+        <button id="nav-behavior" class="nav-item" type="button" role="tab" aria-controls="tab-behavior" aria-selected="false" tabindex="-1" data-tab="behavior">
           <span class="material-symbols-rounded" aria-hidden="true">settings</span>
           Behaviour
         </button>
@@ -42,10 +42,10 @@
     <!-- Main Content Area -->
     <main class="main-content">
       <!-- Toast notification -->
-      <div id="toast" class="toast hidden"></div>
+      <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
       <!-- TAB 1: AI PROVIDERS -->
-      <section id="tab-providers" class="tab-panel active">
+      <section id="tab-providers" class="tab-panel active" role="tabpanel" aria-labelledby="nav-providers">
         <div class="section-header">
           <h2>Grouping engines</h2>
           <p class="section-subtitle">Choose how Foldnex understands the tabs in your current window.</p>
@@ -160,24 +160,22 @@
 
         <!-- Offline Smart Mode Details -->
         <div id="panel-offline-details" class="provider-settings-box hidden" tabindex="-1">
-          <h3>Offline Smart Clustering (Zero-AI / Enterprise Air-Gapped)</h3>
+          <h3>Offline smart mode</h3>
           <div class="nano-status-banner">
             <div><strong>Offline mode is active.</strong> Tabs are grouped using local URL structure and title similarity.</div>
           </div>
           <div class="setup-instructions">
-            <h4>Why use Offline Smart Mode?</h4>
-            <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--text-muted); font-size: 13px;">
-              <li><strong>Enterprise-Safe:</strong> Complies with strict corporate DLP policies. No data ever leaves your device.</li>
-              <li><strong>Air-Gapped & Firewalled:</strong> Functions with zero internet access, zero Chrome flags, and zero external AI dependencies.</li>
-              <li><strong>Zero Cost:</strong> Completely free forever without any API keys or subscriptions.</li>
-              <li><strong>Automatic Fallback:</strong> Even when you choose Gemini Nano or Cloud APIs, Foldnex will automatically fall back to this engine if your network or policy blocks AI.</li>
+            <h4>How it works</h4>
+            <ul>
+              <li>Grouping runs on this device without a cloud model request.</li>
+              <li>Foldnex uses this mode if the selected AI engine is unavailable.</li>
             </ul>
           </div>
         </div>
       </section>
 
       <!-- TAB 2: LEARNED RULES & MEMORY CACHE -->
-      <section id="tab-learning" class="tab-panel">
+      <section id="tab-learning" class="tab-panel" role="tabpanel" aria-labelledby="nav-learning">
         <div class="section-header">
           <h2>Rules & memory</h2>
           <p class="section-subtitle">Explicit URL rules override grouping. Unchanged windows are reused from a short-lived semantic cache.</p>
@@ -188,15 +186,15 @@
           <h3>Add Custom Rule Override</h3>
           <div class="add-rule-grid">
             <div class="form-group">
-              <label>URL Pattern (wildcards allowed)</label>
+              <label for="newRulePattern">URL Pattern (wildcards allowed)</label>
               <input type="text" id="newRulePattern" placeholder="github.com/my-org/*" class="form-input">
             </div>
             <div class="form-group">
-              <label>Group Name</label>
+              <label for="newRuleCategory">Group Name</label>
               <input type="text" id="newRuleCategory" placeholder="Work Projects" class="form-input">
             </div>
             <div class="form-group">
-              <label>Color</label>
+              <label for="newRuleColor">Color</label>
               <select id="newRuleColor" class="form-select">
                 <option value="blue">Blue</option>
                 <option value="green">Green</option>
@@ -218,7 +216,7 @@
         <!-- Rules List -->
         <div class="rules-table-container">
           <div class="table-toolbar">
-            <input type="text" id="searchRulesInput" placeholder="Filter patterns..." class="search-input">
+            <input type="text" id="searchRulesInput" placeholder="Filter patterns..." aria-label="Filter URL rules" class="search-input">
             <div class="toolbar-actions">
               <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
               <button id="btnImportRules" class="secondary-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import JSON</button>
@@ -247,7 +245,7 @@
       </section>
 
       <!-- TAB 3: BEHAVIOR & SHORTCUTS -->
-      <section id="tab-behavior" class="tab-panel">
+      <section id="tab-behavior" class="tab-panel" role="tabpanel" aria-labelledby="nav-behavior">
         <div class="section-header">
           <h2>Behaviour</h2>
           <p class="section-subtitle">Choose how Foldnex groups tabs, acts from the toolbar, and presents the result.</p>
@@ -278,7 +276,7 @@
               <div class="setting-description">Skip the popup and clean the current window immediately.</div>
             </div>
             <label class="switch">
-              <input type="checkbox" id="prefOneClickMode">
+              <input type="checkbox" id="prefOneClickMode" aria-label="Run directly from toolbar">
               <span class="slider round"></span>
             </label>
           </div>
@@ -289,7 +287,7 @@
               <div class="setting-description">Leave the active group open and collapse the rest.</div>
             </div>
             <label class="switch">
-              <input type="checkbox" id="prefCollapseGroups">
+              <input type="checkbox" id="prefCollapseGroups" aria-label="Auto-collapse new groups">
               <span class="slider round"></span>
             </label>
           </div>
@@ -309,6 +307,9 @@
           <div><dt>Quality</dt><dd id="diagQuality">—</dd></div>
           <div><dt>Fallback</dt><dd id="diagFallback">—</dd></div>
         </dl>
+        <div class="diagnostics-actions">
+          <button id="btnClearDiagnostics" class="secondary-btn small-btn" type="button">Clear run history</button>
+        </div>
 
         <div class="section-header" style="margin-top: 32px;">
           <h3>Keyboard shortcuts</h3>

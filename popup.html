@@ -22,7 +22,7 @@
     <section class="action-card" aria-labelledby="tabCountLabel">
       <div class="tab-summary">
         <strong id="tabCountLabel">Scanning tabs…</strong>
-        <kbd id="tabShortcut" class="shortcut-pill">⌘⇧G</kbd>
+        <kbd id="tabShortcut" class="shortcut-pill hidden"></kbd>
       </div>
       <p class="action-note">Remove duplicate pages, then organise the rest into focused groups.</p>
       <button id="btnGroupTabs" class="primary-btn" type="button">
@@ -42,10 +42,17 @@
         <span class="card-label">Grouping strategy</span>
         <span id="engineBadge" class="badge">Checking…</span>
       </div>
-      <select id="strategySelect" class="select-input" aria-label="Grouping strategy">
-        <option value="task">By task · title-aware</option>
-        <option value="site">By site category · local</option>
-      </select>
+      <fieldset class="strategy-choice">
+        <legend class="visually-hidden">Grouping strategy</legend>
+        <label>
+          <input type="radio" name="groupingStrategy" value="task" checked>
+          <span>By task<small>Title-aware</small></span>
+        </label>
+        <label>
+          <input type="radio" name="groupingStrategy" value="site">
+          <span>By site category<small>Local · no AI</small></span>
+        </label>
+      </fieldset>
       <label class="secondary-field-label" for="providerSelect">Task engine</label>
       <select id="providerSelect" class="select-input" aria-label="Grouping engine">
         <option value="gemini_nano">Chrome Gemini Nano · local</option>

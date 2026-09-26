@@ -11,8 +11,8 @@ import {
   isCompatibleReasoningModel,
   isOpenAIReasoningModel
 } from '../src/ai-engine.js';
-import { ExactResultCache, LearningCache } from '../src/cache-engine.js';
-import { executeTabGrouping, getDuplicateTabKey } from '../src/grouper.js';
+import { ExactResultCache, LearningCache, fingerprintTab, sanitizeSemanticUrl } from '../src/cache-engine.js';
+import { executeTabGrouping, getDuplicateTabKey, ungroupAllTabs } from '../src/grouper.js';
 import { clusterTabsBySite, getSiteCategory } from '../src/site-clusterer.js';
 import {
   consumeProgrammaticGroupUpdate,
@@ -162,7 +162,7 @@ test('a 200-tab address window stays deterministic, complete, and below 30 group
   assert.ok(!first.some(group => /tech/i.test(group.name)));
 });
 
-test('prompt retains complete titles and uses compact local ordinals', () => {
+test('cloud prompt retains complete titles and compact local ordinals without URL fragments', () => {
   const longTitle = `Detailed task ${'context '.repeat(30)}— Site`;
   const prompt = formatTabsPrompt([
     { id: 98273465, title: longTitle, url: 'https://app.example.com/projects/1234567890123456/details?q=private+search', active: true },
@@ -174,7 +174,9 @@ test('prompt retains complete titles and uses compact local ordinals', () => {
   assert.ok(!prompt.includes('98273465'));
   assert.ok(!prompt.includes('private'));
   assert.ok(prompt.includes('app.example.com/projects/:id/details'));
-  assert.ok(prompt.includes('example.com#/settings'));
+  assert.ok(prompt.includes('example.com'));
+  assert.ok(!prompt.includes('#/settings'));
+  assert.equal(sanitizeSemanticUrl('https://example.com/#/settings'), 'example.com#/settings');
 });
 
 test('adaptive grouping expands for a crowded window and rejects broad catch-alls', () => {
@@ -533,6 +535,62 @@ test('exact result cache only reuses an identical semantic window', async () => 
   assert.equal(miss.groups, null);
 });
 
+test('exact result cache misses when a long URL path changes', async () => {
+  const { local } = installChromeStorageMock();
+  const sharedPath = 'a'.repeat(90);
+  const originalTabs = [
+    { id: 10, title: 'Account', url: `https://example.com/${sharedPath}one` },
+    { id: 11, title: 'Reference', url: 'https://docs.example.com/reference' }
+  ];
+  const scope = 'semantic-v2:offline';
+  const context = await ExactResultCache.makeContext(originalTabs, scope);
+  await ExactResultCache.put(context, [
+    { name: 'Account', color: 'blue', tabIds: [10] },
+    { name: 'Reference', color: 'green', tabIds: [11] }
+  ]);
+
+  const changed = await ExactResultCache.get([
+    { id: 20, title: 'Account', url: `https://example.com/${sharedPath}two` },
+    { id: 21, title: 'Reference', url: 'https://docs.example.com/reference' }
+  ], scope);
+
+  assert.equal(changed.groups, null);
+  assert.ok(!JSON.stringify(local.foldnex_exact_results_v1).includes(originalTabs[0].url));
+});
+
+test('exact cache fingerprint excludes sensitive query values and fragments', async () => {
+  const tab = { title: 'Account', url: 'https://example.com/account?access_token=first#session=first' };
+  const original = await fingerprintTab(tab);
+  const changedSecret = await fingerprintTab({
+    ...tab,
+    url: 'https://example.com/account?access_token=second#session=second'
+  });
+  const changedPath = await fingerprintTab({ ...tab, url: 'https://example.com/other?access_token=first' });
+
+  assert.equal(changedSecret, original);
+  assert.notEqual(changedPath, original);
+});
+
+test('ungroup includes tabs in valid group ID zero', async () => {
+  installChromeStorageMock();
+  let ungroupedIds = null;
+  chrome.tabs = {
+    async query() {
+      return [
+        { id: 1, groupId: 0 },
+        { id: 2, groupId: -1 }
+      ];
+    },
+    async ungroup(ids) { ungroupedIds = ids; }
+  };
+  chrome.tabGroups = { TAB_GROUP_ID_NONE: -1 };
+
+  const result = await ungroupAllTabs(5);
+
+  assert.deepEqual(ungroupedIds, [1]);
+  assert.equal(result.ungroupedCount, 1);
+});
+
 test('schema migration quarantines legacy rules and starts v2 cleanly', async () => {
   const { local } = installChromeStorageMock();
   local.foldnex_learned_rules = [{ pattern: 'slack.com/client/*', category: 'General', userOverride: true }];
@@ -667,6 +725,99 @@ test('site-category strategy bypasses AI and accepts a large same-site group', a
     assert.deepEqual(result.qualityFlags, []);
     assert.equal(local.foldnex_last_run.strategy, 'site');
     assert.equal(local.foldnex_last_run.promptTokens, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('unavailable Nano falls back offline without sending saved cloud credentials', async () => {
+  installChromeStorageMock();
+  const tabs = [
+    { id: 801, windowId: 11, index: 0, active: true, pinned: false, incognito: false, title: 'Project board', url: 'https://github.com/org/repo/projects' },
+    { id: 802, windowId: 11, index: 1, active: false, pinned: false, incognito: false, title: 'Pull request', url: 'https://github.com/org/repo/pulls' }
+  ];
+  let groupId = 810;
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return groupId++; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = { async update() {} };
+
+  const originalFetch = globalThis.fetch;
+  const hadSelf = Object.hasOwn(globalThis, 'self');
+  const originalSelf = globalThis.self;
+  const hadLanguageModel = Object.hasOwn(globalThis, 'LanguageModel');
+  const originalLanguageModel = globalThis.LanguageModel;
+  let fetchCount = 0;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    throw new Error('Nano selection must not call a cloud provider');
+  };
+  try {
+    globalThis.self = globalThis;
+    delete globalThis.LanguageModel;
+    const unavailableResult = await executeTabGrouping(11, {
+      provider: 'gemini_nano',
+      geminiApiKey: 'saved-gemini-key',
+      openaiApiKey: 'saved-openai-key'
+    });
+
+    assert.equal(unavailableResult.source, 'offline-fallback');
+    assert.equal(unavailableResult.fallbackUsed, true);
+
+    globalThis.LanguageModel = {
+      async availability() { return 'readily'; },
+      async create() { throw new Error('Local model session failed'); }
+    };
+    const failedRuntimeResult = await executeTabGrouping(11, {
+      provider: 'gemini_nano',
+      geminiApiKey: 'saved-gemini-key',
+      openaiApiKey: 'saved-openai-key'
+    });
+
+    assert.equal(failedRuntimeResult.source, 'offline-fallback');
+    assert.equal(failedRuntimeResult.fallbackUsed, true);
+    assert.equal(fetchCount, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (hadSelf) globalThis.self = originalSelf;
+    else delete globalThis.self;
+    if (hadLanguageModel) globalThis.LanguageModel = originalLanguageModel;
+    else delete globalThis.LanguageModel;
+  }
+});
+
+test('provider error details are not persisted in run diagnostics', async () => {
+  const { local } = installChromeStorageMock();
+  const tabs = [
+    { id: 901, windowId: 13, index: 0, active: true, pinned: false, incognito: false, title: 'Confidential project', url: 'https://example.com/private' },
+    { id: 902, windowId: 13, index: 1, active: false, pinned: false, incognito: false, title: 'Project notes', url: 'https://example.com/notes' }
+  ];
+  chrome.tabs = {
+    async query() { return tabs.map(tab => ({ ...tab })); },
+    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
+    async remove() {},
+    async group() { return 900; },
+    async ungroup() {}
+  };
+  chrome.tabGroups = { async update() {} };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 400,
+    async json() { return { error: { message: 'Rejected Confidential project at https://example.com/private' } }; }
+  });
+
+  try {
+    const result = await executeTabGrouping(13, { provider: 'groq', groqApiKey: 'test-only' });
+    assert.equal(result.source, 'offline-fallback');
+    assert.equal(result.fallbackReason, 'Provider request failed');
+    assert.equal(local.foldnex_last_run.fallbackCode, 'provider_error');
+    assert.ok(!JSON.stringify(local.foldnex_last_run).includes('Confidential project'));
+    assert.ok(!JSON.stringify(local.foldnex_last_run).includes('https://example.com/private'));
   } finally {
     globalThis.fetch = originalFetch;
   }

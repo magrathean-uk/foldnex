@@ -84,6 +84,33 @@ export function sanitizeSemanticUrl(rawUrl) {
 }
 
 /**
+ * Build the URL input for an exact-result cache fingerprint. Preserve the
+ * complete path so a late path change invalidates the cache, while excluding
+ * credentials, unapproved query parameters, and fragment state before hashing.
+ */
+function exactCacheUrlInput(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  try {
+    const parsed = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return sanitizeUrl(rawUrl);
+    parsed.username = '';
+    parsed.password = '';
+    const cleanParams = new URLSearchParams();
+    for (const [key, value] of parsed.searchParams) {
+      const lowerKey = key.toLowerCase();
+      if (ALLOWED_SEMANTIC_PARAMS.has(lowerKey) && !SENSITIVE_PARAM_REGEX.test(lowerKey)) {
+        cleanParams.append(lowerKey, value);
+      }
+    }
+    parsed.search = cleanParams.toString();
+    parsed.hash = '';
+    return parsed.href;
+  } catch {
+    return sanitizeUrl(rawUrl);
+  }
+}
+
+/**
  * Trim title to remove redundant site names, boilerplate suffixes, and newlines.
  * @param {string} title
  * @returns {string}
@@ -132,7 +159,7 @@ async function digestText(value) {
 }
 
 export async function fingerprintTab(tab) {
-  return digestText(`${normalizeCompleteTitle(tab?.title)}\n${sanitizeSemanticUrl(tab?.url || tab?.pendingUrl || '')}`);
+  return digestText(`${normalizeCompleteTitle(tab?.title)}\n${exactCacheUrlInput(tab?.url || tab?.pendingUrl || '')}`);
 }
 
 async function fingerprintTabs(tabs) {

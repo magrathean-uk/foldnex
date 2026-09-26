@@ -6,7 +6,7 @@
  *  3. OpenAI-compatible cloud providers and local endpoints
  */
 
-import { sanitizeSemanticUrl } from './cache-engine.js';
+import { sanitizeUrl } from './cache-engine.js';
 
 export const CHROME_GROUP_COLORS = [
   'grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'
@@ -381,8 +381,8 @@ function extractJson(text) {
 
   try {
     return JSON.parse(clean);
-  } catch (e) {
-    console.error('[Foldnex] Failed to parse JSON:', clean, e);
+  } catch {
+    console.error('[Foldnex] Failed to parse provider JSON response.');
     return null;
   }
 }
@@ -412,7 +412,9 @@ export function formatTabsPrompt(tabs, qualityFeedback = '') {
 }
 
 function compactUrlHint(rawUrl) {
-  const clean = sanitizeSemanticUrl(rawUrl).replace(/[\u0000-\u001F\u007F-\u009F]+/g, '');
+  // Route-like fragments are useful for local semantic cache identity, but may
+  // contain application state and must not leave the browser in cloud prompts.
+  const clean = sanitizeUrl(rawUrl).replace(/[\u0000-\u001F\u007F-\u009F]+/g, '');
   const [pathPart] = clean.split('?');
   const segments = pathPart.split('/');
   const host = segments.shift() || '';
@@ -584,6 +586,24 @@ async function getSafeApiError(response) {
   return compact || 'Request failed';
 }
 
+const PROVIDER_REQUEST_TIMEOUT_MS = 30000;
+
+async function fetchProviderRequest(url, options, consumeResponse) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return await consumeResponse(response);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Provider request timed out after ${PROVIDER_REQUEST_TIMEOUT_MS / 1000}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function normalizeUsage(usage) {
   if (!usage) return null;
   return {
@@ -670,20 +690,19 @@ async function callGeminiAPI(tabs, apiKey, model = PROVIDER_CATALOG.gemini_api.d
     })
   };
 
-  const response = await fetch(endpoint, {
+  const data = await fetchProviderRequest(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey
     },
     body: JSON.stringify(payload)
+  }, async response => {
+    if (!response.ok) {
+      throw new Error(`Gemini API HTTP ${response.status}: ${await getSafeApiError(response)}`);
+    }
+    return response.json();
   });
-
-  if (!response.ok) {
-    throw new Error(`Gemini API HTTP ${response.status}: ${await getSafeApiError(response)}`);
-  }
-
-  const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   return {
     result: extractJson(text),
@@ -739,17 +758,16 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
     headers['X-Title'] = 'Foldnex';
   }
 
-  const response = await fetch(endpoint, {
+  const data = await fetchProviderRequest(endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload)
+  }, async response => {
+    if (!response.ok) {
+      throw new Error(`${config.name} API HTTP ${response.status}: ${await getSafeApiError(response)}`);
+    }
+    return response.json();
   });
-
-  if (!response.ok) {
-    throw new Error(`${config.name} API HTTP ${response.status}: ${await getSafeApiError(response)}`);
-  }
-
-  const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
   return {
     result: extractJson(text),
@@ -772,30 +790,9 @@ export async function clusterTabsWithAI(tabs, settings, qualityFeedback = '') {
   if (provider === 'gemini_nano') {
     const status = await checkChromeNanoStatus();
     if (status.status === 'ready') {
-      try {
-        responseEnvelope = await callChromeNano(tabs, qualityFeedback);
-      } catch (nanoErr) {
-        // Fallback to cloud if configured
-        if (settings.geminiApiKey) {
-          console.warn('[Foldnex] Gemini Nano runtime failure, falling back to Gemini API:', nanoErr);
-          responseEnvelope = await callGeminiAPI(tabs, settings.geminiApiKey, settings.geminiModel, qualityFeedback);
-        } else if (settings.openaiApiKey || settings.openaiOAuthToken) {
-          console.warn('[Foldnex] Gemini Nano runtime failure, falling back to OpenAI:', nanoErr);
-          responseEnvelope = await callOpenAICompatible(tabs, 'openai', settings.openaiApiKey || settings.openaiOAuthToken, settings.openaiModel, settings.openaiBaseUrl, qualityFeedback);
-        } else {
-          throw nanoErr;
-        }
-      }
+      responseEnvelope = await callChromeNano(tabs, qualityFeedback);
     } else {
-      if (settings.geminiApiKey) {
-        console.warn('[Foldnex] Gemini Nano not ready, falling back to Gemini API');
-        responseEnvelope = await callGeminiAPI(tabs, settings.geminiApiKey, settings.geminiModel, qualityFeedback);
-      } else if (settings.openaiApiKey || settings.openaiOAuthToken) {
-        console.warn('[Foldnex] Gemini Nano not ready, falling back to OpenAI');
-        responseEnvelope = await callOpenAICompatible(tabs, 'openai', settings.openaiApiKey || settings.openaiOAuthToken, settings.openaiModel, settings.openaiBaseUrl, qualityFeedback);
-      } else {
-        throw new Error(`Built-in Gemini Nano is ${status.detail}. Please configure a Gemini or OpenAI API key in options.`);
-      }
+      throw new Error(`Built-in Gemini Nano is ${status.detail}`);
     }
   } else if (provider === 'gemini_api') {
     responseEnvelope = await callGeminiAPI(tabs, settings.geminiApiKey, settings.geminiModel, qualityFeedback);

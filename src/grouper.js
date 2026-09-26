@@ -110,6 +110,15 @@ async function recordRun(run) {
   });
 }
 
+function classifyProviderFailure(error) {
+  const message = String(error?.message || '');
+  if (/429|quota/i.test(message)) return { code: 'quota', detail: 'Provider quota or rate limit reached' };
+  if (/401|API key/i.test(message)) return { code: 'auth', detail: 'Provider authentication failed' };
+  if (/timed out|abort/i.test(message)) return { code: 'timeout', detail: 'Provider timed out' };
+  if (/Nano|Prompt API/i.test(message)) return { code: 'nano_unavailable', detail: 'Chrome local model unavailable' };
+  return { code: 'provider_error', detail: 'Provider request failed' };
+}
+
 /**
  * Close redundant pages before grouping. Pinned tabs always win; otherwise
  * preserve the active tab, then the leftmost tab, as the canonical survivor.
@@ -244,6 +253,7 @@ export async function executeTabGrouping(windowId, settings) {
   }
   let fallbackUsed = false;
   let fallbackReason = null;
+  let fallbackCode = null;
   let resultSource = 'unknown';
   let aiMeta = null;
   let qualityIssues = [];
@@ -318,14 +328,16 @@ export async function executeTabGrouping(windowId, settings) {
               qualityIssues = firstQuality.issues;
             }
           } catch (retryErr) {
-            console.warn('[Foldnex] Quality retry failed; preserving the valid first result:', retryErr);
+            console.warn('[Foldnex] Quality retry failed; preserving the valid first result.');
             qualityIssues.push('quality_retry_failed');
           }
         }
       } catch (aiErr) {
-        console.warn(`[Foldnex] AI provider failed or blocked: "${aiErr.message}". Falling back to Offline Smart Clusterer...`);
+        const failure = classifyProviderFailure(aiErr);
+        console.warn(`[Foldnex] AI provider failed (${failure.code}); using offline clustering.`);
         fallbackUsed = true;
-        fallbackReason = aiErr.message;
+        fallbackCode = failure.code;
+        fallbackReason = failure.detail;
         resultSource = 'offline-fallback';
         finalGroups = clusterTabsOffline(groupableTabs);
       }
@@ -466,12 +478,8 @@ export async function executeTabGrouping(windowId, settings) {
       latencyMs: Math.round(performance.now() - runStartedAt),
       providerLatencyMs: Number(aiMeta?.latencyMs || 0),
       qualityFlags: qualityIssues,
-      fallbackCode: fallbackUsed
-        ? (/429|quota/i.test(fallbackReason || '') ? 'quota' : /401|key/i.test(fallbackReason || '') ? 'auth' : 'provider_error')
-        : null,
-      fallbackDetail: fallbackUsed
-        ? String(fallbackReason || 'Provider unavailable').replace(/[\r\n\t]+/g, ' ').slice(0, 180)
-        : null,
+      fallbackCode,
+      fallbackDetail: fallbackReason,
       groups: finalGroups.map(group => ({ name: group.name, size: group.tabIds?.length || 0 }))
     });
   }
@@ -480,6 +488,7 @@ export async function executeTabGrouping(windowId, settings) {
     success: true,
     fallbackUsed,
     fallbackReason,
+    fallbackCode,
     message: groupingStrategy === 'site'
       ? `Organized ${groupableTabs.length} tabs into ${groupsCreatedCount} groups by site category.`
       : fallbackUsed
@@ -509,7 +518,9 @@ export async function ungroupAllTabs(windowId) {
 
     const queryParams = targetWindowId ? { windowId: targetWindowId } : { currentWindow: true };
     const tabs = await chrome.tabs.query(queryParams);
-    const groupedTabIds = tabs.filter(t => t.groupId && t.groupId !== -1).map(t => t.id);
+    const groupedTabIds = tabs
+      .filter(t => Number.isInteger(t.groupId) && t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE)
+      .map(t => t.id);
 
     if (groupedTabIds.length === 0) {
       return { ungroupedCount: 0 };

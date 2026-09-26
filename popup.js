@@ -20,8 +20,9 @@ const statusBox = document.getElementById('statusBox');
 const statusSpinner = document.getElementById('statusSpinner');
 const statusMessage = document.getElementById('statusMessage');
 const engineBadge = document.getElementById('engineBadge');
-const strategySelect = document.getElementById('strategySelect');
+const strategyInputs = document.querySelectorAll('input[name="groupingStrategy"]');
 const providerSelect = document.getElementById('providerSelect');
+const tabShortcut = document.getElementById('tabShortcut');
 const nanoHint = document.getElementById('nanoHint');
 const statRulesCount = document.getElementById('statRulesCount');
 const statLastGrouped = document.getElementById('statLastGrouped');
@@ -98,7 +99,7 @@ async function refreshEngineStatus() {
   const provider = syncSettings.provider || 'gemini_nano';
   const groupingStrategy = syncSettings.groupingStrategy === 'site' ? 'site' : 'task';
   const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
-  strategySelect.value = groupingStrategy;
+  strategyInputs.forEach(input => { input.checked = input.value === groupingStrategy; });
   providerSelect.value = provider;
   providerSelect.disabled = groupingStrategy === 'site';
 
@@ -224,10 +225,14 @@ btnGroupTabs.addEventListener('click', async () => {
 
     if (res.fallbackUsed) {
       let reasonSnippet = 'AI unavailable';
-      if (res.fallbackReason?.includes('429') || res.fallbackReason?.toLowerCase().includes('quota')) {
+      if (res.fallbackCode === 'quota') {
         reasonSnippet = 'AI quota exceeded';
-      } else if (res.fallbackReason?.includes('401') || res.fallbackReason?.toLowerCase().includes('key')) {
+      } else if (res.fallbackCode === 'auth') {
         reasonSnippet = 'Invalid API key';
+      } else if (res.fallbackCode === 'timeout') {
+        reasonSnippet = 'AI timed out';
+      } else if (res.fallbackCode === 'nano_unavailable') {
+        reasonSnippet = 'local model unavailable';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else if (res.qualityFlags?.length) {
@@ -259,10 +264,11 @@ btnUngroup.addEventListener('click', async () => {
 });
 
 // Event: Provider changed
-strategySelect.addEventListener('change', async (e) => {
-  await chrome.storage.sync.set({ groupingStrategy: e.target.value });
+strategyInputs.forEach(input => input.addEventListener('change', async () => {
+  if (!input.checked) return;
+  await chrome.storage.sync.set({ groupingStrategy: input.value });
   await refreshEngineStatus();
-});
+}));
 
 providerSelect.addEventListener('change', async (e) => {
   const newProvider = e.target.value;
@@ -307,6 +313,13 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
   renderProviderSelect();
+  chrome.commands.getAll().then(commands => {
+    const shortcut = commands.find(command => command.name === 'group-tabs')?.shortcut;
+    if (!shortcut) return;
+    tabShortcut.textContent = shortcut.replace('Command+Shift+', '⌘⇧');
+    tabShortcut.title = shortcut;
+    tabShortcut.classList.remove('hidden');
+  }).catch(() => {});
   await Promise.all([
     refreshTabCount(),
     refreshEngineStatus(),
