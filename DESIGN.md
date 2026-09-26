@@ -50,7 +50,7 @@ spacing:
 
 ## Creative direction
 
-Foldnex uses an **Instrument Glass** visual language grounded in Magrathean’s current site palette: pale blue working surfaces, deep navy navigation, focused blue actions, violet selection accents, fine blue-grey rules, compact labels, and very restrained elevation. It should feel like a dependable desktop utility rather than an AI dashboard.
+Foldnex uses pale blue working surfaces, deep navy navigation, focused blue actions, violet selection accents, fine blue-grey rules, compact labels, and very restrained elevation. Keep the interface compact and focused on tab cleanup.
 
 The extension icon remains the primary brand asset. Interface icons use a locally bundled subset of Google Material Symbols Rounded. Gradients, glowing effects, novelty illustrations, emoji decoration, and promotional provider cards are out of scope.
 
@@ -70,7 +70,7 @@ Every visibly rounded rectangle uses a `10px` corner radius. This includes panel
 
 ## Typography
 
-Use the local system sans-serif stack, matching Magrathean's current site typography without a remote font dependency. Headings are compact and slightly tight. Small instrument labels use uppercase, `11px`, heavy weight, and generous tracking. Ordinary controls and explanatory copy stay in sentence case.
+Use the local system sans-serif stack, without a remote font dependency. Headings are compact and slightly tight. Small instrument labels use uppercase, `11px`, heavy weight, and generous tracking. Ordinary controls and explanatory copy stay in sentence case.
 
 ## Layout
 
@@ -120,3 +120,9 @@ Use direct, sentence-case copy. Lead with the result: groups created, duplicates
 - Motion is functional and brief: `160ms` state transitions and `220ms` panel reveals.
 - Engine selection uses one authored compression: provider rows converge into the compact selected-engine control while the chosen configuration surface takes focus. The chooser must remain reversible and keyboard accessible.
 - Respect `prefers-reduced-motion`.
+
+## Reference precedence
+
+Use this document and the tokens in `popup.css` and `options/options.css` for current UI work. `.impeccable/design.json` is an older generated dark-palette snapshot. Its component examples and narrative are historical and must not override the current light palette. The scoped [surface guidance](.impeccable/surfaces/popup-html.md) follows the current design.
+
+Visual and interaction acceptance requires a new browser check for the changed surfaces. [design-qa.md](design-qa.md) retains an earlier report; it is not a current release sign-off.

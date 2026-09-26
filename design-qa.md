@@ -1,3 +1,7 @@
+# Historical design review
+
+This retained report describes an earlier UI review. The documentation refresh on 26 September 2026 did not repeat its browser, contrast, test, or visual checks. Its pass statements apply only to that earlier inspection, whose exact revision is not recorded here. Use [DESIGN.md](DESIGN.md) for the current design contract and record fresh evidence when changing the UI.
+
 **Comparison target**
 
 - Structural reference: `https://preview--hug-and-restructure.lovable.app/?__lovable_sha=833fe79d` (Foldnex redesign states inspected in Chrome).

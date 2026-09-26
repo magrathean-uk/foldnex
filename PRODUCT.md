@@ -16,7 +16,7 @@ One action should leave the current window visibly cleaner: a single sensible co
 
 ## Positioning
 
-Foldnex is a practical tab-organisation utility, not an AI showcase. It combines conservative duplicate removal, exact semantic result reuse, explicit user rules, optional AI classification, and an offline fallback rather than depending on one model or provider.
+Foldnex is a practical tab-organisation utility, not an AI showcase. It combines conservative duplicate removal, exact semantic result reuse, explicit user rules, optional AI classification, and an offline fallback.
 
 ## Primary surfaces
 
@@ -40,22 +40,22 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Ignore ordinary document anchors but preserve route-like fragments.
 - Keep HTTP and HTTPS identities distinct.
 - Retain query keys, values, order, host, port, and path.
-- Prefer a pinned survivor, then the active tab, then the leftmost copy.
+- Prefer a pinned survivor, then the active tab, then the leftmost copy. A redundant pinned copy can close when the survivor is still pinned.
 - Recheck both survivor and candidate immediately before removal.
 - Deduplicate exact URLs for a short allowlist of stateless Chrome pages; preserve other non-HTTP(S) pages.
 
 ## Grouping contract
 
-- **By task** uses each complete title as the primary semantic signal and its sanitised URL as supporting context.
+- **By task** uses each title, up to the 1,000-character defensive ceiling, as the primary semantic signal and its sanitised URL as supporting context.
 - **By task** groups by active task or purpose, not simply by domain or media type.
-- **By site category** uses only the address and makes no model request. Known services use a stable 30-name taxonomy. X, Reddit, and Slack are Socials; Gmail and Outlook are Email; assistants such as ChatGPT and Grok are AI · Assistants; AI provider consoles and documentation are AI · Platforms. AI groups never merge into Code, Cloud, or generic technology groups.
+- **By site category** uses only the address and makes no model request. Known services use a maintained service taxonomy. X, Reddit, and Slack are Socials; Gmail and Outlook are Email; assistants such as ChatGPT and Grok are AI · Assistants; AI provider consoles and documentation are AI · Platforms. AI groups never merge into Code, Cloud, or generic technology groups.
 - In either strategy, known social services are kept in Socials rather than accepted inside system or administration groups. Explicit user-authored URL overrides still take precedence.
 - By site category keeps every page under the same recognised base site together, including separate Envato account, asset, and content areas.
 - YouTube, Envato, and Tesla are atomic dedicated groups. A multi-service category exceeding 15 tabs splits deterministically at service boundaries with namespaced labels such as Socials · X and AI · ChatGPT.
 - Repeated unknown sites use a readable site name. One-off unknowns enter Review Later groups capped at eight tabs rather than producing one group per tab or one unbounded catch-all.
 - Produce concise names and only Chrome-supported colours.
 - Assign every current groupable tab exactly once.
-- In By task mode, use an adaptive group range based on tab count and diversity: up to eight groups for ordinary windows and up to fourteen for windows above 140 tabs.
+- In By task mode, use an adaptive group range based on tab count and diversity: maximums of 3, 4, 6, 8, 10, 12, and 14 at the thresholds in `getAdaptiveGroupRange` in `src/ai-engine.js`.
 - In By task mode, reject vague catch-all groups containing more than two tabs and retry once with the failed quality constraint.
 - In By task mode, reject regional labels contradicted by a member's country-code domain and retry with an accurate country, region, or inclusive parent-region label.
 - In By task mode, cap large groups at roughly 28% of ordinary windows and 20% above 80 tabs (minimum cap eight) so one broad theme cannot swallow distinct tasks or regions. By site category deliberately permits large same-site groups.
@@ -70,17 +70,17 @@ Foldnex is a practical tab-organisation utility, not an AI showcase. It combines
 - Site-category grouping does not request browser-history permission. The generic public taxonomy is maintained in source; personal mappings remain explicit local rules.
 - Provider model catalogs are discovered live and cached for six hours.
 - Settings exposes reasoning effort beside supported models, with Low as the existing default. Available levels follow the selected provider and model; unsupported engines show no adjustable level. The popup shows the effective choice, and last-run diagnostics show the effort and any reasoning-token count reported by the provider. Requests use the provider's native parameter shape and omit incompatible sampling controls. Connection tests and grouping use the same rules.
-- Groq with `qwen/qwen3.8-27b` is the default cloud configuration for the current grouping workload, selected from a live 36-tab comparison for better grouping quality with fewer generated tokens.
+- The Groq catalog entry uses `qwen/qwen3.8-27b` as its default model. This is a source default, not a current availability or comparative-quality guarantee.
 - Groq uses JSON-object output plus local ID, coverage, color, and quality validation. This avoids strict-schema `failed_generation` errors that can otherwise turn a recoverable assignment into an HTTP 400.
 
 ## Data and privacy contract
 
 - API keys and bearer tokens live in `chrome.storage.local`, restricted to trusted extension contexts.
 - Non-secret engine preferences may sync through Chrome.
-- Cloud By task grouping sends complete titles and URL host/path hints to the selected provider; credentials, query strings, and fragments are removed first.
+- Cloud By task grouping sends titles (up to 1,000 characters each) and URL host/path hints to the selected provider; URL credentials, query strings, and fragments are removed first. Titles and paths can still contain sensitive information.
 - By site category, offline smart mode, and a working Chrome on-device model do not make a cloud grouping request.
 - Page bodies are never read; there are no content scripts.
-- Incognito grouping does not write rules, exact results, diagnostics, or group-rename preferences. If a cloud engine is selected, its normal title and host/path transmission still applies.
+- Incognito grouping does not write rules, exact results, diagnostics, or group-rename preferences. User changes to shared settings can still persist. If a cloud engine is selected, its normal title and host/path transmission still applies.
 - Programmatic group updates are marked in shared session storage and cannot become user corrections.
 - Imported rule files are size-limited and schema-validated before storage.
 
@@ -106,6 +106,8 @@ The Prompt API may be available in extension documents but absent from a Manifes
 
 ## Acceptance criteria
 
+These are checks for a behaviour change, not a record that the current build passed them.
+
 - Duplicate removal preserves the correct survivor and reports the count.
 - Every surviving groupable tab is assigned to a group even when model output is incomplete.
 - Pinned, internal, vanished, or newly navigated tabs are handled without destructive assumptions.
@@ -114,7 +116,7 @@ The Prompt API may be available in extension documents but absent from a Manifes
 - By site category keeps all Envato pages together, gives YouTube its own group, separates Socials from Email and AI from Code, and makes no provider request.
 - A deterministic 200-tab fixture assigns every tab once, produces no more than 30 groups, and repeats the same names and membership on every run.
 - Last-run diagnostics identify the actual engine, source, token usage, latency, groups, duplicates, fallback class, and quality flags without retaining tab content.
-- API keys are absent from sync storage, Git history, exported rules, and user-facing logs.
+- API keys must remain outside sync storage, exported rules, logs, and source control. Check the changed paths; this contract does not certify repository history.
 - The popup and settings remain usable with keyboard focus, reduced motion, and narrow widths.
 - Current ordinary-user browser behavior is checked separately from syntax and mocked-provider checks.
 
@@ -124,4 +126,4 @@ The Prompt API may be available in extension documents but absent from a Manifes
 - User surfaces: `popup.*` and `options/*`.
 - Permissions and entry points: `manifest.json`.
 - Product-facing setup and privacy guidance: `README.md`.
-- Visual authority: `DESIGN.md` and `.impeccable/design.json`.
+- Visual authority: `DESIGN.md`, `popup.css`, and `options/options.css`. The older generated `.impeccable/design.json` describes a superseded palette and must not override these files.

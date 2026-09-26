@@ -1,54 +1,126 @@
-# Foldnex privacy policy
+# Foldnex Privacy Policy
 
-Effective date: 21 September 2026
+**Effective date:** 23 September 2026
 
-Foldnex is a Chrome extension that removes exact duplicate tabs and organises tabs in the current Chrome window. This policy describes the data handled by version 1.0.0.
+**Controller:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
-## Data Foldnex handles
+**Privacy contact:** contact+foldnex@magrathean.uk
 
-Foldnex reads the URLs and titles of tabs in the current window so it can identify exact duplicates and create useful tab groups. It does not use content scripts, read page bodies, collect form entries, or access Chrome browsing history outside the current window.
+**Online version:** [https://magrathean.uk/apps/foldnex/privacy/](https://magrathean.uk/apps/foldnex/privacy/)
 
-Foldnex stores the following data in Chrome extension storage:
+This Privacy Policy explains how MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our") processes personal data in connection with the Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/apps/foldnex/](https://magrathean.uk/apps/foldnex/), and related support channels. It is written for users in the United Kingdom, European Economic Area, Switzerland, and other countries where Foldnex is made available.
 
-- API keys or bearer tokens that the user supplies for an optional cloud provider. These remain in `chrome.storage.local` and are not synced by Foldnex.
-- Provider choices, model IDs, grouping preferences, and other non-secret settings. Chrome may sync non-secret preferences when Chrome Sync is enabled.
-- User-authored URL rules and exact, content-addressed grouping results. Cached grouping results contain title and sanitised URL fingerprints, group names, and Chrome group colours. They expire after six hours and no more than twelve results are retained.
-- Up to twenty recent diagnostic records containing aggregate information such as engine, group count, duplicate count, latency, token usage, and quality flags. Diagnostics do not retain tab titles, URLs, prompts, or provider responses.
+---
 
-Incognito runs do not write rules, cached results, diagnostics, rename preferences, or settings.
+## 1. Short Version & Core Principle
 
-## Local and cloud processing
+Foldnex operates on an offline-first, local-first architecture. It removes exact duplicate tabs and organizes tabs in the current Chrome window into clean, colored tab groups.
 
-By site category, Offline smart mode, and Chrome Gemini Nano process grouping locally and do not send tab titles or URL hints to a cloud model.
+- **Zero extension telemetry:** The extension contains no analytics SDKs, tracking pixels, or cross-site identifiers.
+- **No page body reading:** Foldnex never inspects web page content, DOM trees, keystrokes, form submissions, or cookies. It does not inject content scripts into web pages.
+- **No cloud relay:** Magrathean operates no cloud proxy or backend relay for your tab data. Tab titles and URLs never pass through Magrathean servers.
+- **Local processing:** Deterministic categorization ("By site category"), Offline smart mode, and Chrome built-in Gemini Nano process tab data on your device. Local Ollama requests are sent to `localhost:11434`; Foldnex does not control any downstream handling configured in the user's Ollama installation. Chrome may separately download its built-in model.
+- **Optional BYOK AI:** If you explicitly choose an optional cloud AI engine (OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), your browser connects directly to that provider via HTTPS using your user-supplied API key. URL credentials, all query parameters, and fragments are removed from the URL hint before prompting. Tab titles and retained path segments can still contain sensitive information, so review the current window before using cloud grouping.
 
-When the user selects By task with a cloud provider, Foldnex sends the selected provider:
+---
 
-- complete tab titles, limited to 1,000 characters each; and
-- URL host/path hints.
+## 2. Scope of This Policy
 
-Credentials embedded in URLs, query strings, and fragments are removed before prompting. Page bodies are never sent. If a cloud provider is selected in an incognito window, this same transmission occurs for that run even though Foldnex does not persist the result.
+This policy applies to:
+- The Foldnex Chrome Extension (Manifest V3);
+- The Foldnex website and legal pages at `https://magrathean.uk/apps/foldnex/`;
+- User support, security reports, and communications with Magrathean relating to Foldnex.
 
-Supported cloud endpoints are Google Gemini, OpenAI, xAI, Groq, OpenRouter, DeepSeek, and Cerebras. OpenRouter may route a request to the model provider selected by the user. Provider model discovery and connection tests send only the supplied credential and the minimal provider-specific request; they do not send the current tab set. Local Ollama requests use `http://localhost:11434` and do not leave the device.
+Third-party AI providers that you configure (e.g. OpenAI, Google, Groq, Cerebras, OpenRouter, DeepSeek, xAI) and your browser provider (Google) act as independent controllers under their own terms and privacy notices.
 
-Foldnex does not operate a backend service. It does not sell personal data, use tab data for advertising, perform analytics, or share data except with a cloud provider the user explicitly selects to perform grouping.
+---
 
-The Donate link opens `https://magrathean.uk/donate/` only after the user selects it. Foldnex does not collect, store, or process donation or payment information; activity on that website is governed by the website's own terms and privacy policy.
+## 3. Data Foldnex Handles on Your Device
 
-## Chrome permissions
+Foldnex processes the following categories locally within Google Chrome:
 
-- `tabs` lets Foldnex read and manage tabs in the current window, remove exact duplicates, and preserve pinned or internal tabs.
-- `tabGroups` lets Foldnex create, name, colour, collapse, and remove Chrome tab groups.
-- `storage` stores settings, user rules, short-lived exact results, and aggregate diagnostics.
-- Provider host access is used only for the optional provider selected by the user, model discovery, or a user-requested connection test. The localhost host is used only for optional local Ollama.
+### 3.1 Tab Metadata (Current Window Only)
+- Tab URLs, tab titles (truncated to 1,000 characters for cloud prompts), pin state, active tab status, and tab position.
+- Used strictly to identify exact duplicates and assign tabs to Chrome tab groups.
+- Does not access browser history outside the current window.
 
-## Retention and deletion
+### 3.2 Credentials & Configuration (chrome.storage.local)
+- User-supplied API keys or bearer tokens for optional cloud providers. Stored in `chrome.storage.local`, restricted to trusted extension contexts. Chrome extension storage is not encrypted; these values are not placed in Chrome Sync or sent to Magrathean.
+- Non-secret preferences (engine selection, model IDs, grouping preferences, collapse settings). These may be synchronized via Chrome Sync if enabled by the user in browser settings.
 
-Cached grouping results expire after six hours. Aggregate diagnostics retain at most twenty runs. Users can clear rules and memory from Foldnex settings, remove provider credentials by clearing their fields, or remove all extension data by uninstalling Foldnex.
+### 3.3 User-Authored Rules & Grouping Cache
+- Domain-classification rules, including user-authored patterns and labels. Exported rule files include that rule content.
+- Scoped group-rename preferences containing a fingerprint, a user or generated group label, and a Chrome color token. Group labels can contain meaningful tab context.
+- Content-addressed grouping results containing fingerprints of complete titles and sanitised URL inputs, group titles, and Chrome group color tokens. Raw titles and raw URLs are not stored in this cache.
+- The cache treats entries older than six hours as ineligible for reuse when it reads or writes the cache. Expired entries are removed during a later cache write, rather than by a guaranteed six-hour deletion timer. New cache writes retain at most twelve entries.
 
-## Security
+### 3.4 Aggregate Diagnostics
+- Up to twenty recent diagnostic records containing technical metadata: engine type, tab count, group count, duplicate count, latency (ms), token metrics, and quality flags.
+- Diagnostics strictly exclude tab titles, URLs, prompts, and provider responses.
 
-Cloud provider requests use HTTPS. Secrets are kept in extension-local storage and are available only to trusted extension pages. No method of storage is guaranteed to be completely secure, so users should use provider keys with the least privileges and limits appropriate to their account.
+---
 
-## Changes and contact
+## 4. Incognito Window Isolation
 
-Material changes will be reflected in this file and its effective date. Questions or privacy requests can be submitted through the [Foldnex issue tracker](https://github.com/magrathean-uk/foldnex/issues).
+When Foldnex groups tabs in an Incognito window:
+- That run does **not** persist custom rules, cached grouping results, diagnostic records, or rename preferences.
+- Chrome extension settings in `chrome.storage.local` and `chrome.storage.sync` are shared between regular and Incognito contexts. User changes to these settings can still be saved.
+- If an optional cloud provider is selected, direct client-to-provider prompting occurs for that execution, but no cache or record is retained in extension storage.
+
+---
+
+## 5. Data That Leaves Your Device
+
+The extension and its supporting services have these data-handling paths:
+
+1. **User-Selected Cloud AI Provider (BYOK):** When you select "By task" with an optional cloud engine, Foldnex connects directly from your browser to that provider endpoint using your stored API key. Tab titles (up to 1,000 characters each) and a sanitised URL host/path hint are sent. URL credentials, all query parameters, and fragments are removed from the hint, but Foldnex cannot guarantee that a title or retained path segment contains no sensitive information.
+2. **Provider Discovery & Connection Tests:** Model discovery sends your API key and a catalog request. "Test connection" sends two synthetic example tabs (`example.com`), your selected model, and your credential through the same grouping request used for real tabs. It does not send your current window's tab data.
+3. **Local Ollama:** Requests are addressed to `http://localhost:11434`. Foldnex makes no direct remote request for this engine, but your Ollama configuration may determine how it handles data after receiving the request.
+4. **Chrome Sync:** Non-secret preferences saved in Chrome sync storage may be transferred by Chrome when sync is enabled.
+5. **Website & Support:** When you visit `https://magrathean.uk/apps/foldnex/` or email `contact+foldnex@magrathean.uk`, standard website technical logs and correspondence are processed as described in the Magrathean Website Privacy Policy.
+
+---
+
+## 6. Chrome Extension Permissions Justification
+
+- **`tabs`:** Required to read tab URLs, titles, pin state, and window position in the active window to detect duplicates and assemble tab groups. Foldnex does not read web page content or browsing history.
+- **`tabGroups`:** Required to create, name, assign colors to, collapse, and remove Chrome tab groups in the active window.
+- **`storage`:** Required to persist local settings, rules, 6-hour grouping cache, and aggregate diagnostics.
+- **Host Permissions:** Restricted to optional cloud AI endpoints (`generativelanguage.googleapis.com`, `api.openai.com`, `api.x.ai`, `api.groq.com`, `openrouter.ai`, `api.deepseek.com`, `api.cerebras.ai`) and `http://localhost:11434`. Contacted solely when you configure and run that provider.
+
+---
+
+## 7. Purposes and Lawful Bases Under UK GDPR
+
+Where Magrathean acts as controller (for support requests, security reports, and website technical logs):
+- **Contract Performance (Article 6(1)(b) UK GDPR):** Delivering requested technical support.
+- **Legitimate Interests (Article 6(1)(f) UK GDPR):** Securing, troubleshooting, and maintaining the Extension and website.
+- **Legal Obligations (Article 6(1)(c) UK GDPR):** Complying with applicable statutory accounting and record-keeping duties.
+
+---
+
+## 8. Data Retention and Deletion
+
+Because tab data is stored locally in your browser, you retain complete control over retention:
+- **Cache eligibility:** Grouping-cache entries older than 6 hours are not reused. Expired entries are removed when a later cache write occurs, and new writes retain at most 12 entries. Diagnostics retain a rolling maximum of 20 runs.
+- **Manual Clearing:** You can clear rules, grouping memory, and diagnostics at any time from Foldnex Settings.
+- **Credential Removal:** Clear an API key field and save that provider to remove the key from `chrome.storage.local`.
+- **Complete Deletion:** Uninstalling Foldnex permanently purges all local extension storage from your Chrome profile.
+
+---
+
+## 9. Your Rights Under UK GDPR
+
+Under the UK GDPR and the Data Protection Act 2018, you have the right to request access to, rectification of, or erasure of any personal data we hold about you, to restrict or object to processing, and to data portability. To exercise these rights regarding support correspondence, contact `contact+foldnex@magrathean.uk`.
+
+---
+
+## 10. Complaints
+
+If you are not satisfied with our data handling, you have the right to lodge a complaint with the UK Information Commissioner's Office (ICO) at [ico.org.uk/make-a-complaint](https://ico.org.uk/make-a-complaint). We welcome the opportunity to resolve any concerns directly first.
+
+---
+
+## 11. Changes to This Policy
+
+We may update this Privacy Policy from time to time. The "Effective date" indicates when the current version took effect. Revisions will be published at [https://magrathean.uk/apps/foldnex/privacy/](https://magrathean.uk/apps/foldnex/privacy/) and in the project repository.

@@ -1,17 +1,18 @@
 # Chrome Web Store submission
 
-This file is the maintained source of truth for Foldnex store metadata, privacy answers, permission justifications, reviewer instructions, and release packaging.
+This file contains proposed store metadata, privacy answers, permission justifications, reviewer instructions, and packaging steps. Check them against the package being submitted. It does not establish that a listing is live or a submission has been accepted.
 
-## Listing
+## Proposed listing
 
 - **Product name:** Foldnex - Tab Organizer
 - **Category:** Productivity
 - **Language:** English
 - **Price:** Free
 - **Visibility:** Public
-- **Homepage:** https://github.com/magrathean-uk/foldnex
-- **Support:** https://github.com/magrathean-uk/foldnex/issues
-- **Privacy policy:** https://github.com/magrathean-uk/foldnex/blob/main/PRIVACY.md
+- **Homepage:** https://magrathean.uk/apps/foldnex/
+- **Support:** contact+foldnex@magrathean.uk / https://github.com/magrathean-uk/foldnex/issues
+- **Privacy policy:** https://magrathean.uk/apps/foldnex/privacy/
+- **Terms of service:** https://magrathean.uk/apps/foldnex/terms/
 
 ### Summary
 
@@ -21,22 +22,28 @@ Remove exact duplicate tabs and organize the current window into clear groups us
 
 Foldnex cleans up the current Chrome window in one action.
 
-- Removes conservative, exact-page duplicates while preserving pinned and browser-internal tabs.
-- Groups tabs by task using a local engine, Chrome Gemini Nano, or an optional cloud provider.
+- Removes conservative, exact-page duplicates with priority for a pinned survivor, then the active tab, then the leftmost copy.
+- Groups tabs by task using Offline smart mode, Chrome Gemini Nano when available, local Ollama, or an optional cloud provider.
 - Groups locally by site category when you want deterministic groups such as Socials, Email, AI, Code, and Video.
 - Keeps X, Reddit, Slack, and similar services in Socials instead of system or administration groups.
 - Supports explicit URL rules, short-lived exact-result reuse, and keyboard shortcuts.
 - Includes Offline smart mode and By site category with no API key and no cloud tab-data request.
 
-Cloud grouping is opt-in. When selected, the chosen provider receives complete tab titles and URL host/path hints. Credentials, query strings, fragments, and page bodies are not sent. See the privacy policy for the complete data contract.
+Cloud grouping is opt-in. When selected, the chosen provider receives tab titles (up to 1,000 characters each) and URL host/path hints. URL credentials, query strings, fragments, and page bodies are not included in grouping inputs. Provider authentication credentials are sent to the provider; titles and paths can still contain sensitive text. See the privacy policy for the complete data contract.
 
 The popup and settings page include a user-initiated Donate link to `https://magrathean.uk/donate/`. It opens in a separate tab. The extension does not process payment information.
 
 ## Store assets
 
 - Store icon: `store-assets/store-icon-128.png`
-- Screenshot: `store-assets/screenshot-popup-1280x800.png`
+- Screenshots (upload in this order):
+  1. `store-assets/screenshots/01-clean-and-group.png`
+  2. `store-assets/screenshots/02-engine-choice.png`
+  3. `store-assets/screenshots/03-provider-configuration.png`
+  4. `store-assets/screenshots/04-rules-and-memory.png`
+  5. `store-assets/screenshots/05-behaviour-and-report.png`
 - Small promotional tile: `store-assets/small-promo-440x280.png`
+- Marquee promotional tile: `store-assets/marquee-promo-1400x560.png`
 - Asset provenance: `store-assets/manifest.json`
 
 ## Single purpose
@@ -53,16 +60,16 @@ The top-level `commands` manifest entry declares user-visible keyboard shortcuts
 
 ## Host permission justifications
 
-Each cloud host is contacted only when its corresponding optional provider is selected, its model catalog is refreshed, or the user selects Test connection.
+These hosts support provider grouping, model-catalog discovery, and connection tests. A grouping request uses the chosen engine; settings can also contact a provider while configuring or testing it.
 
-- `https://generativelanguage.googleapis.com/*` — Google Gemini models, connection test, and grouping.
-- `https://api.openai.com/*` — OpenAI models, connection test, and grouping.
-- `https://api.x.ai/*` — xAI models, connection test, and grouping.
-- `https://api.groq.com/*` — Groq models, connection test, and grouping.
-- `https://openrouter.ai/*` — OpenRouter models, connection test, and grouping.
-- `https://api.deepseek.com/*` — DeepSeek models, connection test, and grouping.
-- `https://api.cerebras.ai/*` — Cerebras models, connection test, and grouping.
-- `http://localhost:11434/*` — optional local Ollama models, connection test, and grouping on the user's device.
+- `https://generativelanguage.googleapis.com/*`: Google Gemini models, connection test, and grouping.
+- `https://api.openai.com/*`: OpenAI models, connection test, and grouping.
+- `https://api.x.ai/*`: xAI models, connection test, and grouping.
+- `https://api.groq.com/*`: Groq models, connection test, and grouping.
+- `https://openrouter.ai/*`: OpenRouter models, connection test, and grouping.
+- `https://api.deepseek.com/*`: DeepSeek models, connection test, and grouping.
+- `https://api.cerebras.ai/*`: Cerebras models, connection test, and grouping.
+- `http://localhost:11434/*`: optional local Ollama models, connection test, and grouping on the user's device.
 
 ## Privacy dashboard answers
 
@@ -74,16 +81,16 @@ Declare these data types:
 - **Website content:** current-window tab titles are processed for grouping.
 - **Authentication information:** optional API keys or bearer tokens supplied by the user are stored locally and sent only to the selected provider for authentication.
 
-Do not declare page-body collection, personal communications, location, financial information, health information, or user activity analytics; Foldnex does not collect them.
+There are no content scripts or page-body reads. Titles, paths, and user-authored rules can still contain sensitive information. Review the current dashboard definitions against these inputs; do not interpret URL sanitisation as removing all personal data.
 
 ### Required certifications
 
-Certify that:
+Before certifying, verify that the submitted package and actual handling satisfy the current dashboard statements. The intended commitments are:
 
 - data is used only to provide and improve the user-facing tab-organisation feature;
 - data is not sold or transferred for advertising, creditworthiness, or unrelated purposes;
 - data is not used for personalised advertising;
-- humans do not read tab data except when the user deliberately includes it in a support request; and
+- the extension has no publisher-operated tab-data relay; optional providers apply their own processing policies; and
 - the privacy policy accurately describes local and optional cloud processing.
 
 ### Remote code
@@ -105,10 +112,12 @@ Cloud providers are optional and require reviewer-supplied credentials. Chrome G
 
 ## Package and submission checklist
 
-1. Run `npm test` and the syntax checks documented in `README.md`.
+1. Run `npm test` and the syntax checks documented in [Contributing](CONTRIBUTING.md).
 2. Run `npm run package:store`.
-3. Confirm the generated ZIP and SHA-256 file under `dist/`.
+3. Confirm the generated ZIP and SHA-256 file under `dist/`. Inspect the runtime file list in `scripts/package-store.sh`; the script preserves the bundled font licence. ZIP integrity and a checksum do not establish reproducible bytes or browser acceptance.
 4. Load the ZIP's extracted contents as an unpacked extension and exercise the reviewer path in a current Chrome release.
 5. Verify the store artwork dimensions and listing copy above.
 6. In the Chrome Web Store Developer Dashboard, upload the ZIP, complete the Store listing, Privacy, and Distribution tabs, and submit for review.
 7. The publisher must complete the developer-account registration, fee, identity or contact verification, and two-step verification required by Google. These account steps cannot be included in the source package.
+
+The existing [Terms](TERMS.md) contain legal and distribution statements. Keep their factual descriptions aligned with the submitted package and preserve the licence grants and other legal provisions. See [Licensing](LICENSING.md) and [Privacy](PRIVACY.md).
