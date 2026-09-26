@@ -87,6 +87,41 @@ export function providerSettingKey(provider, suffix) {
   return `${provider}${suffix[0].toUpperCase()}${suffix.slice(1)}`;
 }
 
+const STANDARD_REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high']);
+const XAI_DEEP_REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh']);
+const DEEPSEEK_REASONING_EFFORTS = Object.freeze(['low', 'high', 'max']);
+const GEMINI_2_5_THINKING_BUDGETS = Object.freeze({
+  low: 512,
+  medium: 8192,
+  high: 24576
+});
+
+function normalizedModelId(model) {
+  return String(model || '').toLowerCase().replace(/^models\//, '');
+}
+
+function isGeminiLegacyLowDefault(model) {
+  return normalizedModelId(model) === 'gemini-flash-lite-latest';
+}
+
+function getGeminiReasoningEffortOptions(model) {
+  const modelId = normalizedModelId(model);
+  if (/-image(?:-|$)/.test(modelId)) return [];
+
+  if (/^gemini-2\.5-(?:pro|flash(?:-lite)?)(?:-|$)/.test(modelId)) {
+    return STANDARD_REASONING_EFFORTS;
+  }
+  if (/^gemini-3-pro(?:-|$)/.test(modelId)) return ['low', 'high'];
+  if (/^gemini-3(?:-flash|\.1-(?:pro|flash-lite)|\.(?:5|6|7|8)-flash(?:-lite)?)(?:-|$)/.test(modelId)) {
+    return STANDARD_REASONING_EFFORTS;
+  }
+  return [];
+}
+
+function isCurrentXAIReasoningModel(model) {
+  return /^grok-4\.(?:5|6|7)(?:-|$)/.test(String(model || '').toLowerCase().split('/').at(-1) || '');
+}
+
 /** Current OpenAI reasoning models reject sampling controls such as temperature. */
 export function isOpenAIReasoningModel(model) {
   const modelId = String(model || '').toLowerCase().split('/').at(-1) || '';
@@ -95,78 +130,129 @@ export function isOpenAIReasoningModel(model) {
     || /^o[1-9](?:-|$)/.test(modelId);
 }
 
+export function isOpenAIResponsesOnlyModel(model) {
+  const modelId = normalizedModelId(model).split('/').at(-1) || '';
+  return /^(?:gpt-5(?:\.\d+)?|o[13])-pro(?:-|$)/.test(modelId);
+}
+
+/**
+ * Return only effort values that are documented for this provider/model pair.
+ * A caller can use an empty result to omit a setting control altogether.
+ */
+export function getReasoningEffortOptions(provider, model) {
+  const modelId = normalizedModelId(model);
+  const leafId = modelId.split('/').at(-1) || '';
+
+  if (provider === 'gemini_api') return getGeminiReasoningEffortOptions(modelId);
+  if (provider === 'openai') {
+    return isOpenAIReasoningModel(modelId) && !isOpenAIResponsesOnlyModel(modelId)
+      ? STANDARD_REASONING_EFFORTS
+      : [];
+  }
+  if (provider === 'xai') {
+    if (!isCurrentXAIReasoningModel(modelId)) return [];
+    return /^grok-4\.(?:6|7)(?:-|$)/.test(leafId)
+      ? XAI_DEEP_REASONING_EFFORTS
+      : STANDARD_REASONING_EFFORTS;
+  }
+  if (provider === 'groq') {
+    return /^openai\/gpt-oss-(?:20b|120b)$/.test(modelId)
+      || /^qwen\/qwen3\.8(?:-|$)/.test(modelId)
+      ? STANDARD_REASONING_EFFORTS
+      : [];
+  }
+  if (provider === 'openrouter') {
+    const geminiOptions = getGeminiReasoningEffortOptions(leafId);
+    if (geminiOptions.length > 0) return geminiOptions;
+    if (
+      isOpenAIReasoningModel(leafId)
+      || isCurrentXAIReasoningModel(leafId)
+      || /(?:^|[-/])(?:gpt-oss|qwen3|deepseek-r1|deepseek-reasoner|deepseek-v3\.1|deepseek-v4)(?:[-/:.]|$)/.test(modelId)
+    ) {
+      return STANDARD_REASONING_EFFORTS;
+    }
+    return [];
+  }
+  if (provider === 'deepseek') {
+    return /^(?:deepseek-flash|deepseek-v4-pro)$/.test(leafId)
+      ? DEEPSEEK_REASONING_EFFORTS
+      : [];
+  }
+  if (provider === 'cerebras') {
+    return ['gpt-oss-120b', 'qwen-3.8-27b'].includes(leafId)
+      ? STANDARD_REASONING_EFFORTS
+      : [];
+  }
+  if (provider === 'ollama') {
+    return /(?:^|[-/:])(?:gpt-oss|qwen3|deepseek-r1|deepseek-v3\.1|thinking)(?:[-/:.]|$)/.test(modelId)
+      ? STANDARD_REASONING_EFFORTS
+      : [];
+  }
+  return [];
+}
+
+/**
+ * Keep existing low-effort behavior when a model supports it, while rejecting
+ * stale or unsupported saved values before they reach a provider request.
+ */
+export function getEffectiveReasoningEffort(provider, model, savedValue) {
+  const options = getReasoningEffortOptions(provider, model);
+  const saved = String(savedValue || '').toLowerCase();
+  if (options.includes(saved)) return saved;
+  if (options.length > 0) return 'low';
+
+  // This alias has historically received a 512-token Gemini 2.5 thinking
+  // budget. Keep that safe low default, but do not offer a user control until
+  // the live alias resolves to a known, generation-specific model ID.
+  if (provider === 'gemini_api' && isGeminiLegacyLowDefault(model)) return 'low';
+  return null;
+}
+
 /**
  * Reasoning controls are model-specific even across OpenAI-compatible APIs.
  * Only opt in for documented model families so a non-reasoning model never
  * receives a foreign parameter and fails with HTTP 400.
  */
 export function isCompatibleReasoningModel(provider, model) {
-  const modelId = String(model || '').toLowerCase();
-  const leafId = modelId.split('/').at(-1) || '';
-
-  if (provider === 'openai') return isOpenAIReasoningModel(modelId);
-  if (provider === 'xai') {
-    return /^grok-3-mini(?:-|$)/.test(leafId)
-      || /^grok-4\.(?:[5-9]|\d{2,})(?:-|$)/.test(leafId);
-  }
-  if (provider === 'groq') {
-    return /^openai\/gpt-oss-(?:20b|120b)$/.test(modelId)
-      || /^qwen\/qwen3\.8(?:-|$)/.test(modelId);
-  }
-  if (provider === 'openrouter') {
-    return isOpenAIReasoningModel(leafId)
-      || /^grok-3-mini(?:-|$)/.test(leafId)
-      || /^grok-4\.(?:[5-9]|\d{2,})(?:-|$)/.test(leafId)
-      || /^gemini-(?:2\.5|3(?:[.-]|$))/.test(leafId)
-      || /^claude-(?:3[.-]7|[4-9])/.test(leafId)
-      || /(?:^|[-/])(?:gpt-oss|qwen3|deepseek-r1|deepseek-reasoner|deepseek-v3\.1|deepseek-v4)(?:[-/:.]|$)/.test(modelId)
-      || /(?:^|[-/])thinking(?:[-/:.]|$)/.test(modelId);
-  }
-  if (provider === 'deepseek') return /^deepseek-/.test(leafId);
-  if (provider === 'cerebras') {
-    return /^gpt-oss-(?:20b|120b)$/.test(leafId) || /^zai-glm-4\.7(?:-|$)/.test(leafId);
-  }
-  if (provider === 'ollama') {
-    return /(?:^|[-/:])(?:gpt-oss|qwen3|deepseek-r1|deepseek-v3\.1|thinking)(?:[-/:.]|$)/.test(modelId);
-  }
-  return false;
+  return getReasoningEffortOptions(provider, model).length > 0
+    || (provider === 'gemini_api' && isGeminiLegacyLowDefault(model));
 }
 
-export function getCompatibleRequestControls(provider, model) {
-  if (!isCompatibleReasoningModel(provider, model)) return { temperature: 0 };
+export function getCompatibleRequestControls(provider, model, savedReasoningEffort) {
+  const reasoningEffort = getEffectiveReasoningEffort(provider, model, savedReasoningEffort);
+  if (!reasoningEffort) return { temperature: 0 };
 
   if (provider === 'openrouter') {
-    return { reasoning: { effort: 'low', exclude: true } };
+    return { reasoning: { effort: reasoningEffort, exclude: true } };
   }
   if (provider === 'deepseek') {
-    return { reasoning_effort: 'low', thinking: { type: 'enabled' } };
+    return { reasoning_effort: reasoningEffort, thinking: { type: 'enabled' } };
   }
   if (provider === 'groq') {
-    return { temperature: 0, reasoning_effort: 'low', include_reasoning: false };
+    return { temperature: 0, reasoning_effort: reasoningEffort, include_reasoning: false };
   }
   if (provider === 'cerebras') {
-    return { temperature: 0, reasoning_effort: 'low', reasoning_format: 'hidden' };
+    return normalizedModelId(model).split('/').at(-1) === 'gpt-oss-120b'
+      ? { temperature: 0, reasoning_effort: reasoningEffort, reasoning_format: 'hidden' }
+      : { temperature: 0, reasoning_effort: reasoningEffort };
   }
   if (provider === 'ollama') {
-    return { temperature: 0, reasoning_effort: 'low' };
+    return { temperature: 0, reasoning_effort: reasoningEffort };
   }
-  return { reasoning_effort: 'low' };
+  return { reasoning_effort: reasoningEffort };
 }
 
-export function getGeminiGenerationConfig(model, config = {}) {
-  const modelId = String(model || '').toLowerCase().replace(/^models\//, '');
+export function getGeminiGenerationConfig(model, config = {}, savedReasoningEffort) {
+  const modelId = normalizedModelId(model);
   const generationConfig = { ...config };
   const isGemini3 = /^gemini-3(?:[.-]|$)/.test(modelId);
-  const supportsThinking = isGemini3
-    || /^gemini-2\.5(?:[.-]|$)/.test(modelId)
-    || modelId === 'gemini-flash-lite-latest';
-
-  if (!supportsThinking) return generationConfig;
+  const reasoningEffort = getEffectiveReasoningEffort('gemini_api', modelId, savedReasoningEffort);
+  if (!reasoningEffort) return generationConfig;
   if (isGemini3) {
     delete generationConfig.temperature;
-    generationConfig.thinkingConfig = { thinkingLevel: 'LOW' };
+    generationConfig.thinkingConfig = { thinkingLevel: reasoningEffort.toUpperCase() };
   } else {
-    generationConfig.thinkingConfig = { thinkingBudget: 512 };
+    generationConfig.thinkingConfig = { thinkingBudget: GEMINI_2_5_THINKING_BUDGETS[reasoningEffort] };
   }
   return generationConfig;
 }
@@ -586,17 +672,29 @@ async function getSafeApiError(response) {
   return compact || 'Request failed';
 }
 
-const PROVIDER_REQUEST_TIMEOUT_MS = 30000;
+const PROVIDER_REQUEST_TIMEOUT_MS = Object.freeze({
+  low: 30000,
+  medium: 45000,
+  high: 60000,
+  xhigh: 120000,
+  max: 120000,
+  default: 30000
+});
 
-async function fetchProviderRequest(url, options, consumeResponse) {
+function providerRequestTimeoutMs(reasoningEffort) {
+  return PROVIDER_REQUEST_TIMEOUT_MS[reasoningEffort] || PROVIDER_REQUEST_TIMEOUT_MS.default;
+}
+
+async function fetchProviderRequest(url, options, consumeResponse, reasoningEffort = null) {
+  const timeoutMs = providerRequestTimeoutMs(reasoningEffort);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     return await consumeResponse(response);
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error(`Provider request timed out after ${PROVIDER_REQUEST_TIMEOUT_MS / 1000}s`);
+      throw new Error(`Provider request timed out after ${timeoutMs / 1000}s`);
     }
     throw error;
   } finally {
@@ -606,11 +704,17 @@ async function fetchProviderRequest(url, options, consumeResponse) {
 
 function normalizeUsage(usage) {
   if (!usage) return null;
+  const reasoningTokens = usage.reasoning_tokens
+    ?? usage.reasoningTokenCount
+    ?? usage.thoughtsTokenCount
+    ?? usage.completion_tokens_details?.reasoning_tokens
+    ?? usage.completion_tokens_details?.reasoning_token_count;
   return {
     promptTokens: Number(usage.prompt_tokens ?? usage.promptTokenCount ?? 0),
     completionTokens: Number(usage.completion_tokens ?? usage.candidatesTokenCount ?? 0),
     totalTokens: Number(usage.total_tokens ?? usage.totalTokenCount ?? 0),
-    cachedTokens: Number(usage.prompt_tokens_details?.cached_tokens ?? usage.cachedContentTokenCount ?? 0)
+    cachedTokens: Number(usage.prompt_tokens_details?.cached_tokens ?? usage.cachedContentTokenCount ?? 0),
+    reasoningTokens: Number.isFinite(Number(reasoningTokens)) ? Number(reasoningTokens) : null
   };
 }
 
@@ -668,7 +772,13 @@ async function callChromeNano(tabs, qualityFeedback = '') {
 /**
  * Provider 2: Google Gemini API (Flash) with secure HTTP header authentication
  */
-async function callGeminiAPI(tabs, apiKey, model = PROVIDER_CATALOG.gemini_api.defaultModel, qualityFeedback = '') {
+async function callGeminiAPI(
+  tabs,
+  apiKey,
+  model = PROVIDER_CATALOG.gemini_api.defaultModel,
+  qualityFeedback = '',
+  savedReasoningEffort
+) {
   if (!apiKey) throw new Error('Gemini API key is not configured');
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
@@ -687,9 +797,10 @@ async function callGeminiAPI(tabs, apiKey, model = PROVIDER_CATALOG.gemini_api.d
     generationConfig: getGeminiGenerationConfig(model, {
       responseMimeType: 'application/json',
       temperature: 0.2
-    })
+    }, savedReasoningEffort)
   };
 
+  const reasoningEffort = getEffectiveReasoningEffort('gemini_api', model, savedReasoningEffort);
   const data = await fetchProviderRequest(endpoint, {
     method: 'POST',
     headers: {
@@ -702,20 +813,29 @@ async function callGeminiAPI(tabs, apiKey, model = PROVIDER_CATALOG.gemini_api.d
       throw new Error(`Gemini API HTTP ${response.status}: ${await getSafeApiError(response)}`);
     }
     return response.json();
-  });
+  }, reasoningEffort);
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   return {
     result: extractJson(text),
     usage: normalizeUsage(data.usageMetadata),
     model,
-    provider: 'gemini_api'
+    provider: 'gemini_api',
+    reasoningEffort
   };
 }
 
 /**
  * Provider 3: OpenAI API (or OAuth / Compatible endpoints)
  */
-async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUrl, qualityFeedback = '') {
+async function callOpenAICompatible(
+  tabs,
+  provider,
+  apiKeyOrToken,
+  model,
+  baseUrl,
+  qualityFeedback = '',
+  savedReasoningEffort
+) {
   const config = PROVIDER_CATALOG[provider];
   if (!config || config.mode !== 'compatible') throw new Error(`Unsupported compatible provider: ${provider}`);
   if (!apiKeyOrToken && !config.keyOptional) throw new Error(`${config.name} API key is not configured`);
@@ -725,10 +845,14 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
   const promptText = formatTabsPrompt(tabs, qualityFeedback);
 
   const selectedModel = model || config.defaultModel;
+  if (provider === 'openai' && isOpenAIResponsesOnlyModel(selectedModel)) {
+    throw new Error(`${selectedModel} requires the OpenAI Responses API. Choose a Chat Completions model for Foldnex.`);
+  }
   const usesOpenAIReasoning = provider === 'openai' && isOpenAIReasoningModel(selectedModel);
+  const reasoningEffort = getEffectiveReasoningEffort(provider, selectedModel, savedReasoningEffort);
   const payload = {
     model: selectedModel,
-    ...getCompatibleRequestControls(provider, selectedModel),
+    ...getCompatibleRequestControls(provider, selectedModel, savedReasoningEffort),
     response_format: { type: 'json_object' },
     messages: [
       { role: usesOpenAIReasoning ? 'developer' : 'system', content: SYSTEM_PROMPT },
@@ -747,7 +871,14 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
   // assignment. A too-small cap makes Groq reject truncated JSON with
   // failed_generation, so scale with the number of IDs while retaining a
   // hard ceiling that keeps this classification call inexpensive.
-  const outputBudget = Math.min(1536, Math.max(768, 512 + tabs.length * 28));
+  const baseOutputBudget = Math.min(1536, Math.max(768, 512 + tabs.length * 28));
+  const budgetMultiplier = reasoningEffort === 'high' ? 2 : reasoningEffort === 'medium' ? 1.5 : 1;
+  const outputBudget = ['xhigh', 'max'].includes(reasoningEffort)
+    ? 8192
+    : Math.min(
+      reasoningEffort === 'high' ? 3072 : reasoningEffort === 'medium' ? 2304 : 1536,
+      Math.round(baseOutputBudget * budgetMultiplier)
+    );
   if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = outputBudget;
   else payload.max_tokens = outputBudget;
 
@@ -767,13 +898,14 @@ async function callOpenAICompatible(tabs, provider, apiKeyOrToken, model, baseUr
       throw new Error(`${config.name} API HTTP ${response.status}: ${await getSafeApiError(response)}`);
     }
     return response.json();
-  });
+  }, reasoningEffort);
   const text = data.choices?.[0]?.message?.content;
   return {
     result: extractJson(text),
     usage: normalizeUsage(data.usage),
     model: data.model || selectedModel,
-    provider
+    provider,
+    reasoningEffort
   };
 }
 
@@ -795,7 +927,13 @@ export async function clusterTabsWithAI(tabs, settings, qualityFeedback = '') {
       throw new Error(`Built-in Gemini Nano is ${status.detail}`);
     }
   } else if (provider === 'gemini_api') {
-    responseEnvelope = await callGeminiAPI(tabs, settings.geminiApiKey, settings.geminiModel, qualityFeedback);
+    responseEnvelope = await callGeminiAPI(
+      tabs,
+      settings.geminiApiKey,
+      settings.geminiModel,
+      qualityFeedback,
+      settings.geminiReasoningEffort
+    );
   } else if (PROVIDER_CATALOG[provider]?.mode === 'compatible') {
     const config = PROVIDER_CATALOG[provider];
     const apiKey = settings[providerSettingKey(provider, 'apiKey')]
@@ -806,7 +944,8 @@ export async function clusterTabsWithAI(tabs, settings, qualityFeedback = '') {
       apiKey,
       settings[providerSettingKey(provider, 'model')] || config.defaultModel,
       settings[providerSettingKey(provider, 'baseUrl')] || config.baseUrl,
-      qualityFeedback
+      qualityFeedback,
+      settings[providerSettingKey(provider, 'reasoningEffort')]
     );
   } else {
     throw new Error(`Unknown AI provider: ${provider}`);
@@ -876,6 +1015,7 @@ export async function clusterTabsWithAI(tabs, settings, qualityFeedback = '') {
       provider: responseEnvelope.provider || provider,
       model: responseEnvelope.model,
       usage: responseEnvelope.usage,
+      reasoningEffort: responseEnvelope.reasoningEffort || null,
       latencyMs: Math.round(performance.now() - startedAt)
     }
   };

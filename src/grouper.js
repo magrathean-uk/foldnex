@@ -8,6 +8,7 @@ import {
   assessGroupingQuality,
   clusterTabsWithAI,
   CHROME_GROUP_COLORS,
+  getEffectiveReasoningEffort,
   PROVIDER_CATALOG,
   providerSettingKey
 } from './ai-engine.js';
@@ -108,6 +109,11 @@ async function recordRun(run) {
     foldnex_last_run: run,
     [RUN_HISTORY_KEY]: history.slice(0, RUN_HISTORY_LIMIT)
   });
+}
+
+function sumReportedTokens(first, second) {
+  if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+  return first + second;
 }
 
 function classifyProviderFailure(error) {
@@ -262,7 +268,13 @@ export async function executeTabGrouping(windowId, settings) {
   const provider = effectiveSettings.provider || 'gemini_nano';
   const requestedModel = modelForSettings(effectiveSettings);
   const groupingStrategy = effectiveSettings.groupingStrategy === 'site' ? 'site' : 'task';
-  const cacheScope = `${PROMPT_VERSION}:${groupingStrategy}:${provider}:${requestedModel}`;
+  const savedReasoningEffort = provider === 'gemini_api'
+    ? effectiveSettings.geminiReasoningEffort
+    : effectiveSettings[providerSettingKey(provider, 'reasoningEffort')];
+  const effectiveReasoningEffort = groupingStrategy === 'task'
+    ? getEffectiveReasoningEffort(provider, requestedModel, savedReasoningEffort)
+    : null;
+  const cacheScope = `${PROMPT_VERSION}:${groupingStrategy}:${provider}:${requestedModel}:${effectiveReasoningEffort || 'none'}`;
 
   console.log(`[Foldnex] Starting grouping for ${groupableTabs.length} tabs in window ${resolvedWindowId}...`);
 
@@ -317,7 +329,8 @@ export async function executeTabGrouping(windowId, settings) {
                 promptTokens: Number(firstUsage.promptTokens || 0) + Number(retryUsage.promptTokens || 0),
                 completionTokens: Number(firstUsage.completionTokens || 0) + Number(retryUsage.completionTokens || 0),
                 totalTokens: Number(firstUsage.totalTokens || 0) + Number(retryUsage.totalTokens || 0),
-                cachedTokens: Number(firstUsage.cachedTokens || 0) + Number(retryUsage.cachedTokens || 0)
+                cachedTokens: Number(firstUsage.cachedTokens || 0) + Number(retryUsage.cachedTokens || 0),
+                reasoningTokens: sumReportedTokens(firstUsage.reasoningTokens, retryUsage.reasoningTokens)
               }
             };
             if (retryQuality.passed || retryQuality.issues.length < firstQuality.issues.length) {
@@ -462,6 +475,10 @@ export async function executeTabGrouping(windowId, settings) {
   if (!isIncognitoWindow) {
     const now = Date.now();
     const usage = aiMeta?.usage || {};
+    const reportedReasoningTokens = Number.isFinite(usage.reasoningTokens) ? usage.reasoningTokens : null;
+    const recordedReasoningEffort = resultSource === 'cloud'
+      ? aiMeta?.reasoningEffort || effectiveReasoningEffort
+      : null;
     await recordRun({
       timestamp: now,
       groupsCreated: groupsCreatedCount,
@@ -470,11 +487,13 @@ export async function executeTabGrouping(windowId, settings) {
       strategy: groupingStrategy,
       provider,
       model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
+      reasoningEffort: recordedReasoningEffort,
       source: resultSource,
       promptVersion: PROMPT_VERSION,
       promptTokens: Number(usage.promptTokens || 0),
       completionTokens: Number(usage.completionTokens || 0),
       cachedTokens: Number(usage.cachedTokens || 0),
+      reasoningTokens: reportedReasoningTokens,
       latencyMs: Math.round(performance.now() - runStartedAt),
       providerLatencyMs: Number(aiMeta?.latencyMs || 0),
       qualityFlags: qualityIssues,
@@ -500,6 +519,8 @@ export async function executeTabGrouping(windowId, settings) {
     strategy: groupingStrategy,
     source: resultSource,
     model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
+    reasoningEffort: resultSource === 'cloud' ? aiMeta?.reasoningEffort || effectiveReasoningEffort : null,
+    reasoningTokens: Number.isFinite(aiMeta?.usage?.reasoningTokens) ? aiMeta.usage.reasoningTokens : null,
     qualityFlags: qualityIssues,
     groups: finalGroups
   };

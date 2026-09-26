@@ -91,6 +91,8 @@ At `920px`, navigation becomes a horizontal strip. At `620px`, forms and control
 
 Inputs and selects use a warm muted fill, visible border, `43px` minimum height, and `10px` radius. Focus changes the border and surface without glow. API keys keep explicit Show/Hide controls.
 
+In engine settings, reasoning effort sits immediately below the model field. Show the effective value in the popup; disable the control with a clear explanation when the selected model has no adjustable level.
+
 ### Navigation
 
 Inactive items are blue-grey on white. The active item is deep navy with white text and a small violet Material Symbol accent. Navigation items use a `10px` radius.

@@ -215,6 +215,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .strategy-choice input:checked + span small { color: #c7c9c2; }
 .strategy-choice input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: -2px; }
 .secondary-field-label { display: block; margin: 14px 0 7px; }
+.engine-meta { margin: 9px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .nano-hint { margin: 9px 0 0; color: var(--quiet); font-size: 12px; }
 .stats-card { display: grid; grid-template-columns: 1fr 1.35fr; gap: 22px; }
 .stat-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }

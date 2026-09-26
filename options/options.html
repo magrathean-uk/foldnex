@@ -110,6 +110,14 @@
             <span id="geminiModelsStatus" class="form-help" role="status" aria-live="polite">Enter an API key to load the live catalog.</span>
           </div>
 
+          <div class="form-group">
+            <label for="geminiReasoningEffort">Reasoning effort</label>
+            <select id="geminiReasoningEffort" class="form-select" disabled>
+              <option value="">Checking model support…</option>
+            </select>
+            <span id="geminiReasoningHelp" class="form-help" role="status">Reasoning options depend on the selected model.</span>
+          </div>
+
           <div class="action-buttons">
             <button id="btnSaveGemini" class="primary-btn">Save Gemini Settings</button>
             <button id="btnTestGemini" class="secondary-btn">Test Connection</button>
@@ -136,6 +144,14 @@
             </div>
             <datalist id="compatibleModelOptions"></datalist>
             <span id="compatibleModelsStatus" class="form-help" role="status" aria-live="polite">Add a key to load the provider’s live catalog.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="compatibleReasoningEffort">Reasoning effort</label>
+            <select id="compatibleReasoningEffort" class="form-select" disabled>
+              <option value="">Checking model support…</option>
+            </select>
+            <span id="compatibleReasoningHelp" class="form-help" role="status">Reasoning options depend on the selected model.</span>
           </div>
 
           <div class="form-group">
@@ -306,6 +322,8 @@
           <div><dt>Latency</dt><dd id="diagLatency">—</dd></div>
           <div><dt>Quality</dt><dd id="diagQuality">—</dd></div>
           <div><dt>Fallback</dt><dd id="diagFallback">—</dd></div>
+          <div><dt>Reasoning effort</dt><dd id="diagReasoning">—</dd></div>
+          <div><dt>Reasoning tokens</dt><dd id="diagReasoningTokens">—</dd></div>
         </dl>
         <div class="diagnostics-actions">
           <button id="btnClearDiagnostics" class="secondary-btn small-btn" type="button">Clear run history</button>

@@ -7,9 +7,12 @@ import {
   formatTabsPrompt,
   getAdaptiveGroupRange,
   getCompatibleRequestControls,
+  getEffectiveReasoningEffort,
   getGeminiGenerationConfig,
+  getReasoningEffortOptions,
   isCompatibleReasoningModel,
-  isOpenAIReasoningModel
+  isOpenAIReasoningModel,
+  isOpenAIResponsesOnlyModel
 } from '../src/ai-engine.js';
 import { ExactResultCache, LearningCache, fingerprintTab, sanitizeSemanticUrl } from '../src/cache-engine.js';
 import { executeTabGrouping, getDuplicateTabKey, ungroupAllTabs } from '../src/grouper.js';
@@ -446,6 +449,42 @@ test('OpenAI reasoning models omit temperature and request low reasoning effort'
   }
 });
 
+test('OpenAI Responses-only Pro models fail early with a clear model error', async () => {
+  assert.equal(isOpenAIResponsesOnlyModel('gpt-5-pro'), true);
+  assert.equal(isOpenAIResponsesOnlyModel('gpt-5.4-pro-2026-03-05'), true);
+  assert.deepEqual(getReasoningEffortOptions('openai', 'gpt-5-pro'), []);
+  await assert.rejects(
+    clusterTabsWithAI([
+      { id: 1, title: 'Code', url: 'https://example.com/code' },
+      { id: 2, title: 'Docs', url: 'https://example.com/docs' }
+    ], { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5-pro' }),
+    /requires the OpenAI Responses API/
+  );
+});
+
+test('model-aware reasoning options constrain saved values to documented provider support', () => {
+  assert.deepEqual(getReasoningEffortOptions('gemini_api', 'gemini-2.5-flash-lite'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('gemini_api', 'gemini-3.5-flash'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('gemini_api', 'gemini-3-pro-preview'), ['low', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('gemini_api', 'gemini-flash-lite-latest'), []);
+  assert.equal(getEffectiveReasoningEffort('gemini_api', 'gemini-flash-lite-latest', 'high'), 'low');
+  assert.equal(getEffectiveReasoningEffort('gemini_api', 'gemini-unknown-latest', 'high'), null);
+
+  assert.deepEqual(getReasoningEffortOptions('deepseek', 'deepseek-flash'), ['low', 'high', 'max']);
+  assert.equal(getEffectiveReasoningEffort('deepseek', 'deepseek-flash', 'medium'), 'low');
+  assert.equal(getEffectiveReasoningEffort('deepseek', 'deepseek-flash', 'high'), 'high');
+  assert.equal(getEffectiveReasoningEffort('deepseek', 'deepseek-flash', 'max'), 'max');
+
+  assert.deepEqual(getReasoningEffortOptions('cerebras', 'gpt-oss-120b'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('cerebras', 'qwen-3.8-27b'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('cerebras', 'zai-glm-4.7'), []);
+  assert.equal(getEffectiveReasoningEffort('cerebras', 'zai-glm-4.7', 'low'), null);
+  assert.deepEqual(getReasoningEffortOptions('ollama', 'qwen3:8b'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('xai', 'grok-4.5'), ['low', 'medium', 'high']);
+  assert.deepEqual(getReasoningEffortOptions('xai', 'grok-4.6'), ['low', 'medium', 'high', 'xhigh']);
+  assert.equal(getEffectiveReasoningEffort('xai', 'grok-4.7', 'xhigh'), 'xhigh');
+});
+
 test('provider request controls use each reasoning API without leaking unsupported fields', () => {
   const cases = [
     ['xai', 'grok-4.6', { reasoning_effort: 'low' }],
@@ -474,10 +513,52 @@ test('provider request controls use each reasoning API without leaking unsupport
     assert.deepEqual(getCompatibleRequestControls(provider, model), expected);
   }
 
-  assert.equal(isCompatibleReasoningModel('cerebras', 'qwen-3.8-27b'), false);
-  assert.deepEqual(getCompatibleRequestControls('cerebras', 'qwen-3.8-27b'), { temperature: 0 });
+  assert.equal(isCompatibleReasoningModel('cerebras', 'qwen-3.8-27b'), true);
+  assert.deepEqual(getCompatibleRequestControls('cerebras', 'qwen-3.8-27b'), { temperature: 0, reasoning_effort: 'low' });
+  assert.deepEqual(getCompatibleRequestControls('deepseek', 'deepseek-flash', 'max'), {
+    reasoning_effort: 'max', thinking: { type: 'enabled' }
+  });
+  assert.deepEqual(getCompatibleRequestControls('xai', 'grok-4.7', 'xhigh'), { reasoning_effort: 'xhigh' });
+  assert.equal(isCompatibleReasoningModel('cerebras', 'zai-glm-4.7'), false);
+  assert.deepEqual(getCompatibleRequestControls('cerebras', 'zai-glm-4.7'), { temperature: 0 });
   assert.equal(isCompatibleReasoningModel('ollama', 'qwen2.5-coder:32b'), false);
   assert.deepEqual(getCompatibleRequestControls('ollama', 'qwen2.5-coder:32b'), { temperature: 0 });
+});
+
+test('DeepSeek max effort reaches the request with enough output budget', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestPayload;
+  globalThis.fetch = async (_url, options) => {
+    requestPayload = JSON.parse(options.body);
+    return {
+      ok: true,
+      async json() {
+        return {
+          model: 'deepseek-flash',
+          choices: [{ message: { content: JSON.stringify({ groups: [
+            { name: 'Build', color: 'blue', tabIds: [0, 1] }
+          ] }) } }],
+          usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 }
+        };
+      }
+    };
+  };
+  try {
+    const result = await clusterTabsWithAI([
+      { id: 1, title: 'Issue implementation', url: 'https://github.com/org/repo/issues/1' },
+      { id: 2, title: 'API reference', url: 'https://docs.example.com/api' }
+    ], {
+      provider: 'deepseek',
+      deepseekApiKey: 'test-only',
+      deepseekModel: 'deepseek-flash',
+      deepseekReasoningEffort: 'max'
+    });
+    assert.equal(result.meta.reasoningEffort, 'max');
+    assert.equal(requestPayload.reasoning_effort, 'max');
+    assert.equal(requestPayload.max_tokens, 8192);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('Gemini thinking controls are version-aware', () => {
@@ -496,11 +577,19 @@ test('Gemini thinking controls are version-aware', () => {
     getGeminiGenerationConfig('gemini-3.5-flash', {
       responseMimeType: 'application/json',
       temperature: 0.2
-    }),
+    }, 'high'),
     {
       responseMimeType: 'application/json',
-      thinkingConfig: { thinkingLevel: 'LOW' }
+      thinkingConfig: { thinkingLevel: 'HIGH' }
     }
+  );
+  assert.deepEqual(
+    getGeminiGenerationConfig('gemini-2.5-flash-lite', {}, 'medium'),
+    { thinkingConfig: { thinkingBudget: 8192 } }
+  );
+  assert.deepEqual(
+    getGeminiGenerationConfig('gemini-2.5-flash-lite', {}, 'high'),
+    { thinkingConfig: { thinkingBudget: 24576 } }
   );
   assert.deepEqual(
     getGeminiGenerationConfig('gemini-2.0-flash', { temperature: 0.2 }),
@@ -619,7 +708,7 @@ test('programmatic ledgers for adjacent groups do not overwrite each other', asy
   assert.equal(await consumeProgrammaticGroupUpdate({ id: 2, title: 'Second' }), true);
 });
 
-test('orchestrator calls AI once, records diagnostics, then reuses an identical window', async () => {
+test('orchestrator scopes exact cache and diagnostics by effective reasoning effort', async () => {
   const { local } = installChromeStorageMock();
   const tabs = Array.from({ length: 8 }, (_, index) => ({
     id: 100 + index,
@@ -646,8 +735,10 @@ test('orchestrator calls AI once, records diagnostics, then reuses an identical 
   };
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => {
+  let lastRequestPayload = null;
+  globalThis.fetch = async (_url, options) => {
     fetchCount++;
+    lastRequestPayload = JSON.parse(options.body);
     return {
       ok: true,
       async json() {
@@ -657,7 +748,12 @@ test('orchestrator calls AI once, records diagnostics, then reuses an identical 
             { name: 'Video Production', color: 'green', tabIds: [0, 1, 2, 3] },
             { name: 'Design References', color: 'purple', tabIds: [4, 5, 6, 7] }
           ] }) } }],
-          usage: { prompt_tokens: 220, completion_tokens: 48, total_tokens: 268 }
+          usage: {
+            prompt_tokens: 220,
+            completion_tokens: 48,
+            total_tokens: 268,
+            completion_tokens_details: { reasoning_tokens: 64 }
+          }
         };
       }
     };
@@ -667,6 +763,7 @@ test('orchestrator calls AI once, records diagnostics, then reuses an identical 
     provider: 'groq',
     groqApiKey: 'test-only',
     groqModel: 'openai/gpt-oss-20b',
+    groqReasoningEffort: 'medium',
     collapseGroupsOnCreation: false
   };
 
@@ -675,14 +772,26 @@ test('orchestrator calls AI once, records diagnostics, then reuses an identical 
     assert.equal(first.source, 'cloud');
     assert.equal(first.groupsCreated, 2);
     assert.equal(fetchCount, 1);
+    assert.equal(lastRequestPayload.reasoning_effort, 'medium');
     assert.equal(local.foldnex_last_run.promptTokens, 220);
+    assert.equal(local.foldnex_last_run.reasoningEffort, 'medium');
+    assert.equal(local.foldnex_last_run.reasoningTokens, 64);
     assert.equal((await LearningCache.getRules()).length, 0);
 
     const second = await executeTabGrouping(5, settings);
     assert.equal(second.source, 'exact-cache');
     assert.equal(second.groupsCreated, 2);
     assert.equal(fetchCount, 1);
-    assert.equal(groupUpdates.length, 4);
+    assert.equal(local.foldnex_last_run.reasoningEffort, null);
+    assert.equal(local.foldnex_last_run.reasoningTokens, null);
+
+    const highEffort = await executeTabGrouping(5, { ...settings, groqReasoningEffort: 'high' });
+    assert.equal(highEffort.source, 'cloud');
+    assert.equal(highEffort.reasoningEffort, 'high');
+    assert.equal(fetchCount, 2);
+    assert.equal(lastRequestPayload.reasoning_effort, 'high');
+    assert.ok(lastRequestPayload.max_completion_tokens > 768);
+    assert.equal(groupUpdates.length, 6);
   } finally {
     globalThis.fetch = originalFetch;
   }

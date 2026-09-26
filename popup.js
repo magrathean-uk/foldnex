@@ -7,6 +7,9 @@ import { executeTabGrouping } from './src/grouper.js';
 import {
   checkChromeNanoStatus,
   PROVIDER_CATALOG,
+  getEffectiveReasoningEffort,
+  getReasoningEffortOptions,
+  isOpenAIResponsesOnlyModel,
   providerSettingKey
 } from './src/ai-engine.js';
 
@@ -22,11 +25,17 @@ const statusMessage = document.getElementById('statusMessage');
 const engineBadge = document.getElementById('engineBadge');
 const strategyInputs = document.querySelectorAll('input[name="groupingStrategy"]');
 const providerSelect = document.getElementById('providerSelect');
+const modelReasoningSummary = document.getElementById('modelReasoningSummary');
 const tabShortcut = document.getElementById('tabShortcut');
 const nanoHint = document.getElementById('nanoHint');
 const statRulesCount = document.getElementById('statRulesCount');
 const statLastGrouped = document.getElementById('statLastGrouped');
 const toggleOneClickMode = document.getElementById('toggleOneClickMode');
+const providerPreferenceKeys = Object.entries(PROVIDER_CATALOG).flatMap(([id, config]) => {
+  if (id === 'gemini_api') return ['geminiModel', 'geminiReasoningEffort'];
+  if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort')];
+  return [];
+});
 
 /**
  * Show status box with type
@@ -91,7 +100,7 @@ async function refreshEngineStatus() {
     .map(id => providerSettingKey(id, 'apiKey'));
   const secretNames = ['geminiApiKey', 'openaiOAuthToken', ...localKeyNames];
   const [syncSettings, localSettings] = await Promise.all([
-    chrome.storage.sync.get(['provider', 'groupingStrategy', ...secretNames]),
+    chrome.storage.sync.get(['provider', 'groupingStrategy', ...secretNames, ...providerPreferenceKeys]),
     chrome.storage.local.get(secretNames)
   ]);
   const secrets = { ...syncSettings, ...localSettings };
@@ -102,6 +111,7 @@ async function refreshEngineStatus() {
   strategyInputs.forEach(input => { input.checked = input.value === groupingStrategy; });
   providerSelect.value = provider;
   providerSelect.disabled = groupingStrategy === 'site';
+  modelReasoningSummary.classList.add('hidden');
 
   if (groupingStrategy === 'site') {
     nanoHint.classList.remove('hidden');
@@ -112,6 +122,27 @@ async function refreshEngineStatus() {
   }
 
   nanoHint.textContent = 'Runs locally in Chrome. No tab data leaves this device.';
+
+  if (provider === 'gemini_api' || config.mode === 'compatible') {
+    const model = provider === 'gemini_api'
+      ? syncSettings.geminiModel || config.defaultModel
+      : syncSettings[providerSettingKey(provider, 'model')] || config.defaultModel;
+    const savedEffort = provider === 'gemini_api'
+      ? syncSettings.geminiReasoningEffort
+      : syncSettings[providerSettingKey(provider, 'reasoningEffort')];
+    const effort = getEffectiveReasoningEffort(provider, model, savedEffort);
+    const adjustable = getReasoningEffortOptions(provider, model).length > 0;
+    const effortLabel = provider === 'openai' && isOpenAIResponsesOnlyModel(model)
+      ? 'Unavailable in Foldnex'
+      : effort
+        ? `${effort[0].toUpperCase()}${effort.slice(1)}${adjustable ? '' : ' (fixed)'}`
+        : 'Provider default';
+    modelReasoningSummary.textContent = `${model} · Reasoning: ${effortLabel}`;
+    modelReasoningSummary.classList.remove('hidden');
+  } else if (provider === 'gemini_nano') {
+    modelReasoningSummary.textContent = 'Reasoning: Managed by Chrome';
+    modelReasoningSummary.classList.remove('hidden');
+  }
 
   const hasGeminiKey = Boolean(secrets.geminiApiKey);
 
@@ -145,7 +176,11 @@ async function refreshEngineStatus() {
       : `Cloud mode sends complete tab titles and host/path hints to ${config.name} when you group.`;
     const apiKey = secrets[providerSettingKey(provider, 'apiKey')];
     const hasAuth = Boolean(apiKey || (provider === 'openai' && secrets.openaiOAuthToken));
-    if (hasAuth || config.keyOptional) {
+    if (provider === 'openai' && isOpenAIResponsesOnlyModel(syncSettings.openaiModel || config.defaultModel)) {
+      engineBadge.className = 'badge danger';
+      engineBadge.textContent = 'Model unavailable';
+      nanoHint.textContent = 'Choose an OpenAI Chat Completions model in settings.';
+    } else if (hasAuth || config.keyOptional) {
       engineBadge.className = 'badge ready';
       engineBadge.textContent = `${config.name} ready`;
     } else {
@@ -293,7 +328,7 @@ linkManageRules.addEventListener('click', (e) => {
 // Reactive Storage Synchronization across windows/popups
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync') {
-    if (changes.provider || changes.groupingStrategy) {
+    if (changes.provider || changes.groupingStrategy || providerPreferenceKeys.some(key => changes[key])) {
       refreshEngineStatus();
     }
     if (changes.oneClickIconMode !== undefined) {

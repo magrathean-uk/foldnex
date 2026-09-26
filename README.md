@@ -60,7 +60,7 @@ All engines appear in one list in the popup and settings page.
 
 Provider model fields are populated from each provider's live models endpoint and cached for six hours. A model ID can also be entered manually when it is not returned by the catalog.
 
-Foldnex applies low reasoning effort to supported reasoning models using each provider's native request shape. Sampling controls such as `temperature` are omitted where the selected reasoning model rejects them; non-reasoning models receive only their supported deterministic controls. The connection test and real grouping request share these rules.
+When a selected model supports adjustable reasoning, settings shows its effort beside the model. Low is the default; available levels depend on the provider and model. The popup shows the saved model and effective effort, and last-run diagnostics show the effort and any reasoning-token count reported by the provider. Sampling controls such as `temperature` are omitted where the selected reasoning model rejects them; non-reasoning models receive only their supported deterministic controls. The connection test and real grouping request share these rules.
 
 ### Recommended Groq configuration
 
@@ -97,7 +97,7 @@ The toolbar badge shows progress and then the number of groups created. The popu
 
 1. Open **Rules and settings** from the popup, or use Chrome's extension Options action.
 2. Choose an engine from the unified list.
-3. For a cloud provider, enter its API key, select or type a model, and save the provider.
+3. For a cloud provider, enter its API key, select or type a model, choose reasoning effort when available, and save the provider.
 4. Use **Test connection** to verify Foldnex's grouping request with two synthetic example tabs. This does not send your current window's tabs.
 
 Secrets are stored in `chrome.storage.local`, restricted to trusted extension contexts, and removed from Chrome sync storage. Provider choice, model IDs, base URLs, and non-secret preferences may use `chrome.storage.sync`.

@@ -9,6 +9,9 @@ import {
   CHROME_GROUP_COLORS,
   PROVIDER_CATALOG,
   clusterTabsWithAI,
+  getEffectiveReasoningEffort,
+  getReasoningEffortOptions,
+  isOpenAIResponsesOnlyModel,
   listProviderModels,
   providerSettingKey
 } from '../src/ai-engine.js';
@@ -37,6 +40,8 @@ const btnRecheckNano = document.getElementById('btnRecheckNano');
 // Gemini fields
 const geminiApiKey = document.getElementById('geminiApiKey');
 const geminiModel = document.getElementById('geminiModel');
+const geminiReasoningEffort = document.getElementById('geminiReasoningEffort');
+const geminiReasoningHelp = document.getElementById('geminiReasoningHelp');
 const geminiModelOptions = document.getElementById('geminiModelOptions');
 const geminiModelsStatus = document.getElementById('geminiModelsStatus');
 const btnRefreshGeminiModels = document.getElementById('btnRefreshGeminiModels');
@@ -49,6 +54,8 @@ const compatibleProviderTitle = document.getElementById('compatibleProviderTitle
 const compatibleApiKeyLabel = document.getElementById('compatibleApiKeyLabel');
 const compatibleApiKey = document.getElementById('compatibleApiKey');
 const compatibleModel = document.getElementById('compatibleModel');
+const compatibleReasoningEffort = document.getElementById('compatibleReasoningEffort');
+const compatibleReasoningHelp = document.getElementById('compatibleReasoningHelp');
 const compatibleModelOptions = document.getElementById('compatibleModelOptions');
 const compatibleModelsStatus = document.getElementById('compatibleModelsStatus');
 const btnRefreshCompatibleModels = document.getElementById('btnRefreshCompatibleModels');
@@ -84,6 +91,8 @@ const diagLatency = document.getElementById('diagLatency');
 const diagQuality = document.getElementById('diagQuality');
 const btnClearDiagnostics = document.getElementById('btnClearDiagnostics');
 const diagFallback = document.getElementById('diagFallback');
+const diagReasoning = document.getElementById('diagReasoning');
+const diagReasoningTokens = document.getElementById('diagReasoningTokens');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
@@ -400,6 +409,56 @@ async function refreshModelCatalog(provider, { force = false } = {}) {
   }
 }
 
+function renderReasoningControl(provider, model, select, help) {
+  const options = getReasoningEffortOptions(provider, model);
+  const effective = getEffectiveReasoningEffort(provider, model, select.dataset.saved);
+  const responsesOnly = provider === 'openai' && isOpenAIResponsesOnlyModel(model);
+  if (provider !== 'gemini_api') {
+    btnSaveCompatible.disabled = responsesOnly;
+    btnTestCompatible.disabled = responsesOnly;
+  }
+  select.textContent = '';
+
+  if (options.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = responsesOnly
+      ? 'Unavailable in Foldnex'
+      : effective ? `${effective[0].toUpperCase()}${effective.slice(1)} · fixed` : 'Provider default';
+    select.append(option);
+    select.disabled = true;
+    help.textContent = responsesOnly
+      ? 'This model requires the OpenAI Responses API. Choose a Chat Completions model.'
+      : effective
+        ? 'This model alias uses a fixed Low setting. Choose a versioned model to adjust it.'
+        : 'This model has no adjustable reasoning effort in Foldnex.';
+    return;
+  }
+
+  for (const value of options) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = `${value[0].toUpperCase()}${value.slice(1)}`;
+    select.append(option);
+  }
+  select.disabled = false;
+  select.value = effective;
+  help.textContent = 'Higher effort may take longer and use more tokens. Private reasoning text is not shown.';
+}
+
+geminiModel.addEventListener('input', () => {
+  renderReasoningControl('gemini_api', geminiModel.value.trim(), geminiReasoningEffort, geminiReasoningHelp);
+});
+compatibleModel.addEventListener('input', () => {
+  renderReasoningControl(selectedCompatibleProvider, compatibleModel.value.trim(), compatibleReasoningEffort, compatibleReasoningHelp);
+});
+geminiReasoningEffort.addEventListener('change', () => {
+  geminiReasoningEffort.dataset.saved = geminiReasoningEffort.value;
+});
+compatibleReasoningEffort.addEventListener('change', () => {
+  compatibleReasoningEffort.dataset.saved = compatibleReasoningEffort.value;
+});
+
 async function loadCompatibleProvider(provider) {
   const config = PROVIDER_CATALOG[provider];
   if (!config || config.mode !== 'compatible') return;
@@ -408,6 +467,7 @@ async function loadCompatibleProvider(provider) {
   const [syncData, localData] = await Promise.all([
     chrome.storage.sync.get([
       providerSettingKey(provider, 'model'),
+      providerSettingKey(provider, 'reasoningEffort'),
       providerSettingKey(provider, 'baseUrl'),
       providerSettingKey(provider, 'apiKey'),
       'openaiOAuthToken'
@@ -427,6 +487,8 @@ async function loadCompatibleProvider(provider) {
     || syncData[providerSettingKey(provider, 'apiKey')]
     || '';
   compatibleModel.value = syncData[providerSettingKey(provider, 'model')] || config.defaultModel || '';
+  compatibleReasoningEffort.dataset.saved = syncData[providerSettingKey(provider, 'reasoningEffort')] || 'low';
+  renderReasoningControl(provider, compatibleModel.value, compatibleReasoningEffort, compatibleReasoningHelp);
   compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
   oauthSection.classList.toggle('hidden', provider !== 'openai');
   if (provider === 'openai') {
@@ -561,6 +623,7 @@ async function loadSettings() {
   const syncData = await chrome.storage.sync.get([
     'provider',
     'geminiModel',
+    'geminiReasoningEffort',
     'groupingStrategy',
     'oneClickIconMode',
     'collapseGroupsOnCreation',
@@ -579,6 +642,8 @@ async function loadSettings() {
   const geminiKey = localData.geminiApiKey || syncData.geminiApiKey || '';
   if (geminiKey) geminiApiKey.value = geminiKey;
   geminiModel.value = syncData.geminiModel || PROVIDER_CATALOG.gemini_api.defaultModel;
+  geminiReasoningEffort.dataset.saved = syncData.geminiReasoningEffort || 'low';
+  renderReasoningControl('gemini_api', geminiModel.value, geminiReasoningEffort, geminiReasoningHelp);
 
   updateProviderPanels(currentProvider);
   await collapseProviderPicker(currentProvider);
@@ -598,7 +663,7 @@ async function loadRunDiagnostics() {
   const { foldnex_last_run: run } = await chrome.storage.local.get('foldnex_last_run');
   if (!run) {
     diagEngine.textContent = 'No run recorded';
-    for (const field of [diagSource, diagOutcome, diagTokens, diagLatency, diagQuality, diagFallback]) {
+    for (const field of [diagSource, diagOutcome, diagTokens, diagLatency, diagQuality, diagFallback, diagReasoning, diagReasoningTokens]) {
       field.textContent = '—';
     }
     return;
@@ -616,6 +681,20 @@ async function loadRunDiagnostics() {
   diagLatency.textContent = run.latencyMs ? `${run.latencyMs} ms total` : '—';
   diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
   diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
+  const inferredOffline = run.strategy === 'site' || ['offline', 'offline-fallback'].includes(run.source);
+  let reasoningStatus = 'Provider default';
+  if (inferredOffline) reasoningStatus = 'Not used · local grouping';
+  else if (run.source === 'exact-cache') reasoningStatus = 'Not used · cached result';
+  else if (run.source === 'nano') reasoningStatus = 'Managed by Chrome';
+  else if (run.reasoningEffort) {
+    reasoningStatus = `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)}`;
+  }
+  diagReasoning.textContent = reasoningStatus;
+  diagReasoningTokens.textContent = inferredOffline || run.source === 'exact-cache'
+    ? 'Not used'
+    : Number.isFinite(run.reasoningTokens)
+      ? String(run.reasoningTokens)
+      : 'Not reported';
 }
 
 btnClearDiagnostics.addEventListener('click', async () => {
@@ -675,9 +754,12 @@ const CONNECTION_TEST_TABS = [
 btnSaveGemini.addEventListener('click', async () => {
   const key = geminiApiKey.value.trim();
   const model = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
+  const reasoning = getReasoningEffortOptions('gemini_api', model).length
+    ? { geminiReasoningEffort: geminiReasoningEffort.value }
+    : {};
 
   await chrome.storage.local.set({ geminiApiKey: key });
-  await chrome.storage.sync.set({ geminiModel: model });
+  await chrome.storage.sync.set({ geminiModel: model, ...reasoning });
   // Clean up from sync if it was previously stored there
   await chrome.storage.sync.remove('geminiApiKey');
 
@@ -703,7 +785,8 @@ btnTestGemini.addEventListener('click', async () => {
     await clusterTabsWithAI(CONNECTION_TEST_TABS, {
       provider: 'gemini_api',
       geminiApiKey: key,
-      geminiModel: selectedModel
+      geminiModel: selectedModel,
+      geminiReasoningEffort: geminiReasoningEffort.value
     });
     showToast('Gemini grouping test passed.', 'success');
   } catch (e) {
@@ -720,14 +803,21 @@ btnSaveCompatible.addEventListener('click', async () => {
   const config = PROVIDER_CATALOG[provider];
   const apiKeyName = providerSettingKey(provider, 'apiKey');
   const modelName = providerSettingKey(provider, 'model');
+  const reasoningName = providerSettingKey(provider, 'reasoningEffort');
   const baseUrlName = providerSettingKey(provider, 'baseUrl');
+  const model = compatibleModel.value.trim() || config.defaultModel;
+  if (provider === 'openai' && isOpenAIResponsesOnlyModel(model)) {
+    showToast('Choose an OpenAI Chat Completions model.', 'error');
+    return;
+  }
 
   await chrome.storage.local.set({
     [apiKeyName]: compatibleApiKey.value.trim(),
     ...(provider === 'openai' ? { openaiOAuthToken: openaiOAuthToken.value.trim() } : {})
   });
   await chrome.storage.sync.set({
-    [modelName]: compatibleModel.value.trim() || config.defaultModel,
+    [modelName]: model,
+    ...(getReasoningEffortOptions(provider, model).length ? { [reasoningName]: compatibleReasoningEffort.value } : {}),
     [baseUrlName]: compatibleBaseUrl.value.trim() || config.baseUrl
   });
   await chrome.storage.sync.remove([apiKeyName, 'openaiOAuthToken']);
@@ -739,6 +829,11 @@ btnSaveCompatible.addEventListener('click', async () => {
 btnTestCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
+  const selectedModel = compatibleModel.value.trim() || config.defaultModel;
+  if (provider === 'openai' && isOpenAIResponsesOnlyModel(selectedModel)) {
+    showToast('Choose an OpenAI Chat Completions model.', 'error');
+    return;
+  }
   const keyOrToken = compatibleApiKey.value.trim()
     || (provider === 'openai' ? openaiOAuthToken.value.trim() : '');
   if (!keyOrToken && !config.keyOptional) {
@@ -751,11 +846,11 @@ btnTestCompatible.addEventListener('click', async () => {
 
   try {
     const base = compatibleBaseUrl.value.trim() || config.baseUrl;
-    const selectedModel = compatibleModel.value.trim() || config.defaultModel;
     await clusterTabsWithAI(CONNECTION_TEST_TABS, {
       provider,
       [providerSettingKey(provider, 'apiKey')]: keyOrToken,
       [providerSettingKey(provider, 'model')]: selectedModel,
+      [providerSettingKey(provider, 'reasoningEffort')]: compatibleReasoningEffort.value,
       [providerSettingKey(provider, 'baseUrl')]: base
     });
     showToast(`${config.name} grouping test passed.`, 'success');
@@ -763,7 +858,8 @@ btnTestCompatible.addEventListener('click', async () => {
     showToast(connectionErrorMessage(e), 'error');
   } finally {
     btnTestCompatible.textContent = 'Test connection';
-    btnTestCompatible.disabled = false;
+    btnTestCompatible.disabled = provider === 'openai'
+      && isOpenAIResponsesOnlyModel(compatibleModel.value.trim() || config.defaultModel);
   }
 });
 
