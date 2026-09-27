@@ -1,6 +1,6 @@
 # Foldnex support
 
-For setup and everyday use, start with the [README](README.md). Report reproducible bugs and feature requests through [GitHub issues](https://github.com/magrathean-uk/foldnex/issues). The existing product contact is [contact+foldnex@magrathean.uk](mailto:contact+foldnex@magrathean.uk).
+For setup and everyday use, start with the [README](../README.md). Report reproducible bugs and feature requests through [GitHub issues](https://github.com/magrathean-uk/foldnex/issues). The existing product contact is [contact+foldnex@magrathean.uk](mailto:contact+foldnex@magrathean.uk).
 
 ## Include enough detail to reproduce
 
@@ -17,4 +17,4 @@ Do not attach credentials, a real tab export, private titles or paths, or full p
 - Shortcut assignments can be reviewed at `chrome://extensions/shortcuts`.
 - **Ungroup all** removes groups. It does not restore tabs closed during duplicate cleanup.
 
-For data handling, see [Privacy](PRIVACY.md). For sensitive security reports, see [Security](SECURITY.md). No response-time commitment or supported-release schedule is published here.
+For data handling, see [Privacy](../docs/legal/privacy.md). For sensitive security reports, see [Security](SECURITY.md). No response-time commitment or supported-release schedule is published here.

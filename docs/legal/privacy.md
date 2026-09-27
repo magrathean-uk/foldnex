@@ -1,6 +1,6 @@
 # Foldnex Privacy Policy
 
-**Effective date:** 23 September 2026
+**Effective date:** 27 September 2026
 
 **Controller:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 

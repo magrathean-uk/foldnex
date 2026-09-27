@@ -126,4 +126,4 @@ These are checks for a behaviour change, not a record that the current build pas
 - User surfaces: `popup.*` and `options/*`.
 - Permissions and entry points: `manifest.json`.
 - Product-facing setup and privacy guidance: `README.md`.
-- Visual authority: `DESIGN.md`, `popup.css`, and `options/options.css`. The older generated `.impeccable/design.json` describes a superseded palette and must not override these files.
+- Visual authority: `docs/architecture/design.md`, `popup.css`, and `options/options.css`. The older generated `.impeccable/design.json` describes a superseded palette and must not override these files.

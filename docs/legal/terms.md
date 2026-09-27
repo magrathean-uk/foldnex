@@ -1,6 +1,6 @@
 # Foldnex Terms of Service
 
-**Effective date:** 23 September 2026
+**Effective date:** 27 September 2026
 
 **Provider:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
@@ -8,17 +8,19 @@
 
 **Online version:** [https://magrathean.uk/apps/foldnex/terms/](https://magrathean.uk/apps/foldnex/terms/)
 
-These Terms of Service ("Terms") are a binding legal agreement between you ("you" or "User") and MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our"). They govern your download, installation, access, and use of the Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/apps/foldnex/](https://magrathean.uk/apps/foldnex/), and related documentation and support services (collectively, the "Extension").
+These Terms of Service ("Terms") are a binding legal agreement between you ("you" or "User") and MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our"). They govern your download, installation, access, and use of the published Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/apps/foldnex/](https://magrathean.uk/apps/foldnex/), and related documentation and support services (collectively, the "Extension").
 
-By installing, copying, accessing, or using Foldnex, you confirm that you have read, understood, and agree to be bound by these Terms and our [Privacy Policy](https://magrathean.uk/apps/foldnex/privacy/). If you do not agree to these Terms, do not install or use Foldnex.
+Foldnex's source code is separately available under the [MIT Licence](https://github.com/magrathean-uk/foldnex/blob/main/LICENSE); that licence governs the code, including your right to copy, modify, and redistribute it. These Terms govern the Extension as Magrathean publishes and distributes it — the Chrome Web Store listing, the Foldnex name and icons, and the packaged product experience — not the source code.
+
+By installing, copying, accessing, or using the published Extension, you confirm that you have read, understood, and agree to be bound by these Terms and our [Privacy Policy](https://magrathean.uk/apps/foldnex/privacy/). If you do not agree to these Terms, do not install or use the published Extension.
 
 ---
 
 ## 1. Licence Grant & Permitted Use
 
-1.1. Subject to your continuous compliance with these Terms, Magrathean grants you a personal, revocable, non-exclusive, non-transferable, non-sublicensable licence to download, install, and execute Foldnex within supported versions of Google Chrome on devices that you own or lawfully control, solely for your personal or internal business productivity purposes.
+1.1. Subject to your continuous compliance with these Terms, Magrathean grants you a personal, revocable, non-exclusive, non-transferable, non-sublicensable licence to download, install, and execute the published Extension within supported versions of Google Chrome on devices that you own or lawfully control, solely for your personal or internal business productivity purposes.
 
-1.2. Foldnex is licensed, not sold. You do not acquire any ownership interest, copyright, or intellectual property rights in the Extension, its underlying source code, assets, visual styling, or brand marks. All rights not expressly granted to you are reserved by Magrathean.
+1.2. This licence covers the packaged product experience: the Foldnex name, icons, and Chrome Web Store listing. It does not limit the separate rights the MIT Licence already gives you over the source code itself.
 
 ---
 
@@ -52,14 +54,13 @@ By installing, copying, accessing, or using Foldnex, you confirm that you have r
 
 ## 5. User Responsibilities & Acceptable Use
 
-5.1. You agree that you will not:
-- (a) Copy, modify, translate, adapt, or create derivative works of Foldnex, except to the extent mandatory law expressly allows;
-- (b) Reverse engineer, decompile, disassemble, or attempt to derive source code from the Extension;
-- (c) Circumvent, disable, or tamper with security controls, rate limiting, or permission boundaries;
-- (d) Introduce viruses, trojans, worms, or any malicious code;
-- (e) Use the Extension for any unlawful, infringing, fraudulent, or harassing purpose;
-- (f) Use the Extension to inspect, monitor, or manage tab data that you do not have lawful authority to access;
-- (g) Remove, obscure, or alter any copyright, trademark, or proprietary notice affixed to the Extension.
+5.1. When using the published Extension (as distinct from your own copy of the MIT-licensed
+source), you agree that you will not:
+- (a) Circumvent, disable, or tamper with security controls, rate limiting, or permission boundaries;
+- (b) Introduce viruses, trojans, worms, or any malicious code;
+- (c) Use the Extension for any unlawful, infringing, fraudulent, or harassing purpose;
+- (d) Use the Extension to inspect, monitor, or manage tab data that you do not have lawful authority to access;
+- (e) Remove, obscure, or alter the Foldnex name, icons, or any proprietary notice from the published Extension or its store listing, in a way that misrepresents its origin.
 
 5.2. Foldnex performs automated duplicate tab closures and tab grouping based on heuristic and algorithmic classification. Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy; a redundant pinned copy may be closed when the surviving copy is still pinned. Exact duplicate URLs for `chrome://extensions`, `chrome://downloads`, `chrome://history`, and `chrome://bookmarks` may also be closed. Other browser-internal pages are excluded from duplicate cleanup. Pinned tabs and browser-internal pages are excluded from grouping. You remain responsible for maintaining backups, bookmarks, and session history for critical work. Magrathean is not responsible for inadvertent tab closures or lost browsing context.
 
@@ -75,7 +76,11 @@ By installing, copying, accessing, or using Foldnex, you confirm that you have r
 
 ## 7. Intellectual Property
 
-7.1. All title, ownership rights, and intellectual property rights in and to Foldnex (including software, UI components, iconography, graphics, documentation, and the Foldnex name) belong exclusively to MAGRATHEAN UK LTD. and its licensors.
+7.1. The Foldnex source code is copyright MAGRATHEAN UK LTD and licensed to you under the
+MIT Licence, which governs your rights to copy, modify and redistribute it. The Foldnex
+name, icons, and store listing are not covered by that code licence and remain Magrathean's;
+a fork or redistribution needs its own name and may not present itself as the official
+Foldnex listing.
 
 7.2. Google Chrome is a trademark of Google LLC. Names of third-party AI providers (OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, xAI, Ollama) are trademarks of their respective owners and are used solely for descriptive compatibility purposes. Foldnex is an independent product and is not affiliated with, sponsored by, or endorsed by Google or any AI provider.
 
@@ -93,7 +98,7 @@ By installing, copying, accessing, or using Foldnex, you confirm that you have r
 
 ## 9. Limitation of Liability
 
-9.1. To the maximum extent permitted by applicable law, in no event shall MAGRATHEAN UK LTD., its directors, officers, employees, or contractors be liable for any indirect, incidental, special, consequential, exemplary, or punitive damages, or for any loss of profits, revenue, data, business opportunity, goodwill, or anticipated savings arising out of or related to your use of or inability to use Foldnex, whether based on contract, tort (including negligence), strict liability, or any other legal theory, even if advised of the possibility of such damages.
+9.1. To the maximum extent permitted by applicable law, in no event shall Magrathean, its directors, officers, employees, or contractors be liable for any indirect, incidental, special, consequential, exemplary, or punitive damages, or for any loss of profits, revenue, data, business opportunity, goodwill, or anticipated savings arising out of or related to your use of or inability to use Foldnex, whether based on contract, tort (including negligence), strict liability, or any other legal theory, even if advised of the possibility of such damages.
 
 9.2. Our total aggregate liability for all claims arising out of or relating to Foldnex or these Terms shall be strictly limited to the greater of:
 - (a) The total amount paid by you to Magrathean for the Extension in the twelve (12) months immediately preceding the event giving rise to the claim; or
@@ -105,7 +110,7 @@ By installing, copying, accessing, or using Foldnex, you confirm that you have r
 
 ## 10. Indemnification
 
-You agree to indemnify, defend, and hold harmless MAGRATHEAN UK LTD. and its directors, officers, employees, and agents from and against any claims, demands, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or relating to: (a) your use or misuse of Foldnex; (b) your breach of these Terms; or (c) your violation of any third-party right or applicable law.
+You agree to indemnify, defend, and hold harmless Magrathean and its directors, officers, employees, and agents from and against any claims, demands, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or relating to: (a) your use or misuse of Foldnex; (b) your breach of these Terms; or (c) your violation of any third-party right or applicable law.
 
 ---
 
@@ -135,4 +140,4 @@ You agree to indemnify, defend, and hold harmless MAGRATHEAN UK LTD. and its dir
 
 13.3. **Entire Agreement:** These Terms, together with the Privacy Policy, constitute the entire agreement between you and Magrathean regarding Foldnex and supersede all prior understandings.
 
-13.4. **Contact:** For support, questions, or legal notices, contact MAGRATHEAN UK LTD. at `contact+foldnex@magrathean.uk`.
+13.4. **Contact:** For support, questions, or legal notices, contact Magrathean at `contact+foldnex@magrathean.uk`.

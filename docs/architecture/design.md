@@ -123,6 +123,6 @@ Use direct, sentence-case copy. Lead with the result: groups created, duplicates
 
 ## Reference precedence
 
-Use this document and the tokens in `popup.css` and `options/options.css` for current UI work. `.impeccable/design.json` is an older generated dark-palette snapshot. Its component examples and narrative are historical and must not override the current light palette. The scoped [surface guidance](.impeccable/surfaces/popup-html.md) follows the current design.
+Use this document and the tokens in `popup.css` and `options/options.css` for current UI work. `.impeccable/design.json` is an older generated dark-palette snapshot. Its component examples and narrative are historical and must not override the current light palette. The scoped [surface guidance](../../.impeccable/surfaces/popup-html.md) follows the current design.
 
-Visual and interaction acceptance requires a new browser check for the changed surfaces. [design-qa.md](design-qa.md) retains an earlier report; it is not a current release sign-off.
+Visual and interaction acceptance requires a new browser check for the changed surfaces. [design-qa.md](../development/archive/design-qa.md) retains an earlier report; it is not a current release sign-off.

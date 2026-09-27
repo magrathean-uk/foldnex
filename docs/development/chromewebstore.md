@@ -112,7 +112,7 @@ Cloud providers are optional and require reviewer-supplied credentials. Chrome G
 
 ## Package and submission checklist
 
-1. Run `npm test` and the syntax checks documented in [Contributing](CONTRIBUTING.md).
+1. Run `npm test` and the syntax checks documented in [Contributing](../../.github/CONTRIBUTING.md).
 2. Run `npm run package:store`.
 3. Confirm the generated ZIP and SHA-256 file under `dist/`. Inspect the runtime file list in `scripts/package-store.sh`; the script preserves the bundled font licence. ZIP integrity and a checksum do not establish reproducible bytes or browser acceptance.
 4. Load the ZIP's extracted contents as an unpacked extension and exercise the reviewer path in a current Chrome release.
@@ -120,4 +120,4 @@ Cloud providers are optional and require reviewer-supplied credentials. Chrome G
 6. In the Chrome Web Store Developer Dashboard, upload the ZIP, complete the Store listing, Privacy, and Distribution tabs, and submit for review.
 7. The publisher must complete the developer-account registration, fee, identity or contact verification, and two-step verification required by Google. These account steps cannot be included in the source package.
 
-The existing [Terms](TERMS.md) contain legal and distribution statements. Keep their factual descriptions aligned with the submitted package and preserve the licence grants and other legal provisions. See [Licensing](LICENSING.md) and [Privacy](PRIVACY.md).
+The existing [Terms](../legal/terms.md) contain legal and distribution statements. Keep their factual descriptions aligned with the submitted package and preserve the licence grants and other legal provisions. See [Licensing](../legal/licensing.md) and [Privacy](../legal/privacy.md).

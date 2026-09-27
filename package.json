@@ -1,6 +1,8 @@
 {
   "name": "foldnex",
   "private": true,
+  "license": "MIT",
+  "author": "MAGRATHEAN UK LTD <contact@magrathean.uk>",
   "type": "module",
   "scripts": {
     "test": "node --test",

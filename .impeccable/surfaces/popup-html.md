@@ -13,7 +13,7 @@ The popup helps a Chrome user clean a crowded current window with one decisive a
 
 ## Visual authority
 
-Use [DESIGN.md](../../DESIGN.md) and the current `popup.css` and `options/options.css` as the source of truth. The generated `.impeccable/design.json` records an older dark-palette snapshot and is not visual authority for new work.
+Use [DESIGN.md](../../docs/architecture/design.md) and the current `popup.css` and `options/options.css` as the source of truth. The generated `.impeccable/design.json` records an older dark-palette snapshot and is not visual authority for new work.
 
 ## Constraints
 

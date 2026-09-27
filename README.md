@@ -1,4 +1,14 @@
-# Foldnex
+<h1 align="center">Foldnex</h1>
+
+<p align="center">A free, MIT-licensed Chrome extension that removes duplicate tabs and organises the rest into tab groups.</p>
+
+<p align="center">
+  <a href="https://magrathean.uk/apps/foldnex/">Website</a> ·
+  <a href="docs/index.md">Documentation</a> ·
+  <a href="https://magrathean.uk/apps/foldnex/privacy/">Privacy</a>
+</p>
+
+## Overview
 
 Foldnex is a Manifest V3 Chrome extension that removes conservative exact duplicate tabs and organises the remaining tabs in the current window into Chrome tab groups. It can classify by task with a selected local or optional cloud engine, or classify locally by site category.
 
@@ -50,7 +60,7 @@ Foldnex has no transpilation step and no runtime package dependencies.
 4. Choose **Load unpacked** and select the directory containing `manifest.json`.
 5. After source changes, use **Reload** on the Foldnex extension card.
 
-The manifest declares Chrome 120 as the minimum Chrome version. Store listing and submission material is maintained separately in [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md). A store listing or its availability is not implied by this source installation path.
+The manifest declares Chrome 120 as the minimum Chrome version. Store listing and submission material is maintained separately in [Chrome Web Store preparation](docs/development/chromewebstore.md). A store listing or its availability is not implied by this source installation path.
 
 ## Use Foldnex
 
@@ -78,7 +88,7 @@ Chrome's Prompt API depends on Chrome, device, policy, storage, and model-downlo
 
 Foldnex does not use content scripts and does not read page bodies, cookies, keystrokes, or form submissions. For By task cloud grouping, the selected provider receives tab titles (up to 1,000 characters each) and sanitised host/path hints from the current window. URL credentials, query strings, and fragments are removed before prompting. Provider credentials are sent separately for authentication. Titles and paths can still contain sensitive information. By site category, Offline smart mode, and a working Chrome on-device model do not send tab data to a cloud provider. Incognito grouping runs do not persist rules, cache, diagnostics, or rename preferences. A cloud engine still receives that window's title and URL hints when selected. User changes to settings can still be saved.
 
-Read [`PRIVACY.md`](PRIVACY.md) for the full data contract and [`TERMS.md`](TERMS.md) for the usage terms.
+Read [privacy](docs/legal/privacy.md) for the full data contract and [terms](docs/legal/terms.md) for the usage terms.
 
 ## Development and verification
 
@@ -113,18 +123,24 @@ src/offline-clusterer.js Local fallback clustering
 src/site-clusterer.js   Deterministic site-category grouping
 src/cache-engine.js     Sanitisation, rules, cache, and scoped preferences
 src/group-state.js      Programmatic group-update suppression
-PRODUCT.md              Behavioural product contract
-DESIGN.md               Maintained visual-system reference
-CHROMEWEBSTORE.md       Store metadata and reviewer material
+docs/architecture/product.md  Behavioural product contract
+docs/architecture/design.md   Maintained visual-system reference
+docs/development/chromewebstore.md  Store metadata and reviewer material
 ```
 
 ## Documentation
 
-- [Contributing and validation](CONTRIBUTING.md)
-- [Support](SUPPORT.md) and [security reporting](SECURITY.md)
-- [Product contract](PRODUCT.md) and [design system](DESIGN.md)
+- [Documentation index](docs/index.md)
+- [Contributing and validation](.github/CONTRIBUTING.md)
+- [Support](.github/SUPPORT.md) and [security reporting](.github/SECURITY.md)
+- [Product contract](docs/architecture/product.md) and [design system](docs/architecture/design.md)
 - [Agent guidance](AGENTS.md)
 
-## Licensing
+## Licence
 
-The existing [Terms of Service](TERMS.md) govern extension use. This repository has no general open-source licence file or package licence declaration. See [Licensing](LICENSING.md) before reusing or modifying source. The bundled Material Symbols font has its own [third-party notice and licence](THIRD_PARTY_NOTICES.md).
+Foldnex's source code is open source under the [MIT licence](LICENSE). Using the published
+extension is covered by our [terms of service](docs/legal/terms.md); see
+[licensing](docs/legal/licensing.md) for how the two fit together. The bundled Material
+Symbols font keeps its own [Apache-2.0 notice](docs/legal/third-party-notices.md).
+
+<sub>© 2026 MAGRATHEAN UK LTD · <a href="https://github.com/magrathean-uk/.github/blob/main/LEGAL.md">Legal</a></sub>

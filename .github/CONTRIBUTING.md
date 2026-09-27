@@ -2,7 +2,7 @@
 
 Start with a [bug report or feature request](https://github.com/magrathean-uk/foldnex/issues). Explain the tab-management problem and a small, reproducible example. Use synthetic titles and URLs instead of a real browsing session.
 
-Read [Licensing](LICENSING.md) and the existing [Terms](TERMS.md) before preparing code changes. This repository does not provide a general open-source contribution licence. Ask the maintainer about permission and contribution terms before modifying or submitting code. Reporting a problem does not require a patch.
+Read [Licensing](../docs/legal/licensing.md) and the existing [Terms](../docs/legal/terms.md) before preparing code changes. The source code is MIT-licensed (see [LICENSE](../LICENSE)); these are working conventions, not a separate contribution licence. Reporting a problem does not require a patch.
 
 ## Development
 
@@ -30,7 +30,7 @@ Use a disposable Chrome window with sample tabs when testing cleanup, since the 
 - For grouping, check complete coverage, explicit URL overrides, tab order, and fallback when the selected engine fails.
 - For providers, check the outgoing data boundary and use synthetic tabs for the connection test. A successful connection test is separate from current-window grouping.
 - For storage, check secret migration, local versus sync settings, cache invalidation, and incognito behaviour.
-- For UI changes, follow [DESIGN.md](DESIGN.md), check keyboard focus and reduced motion, and inspect both popup and options layouts. Treat [design-qa.md](design-qa.md) as historical evidence.
+- For UI changes, follow [design](../docs/architecture/design.md), check keyboard focus and reduced motion, and inspect both popup and options layouts. Treat [design-qa.md](../docs/development/archive/design-qa.md) as historical evidence.
 
 Keep changes focused. Preserve unrelated work, user data, legal text, and asset attribution. Add a regression test when behaviour changes and an existing fixture can demonstrate it. Describe which checks ran and which browser or provider checks remain unverified.
 
@@ -42,7 +42,7 @@ The release script requires Node.js, Bash, `zip`, `unzip`, and `shasum`:
 npm run package:store
 ```
 
-It writes `dist/foldnex-<manifest-version>.zip` and its `.sha256` file, replacing outputs with the same version. It packages an explicit runtime file list and tests ZIP integrity. It does not submit the extension or prove browser acceptance. See [Chrome Web Store preparation](CHROMEWEBSTORE.md).
+It writes `dist/foldnex-<manifest-version>.zip` and its `.sha256` file, replacing outputs with the same version. It packages an explicit runtime file list and tests ZIP integrity. It does not submit the extension or prove browser acceptance. See [Chrome Web Store preparation](../docs/development/chromewebstore.md).
 
 ## Reports and proposals
 
