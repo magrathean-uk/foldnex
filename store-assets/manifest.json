@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21",
+  "generatedAt": "2026-09-22",
   "product": "Foldnex - Tab Organizer",
   "assets": [
     {
@@ -9,17 +9,47 @@
       "method": "Lanczos downscale of the selected full-resolution concept; byte-for-byte copy of icons/icon128.png"
     },
     {
-      "file": "screenshot-popup-1280x800.png",
+      "file": "screenshots/01-clean-and-group.png",
       "dimensions": "1280x800",
       "source": "real popup.html rendering plus icons/icon128.png",
-      "method": "Playwright browser capture composed deterministically with ImageMagick"
+      "method": "Playwright browser capture composed in a deterministic store frame"
+    },
+    {
+      "file": "screenshots/02-engine-choice.png",
+      "dimensions": "1280x800",
+      "source": "real options/options.html grouping-engine selector",
+      "method": "Playwright browser capture composed in a deterministic store frame"
+    },
+    {
+      "file": "screenshots/03-provider-configuration.png",
+      "dimensions": "1280x800",
+      "source": "real options/options.html provider configuration with representative non-secret data",
+      "method": "Playwright browser capture composed in a deterministic store frame"
+    },
+    {
+      "file": "screenshots/04-rules-and-memory.png",
+      "dimensions": "1280x800",
+      "source": "real options/options.html rules view with representative sample rules",
+      "method": "Playwright browser capture composed in a deterministic store frame"
+    },
+    {
+      "file": "screenshots/05-behaviour-and-report.png",
+      "dimensions": "1280x800",
+      "source": "real options/options.html behaviour and diagnostics view with representative run data",
+      "method": "Playwright browser capture composed in a deterministic store frame"
     },
     {
       "file": "small-promo-440x280.png",
       "dimensions": "440x280",
       "source": "icons/icon128.png and maintained store copy",
       "method": "deterministic ImageMagick composition"
+    },
+    {
+      "file": "marquee-promo-1400x560.png",
+      "dimensions": "1400x560",
+      "source": "icons/icon128.png and a real popup.html rendering",
+      "method": "Playwright browser capture composed in a deterministic store frame"
     }
   ],
-  "notes": "Artwork uses the selected Foldnex tab-tray icon, established colours, typography direction, and actual popup UI. The icon was generated specifically for Foldnex and contains no third-party stock imagery."
+  "notes": "Artwork uses the selected Foldnex tab-tray icon, established colours, actual extension UI, and representative non-sensitive sample data. The icon was generated specifically for Foldnex and contains no third-party stock imagery."
 }
