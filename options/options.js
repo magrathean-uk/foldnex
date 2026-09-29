@@ -15,6 +15,7 @@ import {
   listProviderModels,
   providerSettingKey
 } from '../src/ai-engine.js';
+import { isOnDeviceEngine } from '../src/background-classifier.js';
 
 // DOM elements - Navigation
 const navItems = document.querySelectorAll('.nav-item');
@@ -97,13 +98,39 @@ const btnClearDiagnostics = document.getElementById('btnClearDiagnostics');
 const diagFallback = document.getElementById('diagFallback');
 const diagReasoning = document.getElementById('diagReasoning');
 const diagReasoningTokens = document.getElementById('diagReasoningTokens');
+const autoGroupPrepNote = document.getElementById('autoGroupPrepNote');
+
+// On-device background preparation and model memory
+const pendingEngineNote = document.getElementById('pendingEngineNote');
+const onDeviceSettings = document.getElementById('onDeviceSettings');
+const prefBackgroundPrep = document.getElementById('prefBackgroundPrep');
+const backgroundPrepHelp = document.getElementById('backgroundPrepHelp');
+const backgroundPrepAutoNote = document.getElementById('backgroundPrepAutoNote');
+const modelUnloadRow = document.getElementById('modelUnloadRow');
+const prefModelUnloadAfter = document.getElementById('prefModelUnloadAfter');
+const modelMemoryRow = document.getElementById('modelMemoryRow');
+const modelStateLine = document.getElementById('modelStateLine');
+const btnFreeModelMemory = document.getElementById('btnFreeModelMemory');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
 let selectedProvider = 'gemini_nano';
 let providerTransitionId = 0;
 let lastNanoStatus = 'checking';
+// Engine whose settings are shown; differs from the saved one only while Cloud setup waits for a key.
+let panelProvider = 'gemini_nano';
+let savedProvider = 'gemini_nano';
+let pendingCloudProvider = null;
+let savedOllamaBaseUrl = '';
+let autoGroupOn = false;
+let modelStateTimer = null;
+let modelStateBusy = false;
 const MODEL_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const MODEL_STATE_POLL_MS = 5000;
+const MODEL_UNLOAD_VALUES = ['immediately', '2m', '5m', '15m', '60m', 'never'];
+const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
+const NANO_PREP_HELP = 'Labels tabs as they load, so a cleanup takes under a second. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.';
+const OLLAMA_PREP_HELP = 'Labels tabs as they load, so a cleanup takes under a second. Keeps the Ollama model in memory and uses some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
@@ -135,6 +162,7 @@ function activateSettingsTab(item) {
   requestAnimationFrame(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   });
+  syncModelStatePolling();
 }
 
 navItems.forEach((item, index) => {
@@ -497,7 +525,7 @@ async function loadCompatibleProvider(provider) {
   compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
   oauthSection.classList.toggle('hidden', provider !== 'openai');
   openaiPrioritySection.classList.toggle('hidden', provider !== 'openai');
-  prefOpenaiPriority.checked = Boolean(syncData.openaiPriority);
+  prefOpenaiPriority.checked = syncData.openaiPriority !== false;
   if (provider === 'openai') {
     openaiOAuthToken.value = localData.openaiOAuthToken || syncData.openaiOAuthToken || '';
   }
@@ -509,14 +537,101 @@ async function loadCompatibleProvider(provider) {
 /** Switch the single details area to the selected engine. */
 function updateProviderPanels(provider) {
   const config = PROVIDER_CATALOG[provider];
+  panelProvider = provider;
   panelNanoDetails.classList.toggle('hidden', provider !== 'gemini_nano');
   panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
   panelCompatibleDetails.classList.toggle('hidden', config?.mode !== 'compatible');
   panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
+  renderOnDeviceSettings();
   if (provider === 'gemini_nano') refreshNanoDiagnostics();
   if (config?.mode === 'compatible') loadCompatibleProvider(provider);
   if (provider === 'gemini_api') refreshModelCatalog(provider);
 }
+
+function isCloudProvider(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  return Boolean(config && (config.mode === 'gemini' || config.mode === 'compatible') && !config.local);
+}
+
+function onDeviceProvider(provider) {
+  return isOnDeviceEngine({ provider, [OLLAMA_BASE_URL_KEY]: savedOllamaBaseUrl });
+}
+
+/**
+ * Background preparation applies to on-device engines; the unload controls
+ * only to Gemini Nano, whose sessions Foldnex holds.
+ */
+function renderOnDeviceSettings() {
+  const nano = panelProvider === 'gemini_nano';
+  onDeviceSettings.classList.toggle('hidden', !onDeviceProvider(panelProvider));
+  modelUnloadRow.classList.toggle('hidden', !nano);
+  modelMemoryRow.classList.toggle('hidden', !nano);
+  backgroundPrepHelp.textContent = nano ? NANO_PREP_HELP : OLLAMA_PREP_HELP;
+  backgroundPrepAutoNote.classList.toggle('hidden', !autoGroupOn);
+  prefBackgroundPrep.setAttribute('aria-describedby', autoGroupOn ? 'backgroundPrepHelp backgroundPrepAutoNote' : 'backgroundPrepHelp');
+  autoGroupPrepNote.classList.toggle('hidden', !(autoGroupOn && onDeviceProvider(savedProvider)));
+  syncModelStatePolling();
+}
+
+function renderPendingNote() {
+  pendingEngineNote.classList.toggle('hidden', !pendingCloudProvider);
+  if (!pendingCloudProvider) return;
+  const current = PROVIDER_CATALOG[savedProvider]?.name || PROVIDER_CATALOG.gemini_nano.name;
+  pendingEngineNote.textContent = `Foldnex keeps using ${current} until you save a key for ${PROVIDER_CATALOG[pendingCloudProvider].name}.`;
+}
+
+/** Finish Cloud setup: the engine becomes active once a key for it is saved. */
+async function activatePendingProvider(provider) {
+  await chrome.storage.sync.set({ provider });
+  savedProvider = provider;
+  pendingCloudProvider = null;
+  renderPendingNote();
+  renderOnDeviceSettings();
+}
+
+function modelStateText(state) {
+  if (!state?.ok) return 'Model state unavailable';
+  if (!state.loaded) return 'Model not loaded';
+  if (!Number.isFinite(state.idleMs)) return 'Model loaded';
+  const minutes = Math.floor(state.idleMs / 60000);
+  if (minutes < 1) return 'Model loaded · idle under 1 min';
+  if (minutes < 60) return `Model loaded · idle ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `Model loaded · idle ${hours} h ${minutes % 60} min`;
+}
+
+async function refreshModelState() {
+  if (modelStateBusy) return;
+  modelStateBusy = true;
+  try {
+    let state = null;
+    try {
+      state = await chrome.runtime.sendMessage({ type: 'GET_ON_DEVICE_MODEL_STATE' });
+    } catch {
+      state = null;
+    }
+    modelStateLine.textContent = modelStateText(state);
+    btnFreeModelMemory.disabled = Boolean(state?.ok && !state.loaded);
+  } finally {
+    modelStateBusy = false;
+  }
+}
+
+/** Poll the model state at most every 5 s, only while this page shows Nano's settings. */
+function syncModelStatePolling() {
+  const wanted = document.visibilityState === 'visible'
+    && panelProvider === 'gemini_nano'
+    && document.getElementById('tab-providers')?.classList.contains('active');
+  if (!wanted) {
+    clearInterval(modelStateTimer);
+    modelStateTimer = null;
+    return;
+  }
+  if (modelStateTimer) return;
+  refreshModelState();
+  modelStateTimer = setInterval(refreshModelState, MODEL_STATE_POLL_MS);
+}
+document.addEventListener('visibilitychange', syncModelStatePolling);
 
 renderProviderList();
 providerSelector.addEventListener('click', () => {
@@ -531,6 +646,17 @@ getProviderRadios().forEach(radio => {
   radio.addEventListener('change', async (e) => {
     if (!e.target.checked) return;
     const provider = e.target.value;
+    if (pendingCloudProvider && isCloudProvider(provider)) {
+      // Cloud setup is still waiting for a key: show this engine without switching to it.
+      pendingCloudProvider = provider;
+      updateProviderPanels(provider);
+      renderPendingNote();
+      await collapseProviderPicker(provider, { animate: true, focusDetails: true });
+      return;
+    }
+    pendingCloudProvider = null;
+    renderPendingNote();
+    savedProvider = provider;
     updateProviderPanels(provider);
     let saveError = null;
     let savePromise;
@@ -581,7 +707,7 @@ async function refreshNanoDiagnostics() {
       setNanoSetupVisible(false);
       const strong = document.createElement('strong');
       strong.textContent = 'Local model ready. ';
-      nanoStatusText.append(strong, 'Foldnex loads it in the background, so cleanups from the popup, toolbar or shortcut can use it.');
+      nanoStatusText.append(strong, 'Cleanups from the popup, toolbar or shortcut can use it.');
     } else if (status.status === 'downloadable') {
       nanoBadge.className = 'status-pill checking';
       nanoBadge.textContent = 'Download needed';
@@ -642,7 +768,10 @@ async function loadSettings() {
     'oneClickIconMode',
     'collapseGroupsOnCreation',
     'autoGroupNewTabs',
-    'geminiApiKey'
+    'geminiApiKey',
+    'backgroundPrep',
+    'modelUnloadAfter',
+    OLLAMA_BASE_URL_KEY
   ]);
 
   const localData = await chrome.storage.local.get([
@@ -652,6 +781,11 @@ async function loadSettings() {
   const currentProvider = syncData.provider || 'gemini_nano';
   const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${currentProvider}"]`);
   if (matchingRadio) matchingRadio.checked = true;
+  savedProvider = currentProvider;
+  savedOllamaBaseUrl = syncData[OLLAMA_BASE_URL_KEY] || '';
+  autoGroupOn = Boolean(syncData.autoGroupNewTabs);
+  prefBackgroundPrep.checked = syncData.backgroundPrep === true;
+  prefModelUnloadAfter.value = MODEL_UNLOAD_VALUES.includes(syncData.modelUnloadAfter) ? syncData.modelUnloadAfter : '5m';
 
   // Securely prefer local storage for keys
   const geminiKey = localData.geminiApiKey || syncData.geminiApiKey || '';
@@ -788,7 +922,12 @@ btnSaveGemini.addEventListener('click', async () => {
   // Clean up from sync if it was previously stored there
   await chrome.storage.sync.remove('geminiApiKey');
 
-  showToast('Gemini settings saved successfully!');
+  if (pendingCloudProvider === 'gemini_api' && key) {
+    await activatePendingProvider('gemini_api');
+    showToast('Google Gemini saved and selected.');
+  } else {
+    showToast('Gemini settings saved successfully!');
+  }
   await refreshModelCatalog('gemini_api', { force: true });
 });
 
@@ -846,7 +985,13 @@ btnSaveCompatible.addEventListener('click', async () => {
     [baseUrlName]: compatibleBaseUrl.value.trim() || config.baseUrl
   });
   await chrome.storage.sync.remove([apiKeyName, 'openaiOAuthToken']);
-  showToast(`${config.name} settings saved.`);
+  const hasAuth = Boolean(compatibleApiKey.value.trim() || (provider === 'openai' && openaiOAuthToken.value.trim()));
+  if (pendingCloudProvider === provider && hasAuth) {
+    await activatePendingProvider(provider);
+    showToast(`${config.name} saved and selected.`);
+  } else {
+    showToast(`${config.name} settings saved.`);
+  }
   await refreshModelCatalog(provider, { force: true });
 });
 
@@ -1222,7 +1367,40 @@ prefOpenaiPriority.addEventListener('change', async (e) => {
 
 prefAutoGroup.addEventListener('change', async (e) => {
   await chrome.storage.sync.set({ autoGroupNewTabs: e.target.checked });
-  showToast(e.target.checked ? 'New tabs will join matching groups.' : 'Auto-grouping off.');
+  autoGroupOn = e.target.checked;
+  renderOnDeviceSettings();
+  if (!e.target.checked) showToast('Auto-grouping off.');
+  else if (onDeviceProvider(savedProvider)) showToast('New tabs will join matching groups. Background preparation stays active.');
+  else showToast('New tabs will join matching groups.');
+});
+
+prefBackgroundPrep.addEventListener('change', async (e) => {
+  await chrome.storage.sync.set({ backgroundPrep: e.target.checked });
+  if (e.target.checked) showToast('Background preparation on.');
+  else if (autoGroupOn) showToast('Background preparation off. Auto-group keeps it active while it is on.');
+  else showToast('Background preparation off. Tabs are labelled when you clean up.');
+});
+
+prefModelUnloadAfter.addEventListener('change', async (e) => {
+  const value = MODEL_UNLOAD_VALUES.includes(e.target.value) ? e.target.value : '5m';
+  await chrome.storage.sync.set({ modelUnloadAfter: value });
+  showToast('Unload setting saved.');
+});
+
+btnFreeModelMemory.addEventListener('click', async () => {
+  btnFreeModelMemory.disabled = true;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'UNLOAD_ON_DEVICE_MODEL' });
+    if (!response?.ok) throw new Error('The service worker did not release the model');
+    showToast(response.released
+      ? 'Model released. Chrome frees its memory within about 5 minutes of last use.'
+      : 'The model was not loaded.');
+  } catch {
+    showToast('Could not release the model. Try again.', 'error');
+  } finally {
+    btnFreeModelMemory.disabled = false;
+    await refreshModelState();
+  }
 });
 
 prefCollapseGroups.addEventListener('change', async (e) => {
@@ -1236,12 +1414,33 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   if (areaName === 'sync') {
     if (changes.provider) {
       const newProv = changes.provider.newValue;
+      savedProvider = newProv || 'gemini_nano';
+      pendingCloudProvider = null;
+      renderPendingNote();
       const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${newProv}"]`);
       if (matchingRadio && !matchingRadio.checked) {
         matchingRadio.checked = true;
         updateProviderPanels(newProv);
         collapseProviderPicker(newProv);
+      } else {
+        renderOnDeviceSettings();
       }
+    }
+    if (changes.autoGroupNewTabs !== undefined) {
+      autoGroupOn = Boolean(changes.autoGroupNewTabs.newValue);
+      prefAutoGroup.checked = autoGroupOn;
+      renderOnDeviceSettings();
+    }
+    if (changes.backgroundPrep !== undefined) {
+      prefBackgroundPrep.checked = changes.backgroundPrep.newValue === true;
+    }
+    if (changes.modelUnloadAfter !== undefined) {
+      const value = changes.modelUnloadAfter.newValue;
+      prefModelUnloadAfter.value = MODEL_UNLOAD_VALUES.includes(value) ? value : '5m';
+    }
+    if (changes[OLLAMA_BASE_URL_KEY] !== undefined) {
+      savedOllamaBaseUrl = changes[OLLAMA_BASE_URL_KEY].newValue || '';
+      renderOnDeviceSettings();
     }
     if (changes.groupingStrategy) {
       const strategy = changes.groupingStrategy.newValue === 'site' ? 'site' : 'task';
@@ -1262,6 +1461,32 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   });
 }
 
+/**
+ * Settings opened at #engine (from the popup's first-run card): show the
+ * engine section. After a Cloud choice without a key, preselect OpenAI
+ * without switching to it until a key is saved.
+ */
+async function openEngineSection() {
+  if (location.hash !== '#engine') return;
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  activateSettingsTab(document.getElementById('nav-providers'));
+  const { provider, setupChoice } = await chrome.storage.sync.get(['provider', 'setupChoice']);
+  const current = provider || 'gemini_nano';
+  if (setupChoice === 'cloud' && !isCloudProvider(current)) {
+    pendingCloudProvider = 'openai';
+    const radio = document.querySelector('input[name="providerSelect"][value="openai"]');
+    if (radio) radio.checked = true;
+    updateProviderPanels('openai');
+    renderPendingNote();
+    await collapseProviderPicker('openai', { focusDetails: true });
+  } else {
+    await collapseProviderPicker(current, { focusDetails: true });
+  }
+}
+window.addEventListener('hashchange', () => {
+  openEngineSection().catch(error => console.warn('[Foldnex] Could not open the engine section.', error));
+});
+
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -1273,5 +1498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncProviderSelector(firstRadio?.value || 'gemini_nano');
     providerPicker.classList.add('is-ready');
     await expandProviderPicker();
+    return;
   }
+  await openEngineSection().catch(error => console.warn('[Foldnex] Could not open the engine section.', error));
 });

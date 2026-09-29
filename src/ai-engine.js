@@ -93,6 +93,17 @@ export function providerSettingKey(provider, suffix) {
   return `${provider}${suffix[0].toUpperCase()}${suffix.slice(1)}`;
 }
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** An address on this device: localhost, 127.0.0.1 or [::1]. */
+export function isLoopbackUrl(url) {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 const STANDARD_REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 const XAI_DEEP_REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh']);
 const DEEPSEEK_REASONING_EFFORTS = Object.freeze(['low', 'high', 'max']);
@@ -1123,6 +1134,121 @@ const RETRYABLE_CREATE_ERRORS = new Set(['RangeError', 'NotSupportedError', 'Typ
 // prefilled once. Every prompt runs on a clone, so bases never gather history.
 const nanoBases = new Map();
 
+// On-device model memory. While Foldnex holds a base session, Chrome keeps
+// the model loaded (about 3 GB). The idle unload follows Handy's model unload
+// timeout (github.com/cjpais/Handy, MIT): every use restarts the idle clock,
+// work in flight holds the model, and one timer, re-armed from the last use,
+// lets go of it once idle for longer than the setting. 'never' keeps it.
+export const MODEL_UNLOAD_AFTER_MS = Object.freeze({
+  immediately: 0,
+  '2m': 2 * 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '60m': 60 * 60 * 1000,
+  never: Infinity
+});
+export const DEFAULT_MODEL_UNLOAD_AFTER = '5m';
+// 'immediately' still waits this long, so a naming prompt right after
+// labelling does not reload the model: in a cleanup, and in the background
+// plan refresh that follows the last label store by PLAN_REFRESH_DELAY_MS (4 s).
+export const IMMEDIATE_UNLOAD_GRACE_MS = 6000;
+
+const onDeviceMemory = {
+  unloadAfter: DEFAULT_MODEL_UNLOAD_AFTER,
+  inFlight: 0,
+  lastUsedAt: 0,
+  timer: null
+};
+
+/** A stored modelUnloadAfter value, or the default for anything else. */
+export function normalizeModelUnloadAfter(value) {
+  return typeof value === 'string' && Object.hasOwn(MODEL_UNLOAD_AFTER_MS, value)
+    ? value
+    : DEFAULT_MODEL_UNLOAD_AFTER;
+}
+
+/** Ollama's keep_alive for the same setting: 0 unloads after each request, -1 keeps the model. */
+export function ollamaKeepAlive(unloadAfter) {
+  const value = normalizeModelUnloadAfter(unloadAfter);
+  if (value === 'immediately') return 0;
+  if (value === 'never') return -1;
+  return value;
+}
+
+function nanoIdleLimitMs() {
+  const limit = MODEL_UNLOAD_AFTER_MS[onDeviceMemory.unloadAfter];
+  return limit === 0 ? IMMEDIATE_UNLOAD_GRACE_MS : limit;
+}
+
+function armNanoUnload() {
+  clearTimeout(onDeviceMemory.timer);
+  onDeviceMemory.timer = null;
+  const limit = nanoIdleLimitMs();
+  if (onDeviceMemory.inFlight > 0 || nanoBases.size === 0 || !Number.isFinite(limit)) return;
+  onDeviceMemory.timer = setTimeout(unloadNanoIfIdle, Math.max(0, onDeviceMemory.lastUsedAt + limit - Date.now()));
+  // Browsers return a number; in Node this stops the timer holding the process open.
+  onDeviceMemory.timer?.unref?.();
+}
+
+function unloadNanoIfIdle() {
+  onDeviceMemory.timer = null;
+  if (onDeviceMemory.inFlight > 0 || nanoBases.size === 0) return;
+  if (Date.now() - onDeviceMemory.lastUsedAt < nanoIdleLimitMs()) {
+    armNanoUnload();
+    return;
+  }
+  resetNanoBases();
+}
+
+/** A use of the model: the idle clock restarts now. */
+function touchNano() {
+  onDeviceMemory.lastUsedAt = Date.now();
+  armNanoUnload();
+}
+
+/** Hold the model until the returned release runs; the idle clock starts when the last hold ends. */
+function holdNano() {
+  onDeviceMemory.inFlight++;
+  touchNano();
+  let held = true;
+  return () => {
+    if (!held) return;
+    held = false;
+    onDeviceMemory.inFlight = Math.max(0, onDeviceMemory.inFlight - 1);
+    touchNano();
+  };
+}
+
+/** Set how long an idle model stays loaded: 'immediately', '2m', '5m', '15m', '60m' or 'never'. */
+export function configureOnDeviceMemory({ unloadAfter } = {}) {
+  onDeviceMemory.unloadAfter = normalizeModelUnloadAfter(unloadAfter);
+  armNanoUnload();
+  return onDeviceMemory.unloadAfter;
+}
+
+/**
+ * Let go of Foldnex's Gemini Nano sessions now. A prompt already running
+ * finishes on its own clone; the next use loads the model again.
+ * @returns {boolean} whether any session (or a load) was held
+ */
+export function releaseOnDeviceModel() {
+  const released = nanoBases.size > 0;
+  resetNanoBases();
+  return released;
+}
+
+/**
+ * Whether Foldnex holds (or is loading) the model, how long it has been idle
+ * (0 while in use, null when not loaded), and the unload setting.
+ * @returns {{loaded: boolean, idleMs: number|null, unloadAfter: string}}
+ */
+export function getOnDeviceModelState() {
+  const loaded = nanoBases.size > 0;
+  let idleMs = null;
+  if (loaded) idleMs = onDeviceMemory.inFlight > 0 ? 0 : Math.max(0, Date.now() - onDeviceMemory.lastUsedAt);
+  return { loaded, idleMs, unloadAfter: onDeviceMemory.unloadAfter };
+}
+
 async function createNanoBase(LanguageModel, kind) {
   const initialPrompts = [{ role: 'system', content: kind === 'name' ? NAME_SYSTEM : LABEL_SYSTEM }];
   let lastError = null;
@@ -1145,7 +1271,10 @@ async function createNanoBase(LanguageModel, kind) {
  */
 export function getNanoBase(kind = 'label') {
   const existing = nanoBases.get(kind);
-  if (existing) return existing;
+  if (existing) {
+    touchNano();
+    return existing;
+  }
 
   const LanguageModel = globalThis.LanguageModel;
   if (typeof LanguageModel?.create !== 'function') {
@@ -1174,6 +1303,9 @@ export function getNanoBase(kind = 'label') {
   base.catch(() => {
     if (nanoBases.get(kind) === base) nanoBases.delete(kind);
   });
+  // A load holds the model like a prompt does, so the idle clock starts once it settles.
+  const release = holdNano();
+  base.then(release, release);
   return base;
 }
 
@@ -1185,17 +1317,22 @@ function dropNanoBase(kind) {
 
 /** Destroy and forget every base session, for example after Chrome unloads the model. */
 export function resetNanoBases() {
+  clearTimeout(onDeviceMemory.timer);
+  onDeviceMemory.timer = null;
   for (const kind of [...nanoBases.keys()]) dropNanoBase(kind);
 }
 
 /**
- * Load the label base, then the name base, before anyone clicks. A no-op
- * without the Prompt API; never rejects.
+ * Load the label base, then the name base, before anyone clicks. Counts as a
+ * use, so the idle unload starts over. A release while the label base loads
+ * (Free memory now, another engine) ends the warm there. A no-op without the
+ * Prompt API; never rejects.
  */
 export function warmChromeNano() {
   if (typeof globalThis.LanguageModel?.create !== 'function') return Promise.resolve();
-  return getNanoBase('label')
-    .then(() => getNanoBase('name'))
+  const label = getNanoBase('label');
+  return label
+    .then(() => (nanoBases.get('label') === label ? getNanoBase('name') : null))
     .then(() => {}, () => {});
 }
 
@@ -1209,9 +1346,19 @@ function nanoError(error) {
 /**
  * Run one constrained prompt on a clone of the warm base for `kind`. The load
  * is bounded by its own timeout; `timeoutMs` covers only clone and prompt.
- * Traces sizes and timings, never prompt or answer text.
+ * Traces sizes and timings, never prompt or answer text. Holds the model
+ * until it settles, so the idle unload never lands mid-prompt.
  */
-export async function runNanoPrompt(kind, text, schema, { signal = null, timeoutMs = 10000, trace = noopTrace, count = 0 } = {}) {
+export async function runNanoPrompt(kind, text, schema, options = {}) {
+  const release = holdNano();
+  try {
+    return await promptNano(kind, text, schema, options);
+  } finally {
+    release();
+  }
+}
+
+async function promptNano(kind, text, schema, { signal = null, timeoutMs = 10000, trace = noopTrace, count = 0 } = {}) {
   let base;
   try {
     base = await untilAborted(getNanoBase(kind), signal);
@@ -1375,7 +1522,18 @@ export async function nameGroupsWithNano(groups, tabsById, { signal = null, trac
   return names;
 }
 
-async function labelTabsWithNano(tabs, { signal = null, trace = noopTrace, batchSize = null, onBatch = null } = {}) {
+// A run holds the model from its first batch to its last, so the idle unload
+// cannot land between batches.
+async function labelTabsWithNano(tabs, options = {}) {
+  const release = tabs.length > 0 ? holdNano() : () => {};
+  try {
+    return await labelNanoBatches(tabs, options);
+  } finally {
+    release();
+  }
+}
+
+async function labelNanoBatches(tabs, { signal = null, trace = noopTrace, batchSize = null, onBatch = null } = {}) {
   const startedAt = performance.now();
   const labels = new Map();
   let calls = 0;
@@ -1474,15 +1632,22 @@ function resolveProviderRequest(settings = {}) {
     };
   }
   if (config?.mode === 'compatible') {
+    const baseUrl = settings[providerSettingKey(provider, 'baseUrl')] || config.baseUrl;
     return {
       provider,
       config,
       apiKey: settings[providerSettingKey(provider, 'apiKey')]
         || (provider === 'openai' ? settings.openaiOAuthToken || '' : ''),
       model: settings[providerSettingKey(provider, 'model')] || config.defaultModel,
-      baseUrl: settings[providerSettingKey(provider, 'baseUrl')] || config.baseUrl,
+      baseUrl,
       savedEffort: settings[providerSettingKey(provider, 'reasoningEffort')],
-      priority: provider === 'openai' && Boolean(settings.openaiPriority)
+      // Priority is on unless turned off: without it a cleanup often outlasts its budget.
+      priority: provider === 'openai' && settings.openaiPriority !== false,
+      // Ollama on this device follows the same unload setting as Nano. A
+      // server elsewhere keeps its own policy.
+      keepAlive: provider === 'ollama' && isLoopbackUrl(baseUrl)
+        ? ollamaKeepAlive(settings.modelUnloadAfter ?? onDeviceMemory.unloadAfter)
+        : null
     };
   }
   throw new Error(`Unknown AI provider: ${provider}`);
@@ -1555,7 +1720,7 @@ function rejectsResponseFormat(error) {
 }
 
 async function requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, cacheKey, signal }) {
-  const { provider, config, apiKey, model, baseUrl, savedEffort, priority } = request;
+  const { provider, config, apiKey, model, baseUrl, savedEffort, priority, keepAlive } = request;
   if (!apiKey && !config.keyOptional) throw new Error(`${config.name} API key is not configured`);
   if (provider === 'openai' && isOpenAIResponsesOnlyModel(model)) {
     throw new Error(`${model} requires the OpenAI Responses API. Choose a Chat Completions model for Foldnex.`);
@@ -1594,6 +1759,9 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
   const budget = scaleOutputBudget(outputBudget, reasoningEffort);
   if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = budget;
   else payload.max_tokens = budget;
+  // Ollama's own extension to its OpenAI-compatible endpoint; builds without
+  // it ignore the field and keep their default.
+  if (keepAlive !== null && keepAlive !== undefined) payload.keep_alive = keepAlive;
 
   const headers = { 'Content-Type': 'application/json' };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;

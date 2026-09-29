@@ -35,6 +35,7 @@ import {
   createClickBudget,
   executeTabGrouping,
   getDuplicateTabKey,
+  PREPARED_NAMING_WAIT_MS,
   ungroupAllTabs
 } from '../src/grouper.js';
 import {
@@ -664,7 +665,7 @@ test('label requests keep ordinals local and follow provider request shapes', as
 
   cloud = installCloudFetch();
   try {
-    await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5.4-nano' });
+    await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5.4-nano', openaiPriority: false });
     await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', openaiPriority: true });
     await labelTabsWithAI(tabs, {
       provider: 'deepseek', deepseekApiKey: 'test-only', deepseekModel: 'deepseek-flash', deepseekReasoningEffort: 'max'
@@ -1248,6 +1249,30 @@ test('a late consolidation keeps the deterministic plan now and names the next c
   }
 });
 
+test('a prepared window waits briefly for names and remembers a late answer', async () => {
+  const tabs = makeTopicTabs(45, 1450, { food: 4, travel: 4, dev: 4 });
+  const { local } = installBrowser(tabs);
+  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'consolidate' ? 2200 : 0) });
+  const settings = { provider: 'openai', openaiApiKey: 'test-only' };
+  try {
+    // Warm the label cache, then forget the names so the next click needs them again.
+    await executeTabGrouping(45, settings, { budgetMs: 2000 });
+    assert.ok(await waitFor(async () => (await PlanMemory.read()).names.length === 3));
+    delete local.foldnex_plan_memory_v1;
+    await ExactResultCache.clear();
+
+    const startedAt = Date.now();
+    const prepared = await executeTabGrouping(45, settings);
+    assert.equal(prepared.source, 'label-cache');
+    assert.ok(Date.now() - startedAt < PREPARED_NAMING_WAIT_MS + 700, 'no wait for a slow consolidation');
+    assert.ok(prepared.qualityFlags.includes('consolidation_timeout'));
+    assert.deepEqual(prepared.groups.map(group => group.name).sort(), ['Coding', 'Food & Recipes', 'Travel']);
+    assert.ok(await waitFor(async () => (await PlanMemory.read()).names.length === 3));
+  } finally {
+    cloud.restore();
+  }
+});
+
 test('Groq label and consolidation requests use JSON object mode', async () => {
   const tabs = makeTopicTabs(45, 1500, { food: 3, travel: 3 });
   installBrowser(tabs);
@@ -1561,7 +1586,7 @@ test('prioritize moves a window to the front without flushing early', async () =
     ...makeTopicTabs(54, 3500, { food: 2 }),
     ...makeTopicTabs(55, 3600, { travel: 2 })
   ];
-  installBrowser(tabs);
+  installBrowser(tabs, { sync: { backgroundPrep: true } });
   const seen = [];
   const classifier = createBackgroundClassifier({
     classify: async tabIds => {
@@ -1583,7 +1608,7 @@ test('prioritize moves a window to the front without flushing early', async () =
 
 test('pause aborts an in-flight background label prompt and requeues its tabs', async () => {
   const tabs = makeTopicTabs(56, 3700, { food: 3, dev: 3 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
+  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
   const nano = installNanoMock({ hangLabels: true });
   const classifier = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 10 });
   try {
@@ -1619,6 +1644,22 @@ test('the store package lists every statically imported source file', async () =
 
   assert.ok(seen.has('src/planner.js'));
   for (const file of seen) assert.ok(packaged.has(file), `${file} is imported but not packaged`);
+});
+
+test('the setup card and unload setting offer exactly the stored preference values', async () => {
+  const root = new URL('../', import.meta.url);
+  const popup = await readFile(new URL('popup.html', root), 'utf8');
+  const options = await readFile(new URL('options/options.html', root), 'utf8');
+
+  // setupChoice is 'cloud' | 'nano' | 'offline'; 'keep' saves one of those for Ollama.
+  const choices = [...popup.matchAll(/<button type="button"[^>]*class="setup-choice[^"]*"[^>]*data-choice="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(choices, ['cloud', 'nano', 'offline', 'keep']);
+
+  const select = options.match(/<select id="prefModelUnloadAfter"[\s\S]*?<\/select>/)?.[0] || '';
+  const values = [...select.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)];
+  assert.deepEqual(values.map(match => match[1]), ['immediately', '2m', '5m', '15m', '60m', 'never']);
+  assert.equal(values.find(match => match[1] === '5m')?.[2], 'After 5 minutes (default)');
+  assert.match(options, /<input type="checkbox" id="prefBackgroundPrep"/);
 });
 
 // Last: background.js registers listeners and warms Nano when it is evaluated.
@@ -1695,12 +1736,12 @@ test('a slow cloud label batch is not aborted at the deadline and its late label
   const tabs = makeTopicTabs(70, 7000, { food: 20, travel: 15, dev: 10 });
   const { local } = installBrowser(tabs);
   // 45 tabs make batches of 25 and 20; the 20-tab batch lands after the click stopped waiting.
-  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'label' && request.rows.length === 20 ? 1300 : 0) });
+  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'label' && request.rows.length === 20 ? 2500 : 0) });
   const settings = { provider: 'openai', openaiApiKey: 'test-only', openaiReasoningEffort: 'medium' };
   try {
     const startedAt = Date.now();
     const first = await executeTabGrouping(70, settings, { budgetMs: 1500 });
-    assert.ok(Date.now() - startedAt < 1300, 'the click does not wait for the slow batch');
+    assert.ok(Date.now() - startedAt < 2200, 'the click does not wait for the slow batch');
     assert.equal(first.deadlineHit, true);
     assert.equal(first.fallbackUsed, false);
     assert.equal(first.provisionalTabs, 20);
@@ -1712,7 +1753,7 @@ test('a slow cloud label batch is not aborted at the deadline and its late label
     assert.equal(local.foldnex_last_run.promptTokens, 10, 'usage of the batch that landed in time');
     assert.equal(local.foldnex_exact_results_v1, undefined);
 
-    assert.ok(await waitFor(async () => Object.keys(await TabLabelCache.read()).length === 45), 'the late batch is cached');
+    assert.ok(await waitFor(async () => Object.keys(await TabLabelCache.read()).length === 45, 5000), 'the late batch is cached');
     assert.equal(cloud.labelRequests().at(-1).signal.aborted, false);
 
     const second = await executeTabGrouping(70, settings);

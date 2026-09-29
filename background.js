@@ -5,7 +5,14 @@
 
 import { executeTabGrouping, ungroupAllTabs } from './src/grouper.js';
 import { LearningCache, PlanMemory, WindowPlanStore } from './src/cache-engine.js';
-import { checkChromeNanoStatus, runNanoSpike, warmChromeNano } from './src/ai-engine.js';
+import {
+  checkChromeNanoStatus,
+  configureOnDeviceMemory,
+  getOnDeviceModelState,
+  releaseOnDeviceModel,
+  runNanoSpike,
+  warmChromeNano
+} from './src/ai-engine.js';
 import { createBackgroundClassifier, dumpWindowLabels, loadBackgroundScope } from './src/background-classifier.js';
 import {
   consumeProgrammaticGroupUpdate,
@@ -25,6 +32,12 @@ let isGroupingActive = false;
 
 // Classify tabs as they finish loading so a cleanup only applies remembered groups.
 const backgroundClassifier = createBackgroundClassifier();
+
+// How long an idle on-device model stays loaded (modelUnloadAfter, '5m' when
+// unset): Nano's sessions here, loopback Ollama through keep_alive.
+const memoryPolicyReady = chrome.storage.sync.get('modelUnloadAfter')
+  .then(data => { configureOnDeviceMemory({ unloadAfter: data?.modelUnloadAfter }); })
+  .catch(() => {});
 
 // Tabs Chrome restores in the first seconds after startup are not new tabs.
 const STARTUP_QUIET_MS = 20000;
@@ -54,13 +67,12 @@ async function autoGroupForTabEvents() {
   return (await autoGroupSetting) && Date.now() >= startupQuietUntil;
 }
 
-/** Provisional tabs are labelled in the background only by an on-device engine. */
-async function provisionalLabelledInBackground() {
+/** What the background may do now, or null when the settings cannot be read. */
+async function readBackgroundScope() {
   try {
-    const scope = await loadBackgroundScope();
-    return scope.allowed && scope.onDevice;
+    return await loadBackgroundScope();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -111,10 +123,16 @@ async function triggerOneClickGrouping(windowId) {
   // Abort any in-flight background prompt so the click gets the model.
   backgroundClassifier.pause();
   let result = null;
+  let backgroundScope = null;
   try {
     setBadgeLoading();
     result = await executeTabGrouping(windowId);
-    if (result?.provisionalTabs > 0) result.provisionalInBackground = await provisionalLabelledInBackground();
+    if (result?.provisionalTabs > 0) {
+      // Provisional tabs are labelled in the background only by an on-device
+      // engine the user lets prepare (or Auto-group); otherwise the next click labels them.
+      backgroundScope = await readBackgroundScope();
+      result.provisionalInBackground = Boolean(backgroundScope?.onDevice && (backgroundScope.allowed || backgroundScope.cleanupFollowUp));
+    }
     if (result.success) {
       setBadgeSuccess(result.groupsCreated);
     } else {
@@ -134,8 +152,12 @@ async function triggerOneClickGrouping(windowId) {
     isGroupingActive = false;
     backgroundClassifier.resume();
     // Tabs placed by address at the deadline get their model labels in the
-    // background, under the classifier's own consent gates.
-    backgroundClassifier.enqueue(result?.provisionalTabIds || [], { retryGivenUp: true });
+    // background when it may run, under the classifier's own consent gates.
+    if (backgroundScope?.allowed) {
+      backgroundClassifier.enqueue(result?.provisionalTabIds || [], { retryGivenUp: true });
+    } else if (backgroundScope?.cleanupFollowUp) {
+      backgroundClassifier.enqueue(result?.provisionalTabIds || [], { reason: 'cleanup', retryGivenUp: true });
+    }
     if (result?.strategy === 'task' && !result.incognito && Number.isInteger(result.windowId)) {
       backgroundClassifier.scheduleWindowPlanRefresh(result.windowId);
     }
@@ -164,17 +186,62 @@ async function ungroupWindow(windowId) {
 }
 
 /**
- * Load the on-device model while nobody is waiting (a cold load takes 15-19 s),
- * so a later cleanup finds it warm. Only for Nano in By task mode.
+ * Load the on-device model while nobody is waiting (a cold load takes 15-25 s),
+ * so a later cleanup finds it warm. Only for Nano in By task mode. Opening the
+ * popup warms it because a cleanup usually follows; a browser or worker start
+ * (`background`) only when background preparation or Auto-group is on. Never
+ * with the 'immediately' unload setting, which would let go of a warm model
+ * 6 s after it loads. The warm counts as a use, so the idle unload covers it.
  */
-async function maybeWarmNano() {
+async function maybeWarmNano({ background = false } = {}) {
   try {
-    const { provider = 'gemini_nano', groupingStrategy = 'task' } = await chrome.storage.sync.get(['provider', 'groupingStrategy']);
-    if (provider !== 'gemini_nano' || groupingStrategy === 'site') return;
+    await memoryPolicyReady;
+    if (getOnDeviceModelState().unloadAfter === 'immediately') return;
+    const { provider = 'gemini_nano', groupingStrategy = 'task', setupChoice } = await chrome.storage.sync.get(['provider', 'groupingStrategy', 'setupChoice']);
+    // Nothing loads the 3 GB model before the user has answered the setup card.
+    if (!setupChoice || provider !== 'gemini_nano' || groupingStrategy === 'site') return;
+    if (background && !(await readBackgroundScope())?.allowed) return;
     if ((await checkChromeNanoStatus()).status === 'ready') await warmChromeNano();
   } catch (err) {
     console.warn('[Foldnex] Could not warm the on-device model:', err?.message);
   }
+}
+
+/**
+ * Let go of Foldnex's Gemini Nano sessions now. Background work stops first,
+ * so a running batch cannot load the model straight back; it returns to the
+ * queue and continues under the current settings.
+ * @returns {Promise<boolean>} whether any session was released
+ */
+async function releaseNanoSessions() {
+  backgroundClassifier.pause();
+  let timer = null;
+  try {
+    await Promise.race([
+      backgroundClassifier.whenIdle(),
+      new Promise(resolve => { timer = setTimeout(resolve, 1000); })
+    ]);
+    return releaseOnDeviceModel();
+  } finally {
+    clearTimeout(timer);
+    backgroundClassifier.resume();
+  }
+}
+
+/**
+ * Background preparation, Auto-group or the engine changed. When background
+ * work is no longer allowed, stop it and drop the queue; when preparation or
+ * Auto-group was just turned on for an on-device engine, queue every open tab
+ * once, as after an install.
+ */
+async function backgroundOptInChanged(changes) {
+  const scope = await loadBackgroundScope();
+  if (!scope.allowed) {
+    await backgroundClassifier.clear();
+    return;
+  }
+  const turnedOn = key => Boolean(changes[key]?.newValue) && !changes[key]?.oldValue;
+  if (scope.onDevice && (turnedOn('backgroundPrep') || turnedOn('autoGroupNewTabs'))) await queueOpenTabs();
 }
 
 /** Candidate keys of the stored plan group covering at least half of these tabs. */
@@ -281,12 +348,10 @@ chrome.windows.onRemoved.addListener((windowId) => {
  * If user turns OFF "Direct 1-Click Mode", clicking the icon opens popup.html.
  */
 async function syncPopupBehavior(explicitMode) {
-  let isOneClick = explicitMode;
-  if (typeof isOneClick !== 'boolean') {
-    const data = await chrome.storage.sync.get('oneClickIconMode');
-    isOneClick = Boolean(data.oneClickIconMode);
-  }
-  if (isOneClick) {
+  const data = await chrome.storage.sync.get(['oneClickIconMode', 'setupChoice']);
+  const isOneClick = typeof explicitMode === 'boolean' ? explicitMode : Boolean(data.oneClickIconMode);
+  // Run from toolbar skips the popup, so it waits until the setup card is answered.
+  if (isOneClick && data.setupChoice) {
     await chrome.action.setPopup({ popup: '' }); // enables chrome.action.onClicked
   } else {
     await chrome.action.setPopup({ popup: 'popup.html' });
@@ -297,12 +362,33 @@ async function syncPopupBehavior(explicitMode) {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync' && 'oneClickIconMode' in changes) {
     syncPopupBehavior(Boolean(changes.oneClickIconMode.newValue));
+  } else if (areaName === 'sync' && 'setupChoice' in changes) {
+    syncPopupBehavior();
   }
   if (areaName === 'sync' && 'autoGroupNewTabs' in changes) {
     const enabled = Boolean(changes.autoGroupNewTabs.newValue);
     autoGroupSetting = Promise.resolve(enabled);
     backgroundClassifier.setAutoGroup(enabled).catch(err => {
       console.warn('[Foldnex] Could not reset new-tab tracking:', err?.message);
+    });
+  }
+  if (areaName === 'sync' && 'modelUnloadAfter' in changes) {
+    // After the startup read, so an older stored value cannot win.
+    memoryPolicyReady.then(() => configureOnDeviceMemory({ unloadAfter: changes.modelUnloadAfter.newValue }));
+  }
+  if (areaName === 'sync' && 'provider' in changes) {
+    // Another engine never uses Nano's sessions: let go of the model now.
+    const from = changes.provider.oldValue || 'gemini_nano';
+    const to = changes.provider.newValue || 'gemini_nano';
+    if (to !== 'gemini_nano' && (from === 'gemini_nano' || getOnDeviceModelState().loaded)) {
+      releaseNanoSessions().catch(err => {
+        console.warn('[Foldnex] Could not release the on-device model:', err?.message);
+      });
+    }
+  }
+  if (areaName === 'sync' && ['backgroundPrep', 'autoGroupNewTabs', 'provider', 'groupingStrategy'].some(key => key in changes)) {
+    backgroundOptInChanged(changes).catch(err => {
+      console.warn('[Foldnex] Could not apply the background setting:', err?.message);
     });
   }
 });
@@ -324,7 +410,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   await chrome.storage.local.remove('foldnex_tab_assignments_v1');
   await syncPopupBehavior();
   await queueOpenTabs();
-  maybeWarmNano();
+  maybeWarmNano({ background: true });
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -333,10 +419,13 @@ chrome.runtime.onStartup.addListener(async () => {
   await seedGroupTitleBaselines(await chrome.tabGroups.query({}));
   await syncPopupBehavior();
   await queueOpenTabs();
-  maybeWarmNano();
+  maybeWarmNano({ background: true });
 });
 
-/** Queue every open tab for an on-device engine. Tabs already open never go to a cloud engine. */
+/**
+ * Queue every open tab for an on-device engine, when background preparation
+ * or Auto-group allows it. Tabs already open never go to a cloud engine.
+ */
 async function queueOpenTabs() {
   try {
     const scope = await loadBackgroundScope();
@@ -381,7 +470,7 @@ LearningCache.ensureSchema().catch(err => {
 chrome.tabGroups.query({}).then(seedGroupTitleBaselines).catch(err => {
   console.warn('[Foldnex] Could not seed group title baselines:', err);
 });
-maybeWarmNano();
+maybeWarmNano({ background: true });
 
 // Unpacked development installs only: measurement helpers for the console.
 // Nothing here is stored.
@@ -438,6 +527,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.warn('[Foldnex] Could not prepare grouping:', err?.message);
       }
       sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (message.type === 'UNLOAD_ON_DEVICE_MODEL') {
+    (async () => {
+      let released = false;
+      try {
+        if (getOnDeviceModelState().loaded) released = await releaseNanoSessions();
+      } catch (err) {
+        console.warn('[Foldnex] Could not release the on-device model:', err?.message);
+      }
+      sendResponse({ ok: true, released });
+    })();
+    return true;
+  }
+
+  if (message.type === 'GET_ON_DEVICE_MODEL_STATE') {
+    (async () => {
+      await memoryPolicyReady;
+      sendResponse({ ok: true, ...getOnDeviceModelState() });
     })();
     return true;
   }

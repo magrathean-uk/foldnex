@@ -2,8 +2,9 @@
  * Foldnex - Background classifier
  * Labels tabs as they finish loading and keeps each window's plan and names
  * current, so a later cleanup only applies cached labels and names. On-device
- * engines (Nano, Ollama on a loopback address) run silently. Cloud engines run
- * here only when the user turned on auto-grouping, only for tabs opened or
+ * engines (Nano, Ollama on a loopback address) run silently once the user
+ * turned on background preparation or auto-grouping. Cloud engines run here
+ * only when the user turned on auto-grouping, only for tabs opened or
  * navigated to a new page since then, and never consolidate.
  */
 
@@ -11,6 +12,7 @@ import {
   CLOUD_BATCH_SIZE,
   consolidateWithCloud,
   groupCeiling,
+  isLoopbackUrl,
   labelTabsWithAI,
   nameGroupsWithNano,
   NANO_BACKGROUND_BATCH,
@@ -55,20 +57,13 @@ export const NAVIGATION_SETTLE_MS = 10000;
 export const RETRY_DELAYS_MS = Object.freeze([5000, 30000, 120000]);
 export const NEW_TABS_KEY = 'foldnex_new_tabs_v1';
 const NO_GROUP = -1;
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const REASON_RANK = Object.freeze({ title: 0, other: 1, load: 2 });
+const REASON_RANK = Object.freeze({ title: 0, other: 1, load: 2, cleanup: 3 });
 
 // Last background naming attempt per window: {at, signature}. In memory
 // only; a service-worker restart simply allows one more attempt.
 const namingAttempts = new Map();
 
-export function isLoopbackUrl(url) {
-  try {
-    return LOOPBACK_HOSTS.has(new URL(url).hostname.toLowerCase());
-  } catch {
-    return false;
-  }
-}
+export { isLoopbackUrl };
 
 /** Engines whose tab data stays on this device: Nano, and Ollama on a loopback address. */
 export function isOnDeviceEngine(settings = {}) {
@@ -86,14 +81,27 @@ function backgroundAllowed(settings) {
 }
 
 /**
- * What the background may do under the saved settings: `allowed` at all,
- * `onDevice` (any tab may be labelled) or cloud (only new pages), and
+ * Background work is opt-in: background preparation (backgroundPrep), or
+ * Auto-group, which needs labels. For a cloud engine only Auto-group counts,
+ * through the consent gates.
+ */
+function backgroundPrepared(settings) {
+  return settings.backgroundPrep === true || Boolean(settings.autoGroupNewTabs);
+}
+
+/**
+ * What the background may do under the saved settings: `allowed` at all
+ * (the consent gates plus the opt-in, which the queue and the service worker
+ * apply), `onDevice` (any tab may be labelled) or cloud (only new pages), and
  * whether Auto-group is on.
  */
 export async function loadBackgroundScope(settings = null) {
   const resolved = settings || await loadGroupingSettings();
   return {
-    allowed: backgroundAllowed(resolved),
+    allowed: backgroundAllowed(resolved) && backgroundPrepared(resolved),
+    // Without the opt-in, an on-device engine still finishes the tabs a
+    // cleanup the user just ran placed by address, then stops.
+    cleanupFollowUp: backgroundAllowed(resolved) && isOnDeviceEngine(resolved),
     onDevice: isOnDeviceEngine(resolved),
     autoGroup: Boolean(resolved.autoGroupNewTabs)
   };
@@ -661,13 +669,16 @@ export function createBackgroundClassifier({
       console.warn('[Foldnex] Could not read background settings:', error?.message);
       return;
     }
-    if (!current?.allowed) return;
-
+    if (!current) return;
     let sendable = batch;
+    if (!current.allowed) {
+      if (!current.cleanupFollowUp) return;
+      sendable = batch.filter(([, reason]) => reason === 'cleanup');
+    }
     if (!current.onDevice) {
       // Cloud consent covers pages opened after Auto-group was turned on, never title-only changes.
       const fresh = new Set(await tracker.freshIds());
-      sendable = batch.filter(([id, reason]) => reason !== 'title' && fresh.has(id));
+      sendable = sendable.filter(([id, reason]) => reason !== 'title' && fresh.has(id));
     }
     if (sendable.length === 0) return;
     const ids = sendable.map(([id]) => id);
@@ -718,10 +729,20 @@ export function createBackgroundClassifier({
 
   async function runDueRefreshes(signal) {
     const now = Date.now();
+    if (![...refreshDue.values()].some(entry => entry.at <= now)) return;
+    // A refresh may prompt for names, so it needs the same opt-in as
+    // labelling; a due refresh the settings do not allow is dropped.
+    let allowed = false;
+    try {
+      allowed = Boolean((await scope())?.allowed);
+    } catch (error) {
+      console.warn('[Foldnex] Could not read background settings:', error?.message);
+    }
     for (const [windowId, entry] of [...refreshDue]) {
       if (signal.aborted) break;
       if (entry.at > now) continue;
       refreshDue.delete(windowId);
+      if (!allowed) continue;
       try {
         const candidateIds = entry.autoGroup ? await tracker.candidateIds() : [];
         await refresh(windowId, signal, {
@@ -737,6 +758,27 @@ export function createBackgroundClassifier({
         }
       }
     }
+  }
+
+  function pause() {
+    holds++;
+    clearTimeout(flushTimer);
+    flushTimer = null;
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    running?.abort(new Error('Paused for cleanup'));
+  }
+
+  function resume() {
+    holds = Math.max(0, holds - 1);
+    if (paused()) return;
+    scheduleFlush();
+    armRefresh();
+  }
+
+  /** Settles once the current flush, if any, has finished or stopped. */
+  function whenIdle() {
+    return running ? idle : Promise.resolve();
   }
 
   function flush() {
@@ -855,23 +897,29 @@ export function createBackgroundClassifier({
     async setAutoGroup(enabled) {
       if (!enabled) await tracker.clear();
     },
-    pause() {
-      holds++;
-      clearTimeout(flushTimer);
-      flushTimer = null;
-      clearTimeout(refreshTimer);
-      refreshTimer = null;
-      running?.abort(new Error('Paused for cleanup'));
+    /**
+     * Background work was turned off: stop the current flush and drop every
+     * queued tab, pending retry and plan refresh. Waits up to `waitMs` for
+     * the stopped flush to hand its work back, so none of it survives.
+     */
+    async clear({ waitMs = 1000 } = {}) {
+      pause();
+      let timer = null;
+      try {
+        await Promise.race([whenIdle(), new Promise(resolve => { timer = setTimeout(resolve, waitMs); })]);
+      } finally {
+        clearTimeout(timer);
+        pending.clear();
+        pendingSince = null;
+        retries.clear();
+        clearTimeout(retryTimer);
+        retryTimer = null;
+        refreshDue.clear();
+        resume();
+      }
     },
-    resume() {
-      holds = Math.max(0, holds - 1);
-      if (paused()) return;
-      scheduleFlush();
-      armRefresh();
-    },
-    /** Settles once the current flush, if any, has finished or stopped. */
-    whenIdle() {
-      return running ? idle : Promise.resolve();
-    }
+    pause,
+    resume,
+    whenIdle
   };
 }

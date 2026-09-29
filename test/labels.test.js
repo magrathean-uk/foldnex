@@ -6,11 +6,14 @@ import {
   buildLabelPrompt,
   buildNamePrompt,
   cloudLabelBatchSize,
+  configureOnDeviceMemory,
   consolidateWithCloud,
   CONSOLIDATE_SYSTEM,
   formatLabelLines,
   formatLabelRows,
   getNanoBase,
+  getOnDeviceModelState,
+  IMMEDIATE_UNLOAD_GRACE_MS,
   LABEL_SYSTEM,
   LABEL_SYSTEM_ROWS,
   labelBatchWithNano,
@@ -20,11 +23,15 @@ import {
   nameGroupsWithNano,
   NANO_PERF_KEY,
   nextNanoPerf,
+  normalizeModelUnloadAfter,
+  ollamaKeepAlive,
   parseConsolidateResponse,
   parseLabelResponse,
   readNanoPerf,
+  releaseOnDeviceModel,
   requestProviderJson,
   resetNanoBases,
+  runNanoPrompt,
   supportsOpenAIStructuredOutputs,
   updateNanoPerf,
   warmChromeNano
@@ -575,7 +582,7 @@ test('cloud labels send one request up to 40 tabs and honour a batch size overri
     await labelTabsWithAI(makeTabs(40), settings);
     assert.equal(fetchMock.requests.length, 1);
     assert.equal(fetchMock.requests[0].body.reasoning_effort, 'low');
-    assert.equal('service_tier' in fetchMock.requests[0].body, false);
+    assert.equal(fetchMock.requests[0].body.service_tier, 'priority', 'Priority is on unless turned off');
 
     const result = await labelTabsWithAI(makeTabs(60), settings, { batchSize: 100 });
     assert.equal(fetchMock.requests.length, 2);
@@ -1100,6 +1107,202 @@ test('sequential cloud labelling sends one batch at a time and stops at an abort
     });
     assert.equal(fetchMock.requests.length, 1);
   } finally {
+    fetchMock.restore();
+  }
+});
+
+/* ------------------------------------------------------------------------ */
+/* On-device model memory                                                   */
+/* ------------------------------------------------------------------------ */
+
+/** Let promise callbacks run; setImmediate stays real under the mocked timers. */
+function settle() {
+  return new Promise(resolve => setImmediate(resolve));
+}
+
+async function settleUntil(check, rounds = 50) {
+  for (let i = 0; i < rounds && !check(); i++) await settle();
+  return check();
+}
+
+test('Nano is released once idle past the unload setting, never while a prompt runs, and every use restarts the clock', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+  let hang = false;
+  let finishPrompt = null;
+  const calls = installNanoMock({
+    answer: text => (hang
+      ? new Promise(resolve => { finishPrompt = () => resolve(answerLines(text)); })
+      : answerLines(text))
+  });
+  try {
+    assert.equal(configureOnDeviceMemory({ unloadAfter: '2m' }), '2m');
+    assert.deepEqual(getOnDeviceModelState(), { loaded: false, idleMs: null, unloadAfter: '2m' });
+    await warmChromeNano();
+    assert.deepEqual(getOnDeviceModelState(), { loaded: true, idleMs: 0, unloadAfter: '2m' });
+
+    t.mock.timers.tick(90_000);
+    assert.deepEqual(getOnDeviceModelState(), { loaded: true, idleMs: 90_000, unloadAfter: '2m' });
+    // Warming a loaded model (a popup open) counts as a use, and so does a prompt.
+    await warmChromeNano();
+    assert.equal(getOnDeviceModelState().idleMs, 0);
+    t.mock.timers.tick(90_000);
+    await labelTabsWithAI(makeTabs(2), { provider: 'gemini_nano' });
+    assert.equal(calls.create.length, 2, 'both warms and the prompt share the bases');
+    t.mock.timers.tick(119_000);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, true);
+    t.mock.timers.tick(1_000);
+    await settle();
+    assert.deepEqual(getOnDeviceModelState(), { loaded: false, idleMs: null, unloadAfter: '2m' });
+    assert.equal(calls.destroyed, 3, 'the prompt clone and both bases');
+
+    // A prompt still running holds the model however long it takes.
+    hang = true;
+    const running = runNanoPrompt('label', 'x', labelSchema(1), { timeoutMs: 60 * 60 * 1000 });
+    assert.ok(await settleUntil(() => finishPrompt));
+    t.mock.timers.tick(10 * 60_000);
+    await settle();
+    assert.deepEqual(getOnDeviceModelState(), { loaded: true, idleMs: 0, unloadAfter: '2m' });
+    finishPrompt();
+    await running;
+    t.mock.timers.tick(119_000);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, true, 'the idle clock starts when the prompt ends');
+    t.mock.timers.tick(1_000);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, false);
+    assert.equal(calls.create.length, 3, 'a use after an unload loads the model again');
+  } finally {
+    configureOnDeviceMemory({ unloadAfter: '5m' });
+    removeNanoMock();
+  }
+});
+
+test('Nano unload settings: immediately after a short grace, never keeps it, and a change applies at once', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+  let finishLoad = null;
+  let slowLoad = true;
+  const calls = installNanoMock({
+    create: (options, _calls, makeSession) => (slowLoad
+      ? new Promise(resolve => { finishLoad = () => resolve(makeSession(options)); })
+      : makeSession(options))
+  });
+  try {
+    configureOnDeviceMemory({ unloadAfter: 'immediately' });
+    // A load in progress holds the model like a prompt does.
+    const loading = getNanoBase('label');
+    assert.ok(await settleUntil(() => finishLoad));
+    t.mock.timers.tick(30_000);
+    await settle();
+    assert.deepEqual(getOnDeviceModelState(), { loaded: true, idleMs: 0, unloadAfter: 'immediately' });
+    finishLoad();
+    await loading;
+    slowLoad = false;
+
+    // A second prompt inside the grace reuses the model.
+    await labelTabsWithAI(makeTabs(2), { provider: 'gemini_nano' });
+    t.mock.timers.tick(1_500);
+    await settle();
+    await labelTabsWithAI(makeTabs(2), { provider: 'gemini_nano' });
+    assert.equal(calls.create.length, 1);
+    t.mock.timers.tick(IMMEDIATE_UNLOAD_GRACE_MS - 1);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, true);
+    t.mock.timers.tick(1);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, false);
+
+    configureOnDeviceMemory({ unloadAfter: 'never' });
+    await warmChromeNano();
+    t.mock.timers.tick(3 * 60 * 60_000);
+    await settle();
+    assert.deepEqual(getOnDeviceModelState(), { loaded: true, idleMs: 3 * 60 * 60_000, unloadAfter: 'never' });
+
+    // Idle for three hours already: a shorter setting releases it straight away.
+    configureOnDeviceMemory({ unloadAfter: '5m' });
+    t.mock.timers.tick(0);
+    await settle();
+    assert.equal(getOnDeviceModelState().loaded, false);
+
+    await warmChromeNano();
+    assert.equal(releaseOnDeviceModel(), true);
+    assert.equal(getOnDeviceModelState().loaded, false);
+    assert.equal(releaseOnDeviceModel(), false, 'nothing left to release');
+
+    assert.equal(configureOnDeviceMemory({ unloadAfter: '90m' }), '5m');
+    assert.equal(normalizeModelUnloadAfter(undefined), '5m');
+    assert.equal(normalizeModelUnloadAfter('toString'), '5m');
+  } finally {
+    configureOnDeviceMemory({ unloadAfter: '5m' });
+    removeNanoMock();
+  }
+});
+
+test('a release while the warm loads the label base ends the warm, so Nano stays released', async () => {
+  const loads = [];
+  const calls = installNanoMock({
+    create: (options, _calls, makeSession) => new Promise(resolve => {
+      loads.push(() => resolve(makeSession(options)));
+    })
+  });
+  try {
+    const warming = warmChromeNano();
+    assert.ok(await settleUntil(() => loads.length === 1));
+    // Free memory now, or a switch to another engine, during the cold load.
+    assert.equal(releaseOnDeviceModel(), true);
+    loads[0]();
+    await settleUntil(() => loads.length > 1, 10);
+    assert.equal(calls.create.length, 1, 'the name base is never loaded');
+    await warming;
+    assert.deepEqual(getOnDeviceModelState(), { loaded: false, idleMs: null, unloadAfter: '5m' });
+    assert.equal(calls.destroyed, 1, 'the released label base is destroyed once it lands');
+
+    // Without a release the warm loads both bases.
+    const again = warmChromeNano();
+    assert.ok(await settleUntil(() => loads.length === 2));
+    loads[1]();
+    assert.ok(await settleUntil(() => loads.length === 3));
+    loads[2]();
+    await again;
+    assert.equal(calls.create.length, 3);
+    assert.equal(getOnDeviceModelState().loaded, true);
+  } finally {
+    removeNanoMock();
+  }
+});
+
+test('Ollama on this device gets keep_alive from the unload setting; other servers and providers do not', async () => {
+  assert.deepEqual(
+    ['immediately', '2m', '5m', '15m', '60m', 'never', undefined, 'forever'].map(ollamaKeepAlive),
+    [0, '2m', '5m', '15m', '60m', -1, '5m', '5m']
+  );
+  const fetchMock = installFetchMock(request => {
+    const content = userContent(request.body);
+    return chatResponse(content.includes('{"tabs":') ? answerRows(rowsFromContent(content)) : {});
+  });
+  const tabs = makeTabs(2);
+  const lastBody = () => fetchMock.requests.at(-1).body;
+  try {
+    for (const [setting, expected] of [['immediately', 0], ['2m', '2m'], ['5m', '5m'], ['15m', '15m'], ['60m', '60m'], ['never', -1]]) {
+      await labelTabsWithAI(tabs, { provider: 'ollama', modelUnloadAfter: setting });
+      assert.equal(fetchMock.requests.at(-1).url, 'http://localhost:11434/v1/chat/completions');
+      assert.equal(lastBody().keep_alive, expected, setting);
+    }
+
+    // Unset, it follows the configured setting ('5m' by default).
+    await labelTabsWithAI(tabs, { provider: 'ollama' });
+    assert.equal(lastBody().keep_alive, '5m');
+    configureOnDeviceMemory({ unloadAfter: 'never' });
+    await requestProviderJson({ provider: 'ollama', ollamaBaseUrl: 'http://127.0.0.1:11434/v1' }, { system: 'S', user: 'U' });
+    assert.equal(lastBody().keep_alive, -1);
+
+    // A server elsewhere and cloud providers keep their own policy.
+    await labelTabsWithAI(tabs, { provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1', modelUnloadAfter: 'never' });
+    assert.equal('keep_alive' in lastBody(), false);
+    await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', modelUnloadAfter: 'never' });
+    assert.equal('keep_alive' in lastBody(), false);
+  } finally {
+    configureOnDeviceMemory({ unloadAfter: '5m' });
     fetchMock.restore();
   }
 });

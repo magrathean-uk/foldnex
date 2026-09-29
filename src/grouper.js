@@ -73,6 +73,9 @@ export const APPLY_CEILING_TO_SITE_MODE = false;
 const NANO_LOAD_LABEL_RESERVE_MS = 3000;
 // After label prompts, a naming prompt only fits with this much left.
 const NAMING_AFTER_LABELS_MIN_REMAINING_MS = 3000;
+// A prepared window (every label cached) waits this long at most for names;
+// a later answer is remembered for the next cleanup instead.
+export const PREPARED_NAMING_WAIT_MS = 1200;
 // Fewer tabs than this per prompt costs more in overhead than it labels.
 const MIN_CLICK_BATCH = 4;
 const NANO_LOADING = Object.freeze({
@@ -737,6 +740,11 @@ export async function groupByLabels(groupableTabs, locked, settings, {
   // Consolidation needs two candidates; with fewer, no click would ever name them.
   const namingPossible = provider === 'gemini_nano' || plan.candidates.length >= 2;
   let namesApplied = false;
+  const prepared = lookup.missing.length === 0;
+  const namingWait = () => {
+    const available = clickBudget.remaining() - APPLY_RESERVE_MS;
+    return prepared ? Math.min(available, PREPARED_NAMING_WAIT_MS) : available;
+  };
   if (canName && provider === 'gemini_nano') {
     const remaining = clickBudget.remaining();
     const labelPromptRan = modelCalls.label > 0;
@@ -744,7 +752,7 @@ export async function groupByLabels(groupableTabs, locked, settings, {
       const targets = need.toName;
       modelCalls.naming = 1;
       const request = nameGroupsWithNano(targets, tabsById, { trace });
-      const outcome = await settleWithin(request, clickBudget.remaining() - APPLY_RESERVE_MS);
+      const outcome = await settleWithin(request, namingWait());
       if (outcome.state === 'fulfilled') {
         const records = applyModelNames(targets, outcome.value, groups, { tabsById, tokensById: plan.tokensById });
         persist.names.push(...records);
@@ -767,7 +775,7 @@ export async function groupByLabels(groupableTabs, locked, settings, {
     const k = consolidationLimit(plan, groups);
     modelCalls.consolidation = 1;
     const request = consolidateWithCloud(plan.candidates, k, settings, { trace, tabsById });
-    const outcome = await settleWithin(request, clickBudget.remaining() - APPLY_RESERVE_MS);
+    const outcome = await settleWithin(request, namingWait());
     if (outcome.state === 'fulfilled' && hasFolders(outcome.value)) {
       const applied = applyFolders(groups, plan, outcome.value.folders, k, { tabsById, memory, fingerprintById });
       groups = applied.groups;

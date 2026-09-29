@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { NAME_SYSTEM, resetNanoBases } from '../src/ai-engine.js';
+import {
+  configureOnDeviceMemory,
+  getOnDeviceModelState,
+  IMMEDIATE_UNLOAD_GRACE_MS,
+  NAME_SYSTEM,
+  resetNanoBases
+} from '../src/ai-engine.js';
 import { TabLabelCache } from '../src/cache-engine.js';
 import {
   autoGroupWindow,
@@ -10,6 +16,7 @@ import {
   createNewTabTracker,
   isOnDeviceEngine,
   loadBackgroundScope,
+  PLAN_REFRESH_DELAY_MS,
   refreshAndAutoGroup
 } from '../src/background-classifier.js';
 
@@ -142,8 +149,13 @@ function installBrowser(tabs, { sync = {}, chromeGroups = [], liveGroups = false
   return { local, session, sync, calls, groups };
 }
 
+/**
+ * Chrome's Prompt API. Records label and name prompts and base creations,
+ * with whether Foldnex still held a base (the model) when each load began;
+ * setting `calls.createDelayMs` makes later loads that slow.
+ */
 function installNanoMock({ labelFor = keyForTitle, nameFor = name => name } = {}) {
-  const calls = { labelPrompts: [], namePrompts: [] };
+  const calls = { labelPrompts: [], namePrompts: [], creates: 0, heldAtCreate: [], createDelayMs: 0 };
   const makeSession = createOptions => ({
     inputUsage: 300,
     async clone() {
@@ -168,7 +180,12 @@ function installNanoMock({ labelFor = keyForTitle, nameFor = name => name } = {}
   globalThis.self = globalThis;
   globalThis.LanguageModel = {
     async availability() { return 'available'; },
-    async create(options) { return makeSession(options); }
+    async create(options) {
+      calls.creates++;
+      calls.heldAtCreate.push(getOnDeviceModelState().loaded);
+      if (calls.createDelayMs > 0) await sleep(calls.createDelayMs);
+      return makeSession(options);
+    }
   };
   return calls;
 }
@@ -665,7 +682,7 @@ test('a failed flush re-queues its tabs with back-off and gives up after four at
 test('a given-up tab gets one more attempt when the popup opens or a cleanup places it provisionally', async () => {
   const W = 222;
   const tabs = makeTopicTabs(W, 22200, { food: 2 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
+  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
   let availability = 'downloading';
   const nano = installNanoMock();
   globalThis.LanguageModel.availability = async () => availability;
@@ -739,7 +756,7 @@ test('a partial result re-queues only the unlabelled tabs, from the result or th
 test('a Nano batch that fails mid-run is retried until every tab is labelled', async () => {
   const W = 212;
   const tabs = makeTopicTabs(W, 21200, { food: 14, travel: 14, dev: 12 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
+  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
   let failed = false;
   const nano = installNanoMock({
     labelFor: title => {
@@ -813,11 +830,150 @@ test('only Nano and Ollama on a loopback address count as on-device', async () =
   assert.equal(isOnDeviceEngine({ provider: 'openai' }), false);
   assert.equal(isOnDeviceEngine({ provider: 'offline' }), false);
 
-  assert.deepEqual(await loadBackgroundScope({ provider: 'openai' }), { allowed: false, onDevice: false, autoGroup: false });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'openai', autoGroupNewTabs: true }), { allowed: true, onDevice: false, autoGroup: true });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' }), { allowed: false, onDevice: false, autoGroup: false });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama' }), { allowed: true, onDevice: true, autoGroup: false });
+  assert.deepEqual(await loadBackgroundScope({ provider: 'openai' }), { allowed: false, cleanupFollowUp: false, onDevice: false, autoGroup: false });
+  assert.deepEqual(await loadBackgroundScope({ provider: 'openai', autoGroupNewTabs: true }), { allowed: true, cleanupFollowUp: false, onDevice: false, autoGroup: true });
+  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' }), { allowed: false, cleanupFollowUp: false, onDevice: false, autoGroup: false });
+  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama' }), { allowed: false, cleanupFollowUp: true, onDevice: true, autoGroup: false });
+  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama', backgroundPrep: true }), { allowed: true, cleanupFollowUp: true, onDevice: true, autoGroup: false });
+  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', groupingStrategy: 'site' })).cleanupFollowUp, false);
+  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano' })).allowed, false);
+  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', backgroundPrep: true })).allowed, true);
+  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', autoGroupNewTabs: true })).allowed, true, 'Auto-group needs labels');
+  assert.equal((await loadBackgroundScope({ provider: 'openai', backgroundPrep: true })).allowed, false, 'preparation never opens the cloud');
+  assert.equal((await loadBackgroundScope({ provider: 'offline', backgroundPrep: true })).allowed, false);
   assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', groupingStrategy: 'site' })).allowed, false);
+});
+
+test('an on-device engine labels and names in the background only with background preparation or Auto-group', async () => {
+  const W = 224;
+  const tabs = makeTopicTabs(W, 22400, { food: 3, travel: 3 });
+  const settings = { provider: 'gemini_nano' };
+  installBrowser(tabs, { sync: settings });
+  const nano = installNanoMock();
+  const refreshed = [];
+  const classifier = createBackgroundClassifier({
+    refresh: async windowId => {
+      refreshed.push(windowId);
+      return null;
+    },
+    flushDelayMs: 5,
+    refreshDelayMs: 5
+  });
+  try {
+    // Off: queued tabs, a popup open and a cleanup's plan refresh never reach the model.
+    classifier.enqueue(tabs.map(tab => tab.id));
+    await classifier.prioritize(W);
+    classifier.scheduleWindowPlanRefresh(W);
+    await sleep(120);
+    assert.equal(nano.labelPrompts.length, 0);
+    assert.equal(nano.creates, 0);
+    assert.deepEqual(refreshed, []);
+    assert.deepEqual(classifier.pendingTabIds(), []);
+
+    // Background preparation on: the same work labels every tab and refreshes the plan.
+    settings.backgroundPrep = true;
+    classifier.enqueue(tabs.map(tab => tab.id));
+    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(tabs)).missing.length === 0, 2000));
+    assert.ok(await waitFor(() => refreshed.length === 1));
+  } finally {
+    classifier.pause();
+    removeNanoMock();
+  }
+
+  // Auto-group alone allows it too, because it needs labels.
+  const others = makeTopicTabs(W + 1, 22450, { dev: 2 });
+  installBrowser(others, { sync: { provider: 'gemini_nano', autoGroupNewTabs: true } });
+  const again = installNanoMock();
+  const queue = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 5 });
+  try {
+    await queue.prioritize(W + 1);
+    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(others)).missing.length === 0, 2000));
+    assert.ok(again.labelPrompts.length > 0);
+  } finally {
+    queue.pause();
+    removeNanoMock();
+  }
+});
+
+test('under the immediately setting the background plan refresh names groups on the model its labelling loaded', async t => {
+  const W = 227;
+  const tabs = makeTopicTabs(W, 22700, { food: 3, travel: 3, dev: 3 });
+  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true, modelUnloadAfter: 'immediately' } });
+  const nano = installNanoMock();
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 5_000_000 });
+  // Mocked timers move in steps; setImmediate stays real and lets promise work run.
+  const advance = async ms => {
+    for (let step = 0; step < ms; step += 100) {
+      t.mock.timers.tick(100);
+      for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+    }
+  };
+  configureOnDeviceMemory({ unloadAfter: 'immediately' });
+  // The real plan refresh delay; only the flush debounce is shortened.
+  const classifier = createBackgroundClassifier({ flushDelayMs: 5 });
+  try {
+    classifier.enqueue(tabs.map(tab => tab.id));
+    await advance(200);
+    assert.ok(nano.labelPrompts.length > 0);
+    assert.equal(nano.namePrompts.length, 0);
+
+    await advance(PLAN_REFRESH_DELAY_MS + 500);
+    assert.equal(nano.namePrompts.length, 1);
+    assert.deepEqual(nano.heldAtCreate, [false, true], 'the name base loads while the label base still holds the model');
+
+    // Right after use still means right after use.
+    await advance(IMMEDIATE_UNLOAD_GRACE_MS);
+    assert.equal(getOnDeviceModelState().loaded, false);
+  } finally {
+    classifier.pause();
+    configureOnDeviceMemory({ unloadAfter: '5m' });
+    removeNanoMock();
+  }
+});
+
+test('clearing the queue stops the running flush and drops queued tabs, retries and plan refreshes', async () => {
+  installBrowser(makeTopicTabs(225, 22500, { food: 3 }));
+  const signals = [];
+  const refreshes = [];
+  const classifier = createBackgroundClassifier({
+    classify: (ids, signal) => {
+      signals.push(signal);
+      if (signals.length === 1) {
+        return Promise.resolve({ windowIds: [225], storedWindowIds: [], labelledIds: [], unlabelledIds: ids });
+      }
+      return new Promise(resolve => signal.addEventListener('abort', () => resolve({ aborted: true }), { once: true }));
+    },
+    refresh: async windowId => {
+      refreshes.push(windowId);
+      return null;
+    },
+    scope: ON_DEVICE,
+    flushDelayMs: 5,
+    refreshDelayMs: 40,
+    retryDelaysMs: [40, 40, 40]
+  });
+  try {
+    // One tab waits for a retry, one is being labelled, one is queued, and a plan refresh is due.
+    classifier.enqueue([22500]);
+    assert.ok(await waitFor(() => signals.length === 1));
+    classifier.enqueue([22501]);
+    assert.ok(await waitFor(() => signals.length === 2));
+    classifier.enqueue([22502]);
+    classifier.scheduleWindowPlanRefresh(225);
+
+    await classifier.clear();
+    assert.equal(signals[1].aborted, true);
+    assert.deepEqual(classifier.pendingTabIds(), []);
+    await sleep(150);
+    assert.equal(signals.length, 2, 'no retry and no returned work runs');
+    assert.deepEqual(refreshes, []);
+
+    // Work queued afterwards runs as usual.
+    classifier.enqueue([22502]);
+    assert.ok(await waitFor(() => signals.length === 3));
+  } finally {
+    classifier.pause();
+  }
 });
 
 test('a cloud engine only receives pages opened after Auto-group was on, never title-only changes', async () => {
@@ -1062,4 +1218,128 @@ test('the service worker keeps cloud labelling to new tabs and lets an on-device
     sync.groupingStrategy = 'site';
     cloud.restore();
   }
+});
+
+test('the service worker prepares an on-device engine only when asked and lets go of Nano on request or an engine switch', async () => {
+  const W = 226;
+  const tabs = makeTopicTabs(W, 22600, { food: 3, travel: 3 });
+  const { sync, session } = installBrowser(tabs, { sync: { provider: 'gemini_nano', setupChoice: 'nano' } });
+  session.foldnex_session_started_v1 = true;
+  const listeners = installWorkerEvents();
+  const nano = installNanoMock();
+  let availability = 'downloading';
+  globalThis.LanguageModel.availability = async () => availability;
+  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
+  const state = () => message({ type: 'GET_ON_DEVICE_MODEL_STATE' });
+  const change = values => {
+    const changes = {};
+    for (const [key, newValue] of Object.entries(values)) {
+      changes[key] = { oldValue: sync[key], newValue };
+      sync[key] = newValue;
+    }
+    listeners.storageChanged(changes, 'sync');
+  };
+  const missing = async list => (await TabLabelCache.lookup(list)).missing.length;
+  try {
+    await import('../background.js?on-device-preparation');
+
+    // Without background preparation, a browser start and page loads label nothing.
+    await listeners.startup();
+    await listeners.tabUpdated(tabs[0].id, { status: 'complete' }, tabs[0]);
+    await sleep(1800);
+    assert.equal(nano.labelPrompts.length, 0);
+    // A cleanup while the model is not ready places tabs by address. Without
+    // preparation, an on-device engine still finishes those tabs, then stops.
+    const first = await message({ type: 'TRIGGER_GROUPING', windowId: W });
+    assert.ok(first.result.provisionalTabs > 0);
+    assert.equal(first.result.provisionalInBackground, true);
+    assert.equal(nano.creates, 0);
+    assert.deepEqual(await state(), { ok: true, loaded: false, idleMs: null, unloadAfter: '5m' });
+
+    // Nothing warms the model before the setup card is answered.
+    availability = 'available';
+    delete sync.setupChoice;
+    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
+    await sleep(50);
+    assert.equal(nano.creates, 0);
+
+    // Then opening the popup warms Nano for the click that usually follows.
+    change({ setupChoice: 'nano' });
+    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
+    assert.ok(await waitFor(() => nano.creates >= 1));
+    const warm = await state();
+    assert.equal(warm.loaded, true);
+    assert.equal(typeof warm.idleMs, 'number');
+    assert.ok(await waitFor(async () => await missing(tabs) === 0, 9000), 'the cleanup follow-up labels its tabs');
+
+    // A page loaded without preparation waits; turning preparation on queues it.
+    const extra = { ...makeTopicTabs(W, 22680, { travel: 1 })[0], index: tabs.length };
+    tabs.push(extra);
+    await listeners.tabUpdated(extra.id, { status: 'complete' }, extra);
+    await sleep(1800);
+    assert.equal(await missing([extra]), 1);
+    change({ backgroundPrep: true });
+    assert.ok(await waitFor(async () => await missing(tabs) === 0, 4000));
+
+    // Unload now releases the sessions; a second request finds nothing to release.
+    assert.deepEqual(await message({ type: 'UNLOAD_ON_DEVICE_MODEL' }), { ok: true, released: true });
+    assert.equal((await state()).loaded, false);
+    assert.deepEqual(await message({ type: 'UNLOAD_ON_DEVICE_MODEL' }), { ok: true, released: false });
+
+    // A click that finds the model cold hands its provisional tabs to the background.
+    const later = makeTopicTabs(W, 22690, { dev: 2 }).map((tab, i) => ({ ...tab, index: tabs.length + i }));
+    tabs.push(...later);
+    nano.createDelayMs = 2000;
+    const cold = await message({ type: 'TRIGGER_GROUPING', windowId: W });
+    assert.equal(cold.result.fallbackCode, 'nano_loading');
+    assert.equal(cold.result.provisionalInBackground, true);
+    assert.ok(await waitFor(async () => await missing(later) === 0, 5000));
+    nano.createDelayMs = 0;
+
+    // Turning preparation off stops background labelling again.
+    change({ backgroundPrep: false });
+    await sleep(50);
+    const prompts = nano.labelPrompts.length;
+    const opened = { ...makeTopicTabs(W, 22695, { food: 1 })[0], index: tabs.length };
+    tabs.push(opened);
+    await listeners.tabUpdated(opened.id, { status: 'complete' }, opened);
+    await sleep(1800);
+    assert.equal(nano.labelPrompts.length, prompts);
+
+    // 'immediately' never warms a model it would release 6 s later.
+    change({ modelUnloadAfter: 'immediately' });
+    await message({ type: 'UNLOAD_ON_DEVICE_MODEL' });
+    const creates = nano.creates;
+    await message({ type: 'PREPARE_GROUPING', windowId: W });
+    await sleep(100);
+    assert.equal(nano.creates, creates);
+
+    // The unload setting is reported, and switching engine lets go of Nano.
+    change({ modelUnloadAfter: '15m' });
+    await message({ type: 'PREPARE_GROUPING', windowId: W });
+    assert.ok(await waitFor(async () => (await state()).loaded));
+    assert.equal((await state()).unloadAfter, '15m');
+    change({ provider: 'offline' });
+    assert.ok(await waitFor(async () => !(await state()).loaded, 2000));
+  } finally {
+    // The worker's pending work must not reach later tests.
+    sync.groupingStrategy = 'site';
+    configureOnDeviceMemory({ unloadAfter: '5m' });
+    removeNanoMock();
+  }
+});
+
+test('Run from toolbar keeps the popup until the setup card is answered', async () => {
+  const tabs = makeTopicTabs(227, 22700, { food: 1 });
+  const { sync } = installBrowser(tabs, { sync: { oneClickIconMode: true, groupingStrategy: 'site' } });
+  const listeners = installWorkerEvents();
+  const popups = [];
+  chrome.action.setPopup = async ({ popup }) => { popups.push(popup); };
+  await import('../background.js?toolbar-setup');
+  assert.ok(await waitFor(() => popups.length > 0));
+  assert.equal(popups.at(-1), 'popup.html');
+
+  sync.setupChoice = 'cloud';
+  listeners.storageChanged({ setupChoice: { newValue: 'cloud' } }, 'sync');
+  assert.ok(await waitFor(() => popups.at(-1) === ''));
 });

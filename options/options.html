@@ -46,7 +46,7 @@
 
       <!-- TAB 1: AI PROVIDERS -->
       <section id="tab-providers" class="tab-panel active" role="tabpanel" aria-labelledby="nav-providers">
-        <div class="section-header">
+        <div id="engine" class="section-header">
           <h2>Grouping engines</h2>
           <p class="section-subtitle">Choose how Foldnex understands the tabs in your current window.</p>
         </div>
@@ -68,6 +68,9 @@
             </div>
           </div>
         </div>
+
+        <!-- Shown while first-run Cloud setup waits for a key; the saved engine stays active until then. -->
+        <div id="pendingEngineNote" class="pending-engine-note hidden" role="status"></div>
 
         <!-- Provider Details Configurations -->
         <!-- Nano Config Details -->
@@ -199,6 +202,43 @@
             </ul>
           </div>
         </div>
+
+        <!-- On-device engines only: background preparation and model memory -->
+        <section id="onDeviceSettings" class="provider-settings-box on-device-settings hidden" aria-labelledby="onDeviceHeading">
+          <h3 id="onDeviceHeading">Background work and memory</h3>
+          <div class="setting-item">
+            <div class="setting-text">
+              <div id="backgroundPrepName" class="setting-name">Prepare groups in the background</div>
+              <div id="backgroundPrepHelp" class="setting-description">Labels tabs as they load, so a cleanup takes under a second. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.</div>
+              <div id="backgroundPrepAutoNote" class="setting-note hidden">Auto-group new tabs is on, so background preparation stays active.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="prefBackgroundPrep" aria-labelledby="backgroundPrepName" aria-describedby="backgroundPrepHelp backgroundPrepAutoNote">
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div id="modelUnloadRow" class="setting-item stackable">
+            <div class="setting-text">
+              <label class="setting-name" for="prefModelUnloadAfter">Unload the on-device model</label>
+              <div id="modelUnloadHelp" class="setting-description">Foldnex releases the model and Chrome then frees its memory. Grouping stays fast because labels are saved; only new tabs need the model to load again.</div>
+            </div>
+            <select id="prefModelUnloadAfter" class="form-select setting-select" aria-describedby="modelUnloadHelp">
+              <option value="immediately">Right after use</option>
+              <option value="2m">After 2 minutes</option>
+              <option value="5m">After 5 minutes (default)</option>
+              <option value="15m">After 15 minutes</option>
+              <option value="60m">After 1 hour</option>
+              <option value="never">Keep loaded</option>
+            </select>
+          </div>
+          <div id="modelMemoryRow" class="setting-item stackable">
+            <div class="setting-text">
+              <div id="modelMemoryName" class="setting-name">Model memory</div>
+              <div id="modelStateLine" class="setting-description model-state">Checking…</div>
+            </div>
+            <button id="btnFreeModelMemory" class="secondary-btn" type="button" aria-describedby="modelStateLine">Free memory now</button>
+          </div>
+        </section>
       </section>
 
       <!-- TAB 2: LEARNED RULES & MEMORY CACHE -->
@@ -312,6 +352,7 @@
             <div class="setting-text">
               <div class="setting-name">Auto-group new tabs</div>
               <div class="setting-description">File each tab you open, or send to a new page, into a matching group as it loads. A tab you take out of a group stays out until it opens another page. With a cloud engine, the title and host/path hint of each such tab are sent to that provider; tabs that were already open are sent only when you run a cleanup.</div>
+              <div id="autoGroupPrepNote" class="setting-note hidden">With your on-device engine, Auto-group keeps background preparation active.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefAutoGroup" aria-label="Auto-group new tabs">

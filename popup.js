@@ -11,6 +11,7 @@ import {
   isOpenAIResponsesOnlyModel,
   providerSettingKey
 } from './src/ai-engine.js';
+import { isOnDeviceEngine } from './src/background-classifier.js';
 
 // DOM elements
 const tabCountLabel = document.getElementById('tabCountLabel');
@@ -30,16 +31,43 @@ const nanoHint = document.getElementById('nanoHint');
 const statRulesCount = document.getElementById('statRulesCount');
 const statLastGrouped = document.getElementById('statLastGrouped');
 const toggleOneClickMode = document.getElementById('toggleOneClickMode');
+const setupCard = document.getElementById('setupCard');
+const setupChoices = setupCard.querySelectorAll('.setup-choice');
+const setupNanoChoice = document.getElementById('setupNanoChoice');
+const setupNanoStatus = document.getElementById('setupNanoStatus');
+const setupNanoDetail = document.getElementById('setupNanoDetail');
+const setupKeepChoice = document.getElementById('setupKeepChoice');
+const setupKeepCopy = document.getElementById('setupKeepCopy');
 const providerPreferenceKeys = Object.entries(PROVIDER_CATALOG).flatMap(([id, config]) => {
   if (id === 'gemini_api') return ['geminiModel', 'geminiReasoningEffort'];
   if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort')];
   return [];
 });
+const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
+// Settings that decide whether tabs may be labelled in the background.
+const BACKGROUND_SCOPE_KEYS = ['provider', 'groupingStrategy', 'backgroundPrep', 'autoGroupNewTabs', OLLAMA_BASE_URL_KEY];
+// Engines that send tab data to a provider: Gemini and compatible APIs except Ollama.
+const CLOUD_PROVIDERS = Object.keys(PROVIDER_CATALOG).filter(id => {
+  const config = PROVIDER_CATALOG[id];
+  return (config.mode === 'gemini' || config.mode === 'compatible') && !config.local;
+});
+const NANO_UNLOAD_COPY = Object.freeze({
+  immediately: 'releases it right after use',
+  '2m': 'releases it after 2 minutes idle',
+  '5m': 'releases it after 5 minutes idle',
+  '15m': 'releases it after 15 minutes idle',
+  '60m': 'releases it after 1 hour idle',
+  never: 'keeps it loaded'
+});
+let statusHideTimer = null;
+let setupNanoCheck = null;
+let setupBusy = false;
 
 /**
  * Show status box with type
  */
 function showStatus(msg, type = 'loading') {
+  clearTimeout(statusHideTimer);
   statusBox.className = `status-box ${type}`;
   statusBox.classList.remove('hidden');
   statusMessage.textContent = msg;
@@ -58,6 +86,12 @@ function hideStatus() {
   btnGroupTabs.disabled = false;
 }
 
+// A later status cancels the pending hide, so it cannot clear a running cleanup.
+function hideStatusAfter(ms) {
+  clearTimeout(statusHideTimer);
+  statusHideTimer = setTimeout(hideStatus, ms);
+}
+
 /**
  * Refresh current tab count
  */
@@ -72,7 +106,7 @@ async function refreshTabCount() {
       const url = t.url || t.pendingUrl || '';
       return !t.pinned && url && !UNGROUPABLE_PREFIXES.some(p => url.startsWith(p));
     });
-    tabCountLabel.textContent = `${groupable.length} tabs in this window`;
+    tabCountLabel.textContent = `${groupable.length} ${groupable.length === 1 ? 'tab' : 'tabs'} in this window`;
   } catch (err) {
     tabCountLabel.textContent = 'Tabs ready';
   }
@@ -218,14 +252,172 @@ async function refreshStats() {
   }
 }
 
+/** Setup choice that matches a saved engine: cloud, nano, offline, or keep (Ollama). */
+function setupChoiceFor(provider) {
+  if (provider === 'gemini_nano') return 'nano';
+  if (provider === 'offline') return 'offline';
+  if (provider === 'ollama') return 'keep';
+  return CLOUD_PROVIDERS.includes(provider) ? 'cloud' : null;
+}
+
+function apiKeyStorageKey(provider) {
+  return provider === 'gemini_api' ? 'geminiApiKey' : providerSettingKey(provider, 'apiKey');
+}
+
+/**
+ * Show the first-run card until a choice is saved. An engine already saved
+ * by an earlier version is marked Current.
+ */
+async function refreshSetupCard() {
+  const settings = await chrome.storage.sync.get(['setupChoice', 'provider', 'modelUnloadAfter', OLLAMA_BASE_URL_KEY]);
+  if (settings.setupChoice) {
+    setupCard.classList.add('hidden');
+    return;
+  }
+  const current = settings.provider ? setupChoiceFor(settings.provider) : null;
+  setupChoices.forEach(choice => {
+    if (choice === setupKeepChoice) return;
+    const isCurrent = choice.dataset.choice === current;
+    if (isCurrent) choice.setAttribute('aria-current', 'true');
+    else choice.removeAttribute('aria-current');
+    choice.querySelector('.setup-pill.current')?.classList.toggle('hidden', !isCurrent);
+  });
+  setupKeepChoice.classList.toggle('hidden', current !== 'keep');
+  // Ollama at another address is not on this device: say where titles go.
+  setupKeepCopy.textContent = current !== 'keep' || isOnDeviceEngine(settings)
+    ? 'Runs through the Ollama server on this device.'
+    : 'Runs through your Ollama server at another address. Page titles and a short site hint are sent to it when you group.';
+  const unload = NANO_UNLOAD_COPY[settings.modelUnloadAfter] || NANO_UNLOAD_COPY['5m'];
+  setupNanoDetail.textContent = `Uses about 3 GB of memory while the model is loaded and ${unload} (change in Settings). The first load takes 15-25 seconds.`;
+  setupCard.classList.remove('hidden');
+  refreshSetupNanoAvailability();
+}
+
+/** Same Prompt API check as Settings; an unavailable model disables the choice with its reason. */
+async function refreshSetupNanoAvailability() {
+  setupNanoCheck ??= checkChromeNanoStatus();
+  const status = await setupNanoCheck;
+  const unavailable = status.status === 'unavailable';
+  if (unavailable) setupNanoChoice.setAttribute('aria-disabled', 'true');
+  else setupNanoChoice.removeAttribute('aria-disabled');
+  if (unavailable) {
+    setupNanoStatus.textContent = `Not available: ${String(status.detail || 'Prompt API unavailable')}.`;
+  } else if (status.status === 'downloadable' || status.status === 'downloading') {
+    setupNanoStatus.textContent = 'Chrome needs a one-time model download first. Settings opens to start it.';
+  } else {
+    setupNanoStatus.textContent = '';
+  }
+  setupNanoStatus.classList.toggle('hidden', !setupNanoStatus.textContent);
+}
+
+/** Open Settings at the engine section, reusing an open Settings tab. */
+async function openEngineSettings() {
+  const url = chrome.runtime.getURL('options/options.html#engine');
+  try {
+    const [existing] = await chrome.tabs.query({ url: chrome.runtime.getURL('options/options.html') });
+    if (existing?.id !== undefined) {
+      await chrome.tabs.update(existing.id, { url, active: true });
+      await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {});
+      return;
+    }
+  } catch {
+    // Fall through to a new tab.
+  }
+  await chrome.tabs.create({ url });
+}
+
+function finishSetup(message) {
+  setupCard.classList.add('hidden');
+  // Never replace the progress of a cleanup that is still running.
+  if (!btnGroupTabs.disabled) {
+    showStatus(message, 'success');
+    hideStatusAfter(3500);
+  }
+  btnGroupTabs.focus({ preventScroll: true });
+}
+
+/**
+ * Cloud: reuse a key already saved for the current or another cloud engine
+ * (presence only; the value is never shown). Without one, keep the engine
+ * unchanged and open Settings so the user can add a key.
+ */
+async function chooseCloudSetup() {
+  const [{ provider }, secrets] = await Promise.all([
+    chrome.storage.sync.get('provider'),
+    chrome.storage.local.get([...CLOUD_PROVIDERS.map(apiKeyStorageKey), 'openaiOAuthToken'])
+  ]);
+  const hasKey = id => Boolean(secrets[apiKeyStorageKey(id)] || (id === 'openai' && secrets.openaiOAuthToken));
+  const keyed = [provider, 'openai', ...CLOUD_PROVIDERS]
+    .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
+  if (keyed) {
+    await chrome.storage.sync.set({ provider: keyed, setupChoice: 'cloud' });
+    finishSetup(`${PROVIDER_CATALOG[keyed].name} selected with your saved key.`);
+    return;
+  }
+  await chrome.storage.sync.set({ setupChoice: 'cloud' });
+  finishSetup('Add an API key in Settings to finish.');
+  await openEngineSettings();
+}
+
+async function chooseSetup(choice) {
+  if (choice === 'cloud') {
+    await chooseCloudSetup();
+  } else if (choice === 'nano') {
+    setupNanoCheck ??= checkChromeNanoStatus();
+    const status = await setupNanoCheck;
+    if (status.status === 'unavailable') return;
+    await chrome.storage.sync.set({ provider: 'gemini_nano', backgroundPrep: true, setupChoice: 'nano' });
+    if (status.status === 'downloadable' || status.status === 'downloading') {
+      finishSetup('Gemini Nano selected. Start its download in Settings.');
+      await openEngineSettings();
+    } else {
+      finishSetup('Gemini Nano selected. Its first load takes 15-25 seconds.');
+    }
+  } else if (choice === 'offline') {
+    await chrome.storage.sync.set({ provider: 'offline', setupChoice: 'offline' });
+    finishSetup('Offline mode selected. Tabs are grouped on this computer.');
+  } else if (choice === 'keep') {
+    const settings = await chrome.storage.sync.get(['provider', OLLAMA_BASE_URL_KEY]);
+    await chrome.storage.sync.set({ setupChoice: isOnDeviceEngine(settings) ? 'nano' : 'cloud' });
+    finishSetup('Keeping Ollama.');
+  }
+}
+
+setupChoices.forEach(choice => choice.addEventListener('click', async () => {
+  if (setupBusy || choice.getAttribute('aria-disabled') === 'true') return;
+  setupBusy = true;
+  try {
+    await chooseSetup(choice.dataset.choice);
+  } catch (error) {
+    showStatus('Could not save this choice. Try again or open Settings.', 'error');
+  } finally {
+    setupBusy = false;
+  }
+}));
+
 const REVIEW_CODES = new Set(['generic', 'regional', 'too_many']);
 
 /**
- * Extra status sentences: tabs placed by address, and a model still loading.
- * Only an on-device engine labels provisional tabs in the background; the
- * worker reports that as `provisionalInBackground`.
+ * Whether saved settings let the worker label tabs in the background: an
+ * on-device engine with Prepare in background or Auto-group on, or a cloud
+ * engine with Auto-group on. By site category and Offline never label.
  */
-function resultNotes(res) {
+function backgroundLabellingAllowed(settings = {}) {
+  if (settings.groupingStrategy === 'site') return false;
+  const provider = settings.provider || 'gemini_nano';
+  if (provider === 'offline' || !PROVIDER_CATALOG[provider]) return false;
+  // On-device engines finish a cleanup's leftover tabs even without background preparation.
+  if (isOnDeviceEngine(settings)) return true;
+  return Boolean(settings.autoGroupNewTabs);
+}
+
+/**
+ * Extra status sentences: tabs placed by address, and a model still loading.
+ * The background promise needs both the worker's `provisionalInBackground`
+ * and settings that allow background labelling; otherwise the popup points
+ * to the next cleanup.
+ */
+function resultNotes(res, inBackground = false) {
   let notes = '';
   const provisional = Number(res.provisionalTabs) || 0;
   if (provisional > 0) {
@@ -233,7 +425,7 @@ function resultNotes(res) {
     if (res.incognito) {
       notes += ` ${placed}.`;
     } else {
-      notes += res.provisionalInBackground
+      notes += inBackground
         ? ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted in the background.`
         : ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted on the next cleanup.`;
     }
@@ -270,7 +462,7 @@ btnGroupTabs.addEventListener('click', async () => {
       } else {
         showStatus(res.message || 'Need at least 2 unpinned tabs to create groups.', 'warning');
       }
-      setTimeout(hideStatus, 3500);
+      hideStatusAfter(3500);
       return;
     }
 
@@ -287,7 +479,9 @@ btnGroupTabs.addEventListener('click', async () => {
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else {
-      const notes = resultNotes(res);
+      const inBackground = Boolean(res.provisionalInBackground)
+        && backgroundLabellingAllowed(await chrome.storage.sync.get(BACKGROUND_SCOPE_KEYS).catch(() => ({})));
+      const notes = resultNotes(res, inBackground);
       // 'oversized' alone is a diagnostic, not something to review.
       const review = (res.qualityCodes || []).some(code => REVIEW_CODES.has(code));
       showStatus(
@@ -298,7 +492,7 @@ btnGroupTabs.addEventListener('click', async () => {
 
     refreshTabCount();
     refreshStats();
-    setTimeout(hideStatus, res.provisionalTabs > 0 ? 6000 : 3500);
+    hideStatusAfter(res.provisionalTabs > 0 ? 6000 : 3500);
   } catch (error) {
     showStatus(error.message || 'Grouping failed. Check options.', 'error');
   }
@@ -311,7 +505,7 @@ btnUngroup.addEventListener('click', async () => {
     if (response?.success) {
       showStatus('All tabs ungrouped', 'success');
       refreshTabCount();
-      setTimeout(hideStatus, 2000);
+      hideStatusAfter(2000);
     } else {
       showStatus(response?.error || 'Failed to ungroup tabs', 'error');
     }
@@ -351,6 +545,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.provider || changes.groupingStrategy || providerPreferenceKeys.some(key => changes[key])) {
       refreshEngineStatus();
     }
+    if (changes.setupChoice || changes.provider || changes.modelUnloadAfter || changes[OLLAMA_BASE_URL_KEY]) {
+      refreshSetupCard().catch(() => {});
+    }
     if (changes.oneClickIconMode !== undefined) {
       toggleOneClickMode.checked = Boolean(changes.oneClickIconMode.newValue);
     }
@@ -383,6 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([
     refreshTabCount(),
     refreshEngineStatus(),
-    refreshStats()
+    refreshStats(),
+    refreshSetupCard().catch(err => console.warn('[Foldnex] Setup choice unavailable:', err))
   ]);
 });

@@ -37,6 +37,48 @@
       <div id="statusMessage" class="status-msg"></div>
     </div>
 
+    <!-- First-run choice, shown until setupChoice is saved. Clean up stays usable. -->
+    <section id="setupCard" class="card setup-card hidden" aria-labelledby="setupTitle">
+      <span class="card-label">Setup</span>
+      <h2 id="setupTitle" class="setup-title">Choose how Foldnex sorts your tabs</h2>
+      <p class="setup-intro">You can change this later in Settings.</p>
+      <div class="setup-choices">
+        <button type="button" class="setup-choice" data-choice="cloud" aria-labelledby="setupCloudName setupCloudBadge" aria-describedby="setupCloudCopy setupCloudDetail">
+          <span class="setup-choice-head">
+            <span id="setupCloudName" class="setup-choice-name">Cloud AI</span>
+            <span id="setupCloudBadge" class="setup-pill">Recommended · fastest</span>
+            <span class="setup-pill current hidden">Current</span>
+          </span>
+          <span id="setupCloudCopy" class="setup-choice-copy">Uses your own API key for OpenAI, Google Gemini, Groq and others.</span>
+          <span id="setupCloudDetail" class="setup-choice-detail">Page titles and a short site hint are sent to that provider when you group. Uses a little of your API credit.</span>
+        </button>
+        <button type="button" id="setupNanoChoice" class="setup-choice" data-choice="nano" aria-labelledby="setupNanoName setupNanoBadge" aria-describedby="setupNanoStatus setupNanoCopy setupNanoDetail">
+          <span class="setup-choice-head">
+            <span id="setupNanoName" class="setup-choice-name">On this device — Gemini Nano</span>
+            <span id="setupNanoBadge" class="setup-pill">Free · private</span>
+            <span class="setup-pill current hidden">Current</span>
+          </span>
+          <span id="setupNanoStatus" class="setup-choice-status hidden"></span>
+          <span id="setupNanoCopy" class="setup-choice-copy">Runs inside Chrome; nothing leaves this computer. Prepares groups in the background, so a cleanup takes under a second.</span>
+          <span id="setupNanoDetail" class="setup-choice-detail">Uses about 3 GB of memory while the model is loaded and releases it after 5 minutes idle (change in Settings). The first load takes 15-25 seconds.</span>
+        </button>
+        <button type="button" class="setup-choice" data-choice="offline" aria-labelledby="setupOfflineName" aria-describedby="setupOfflineCopy">
+          <span class="setup-choice-head">
+            <span id="setupOfflineName" class="setup-choice-name">Offline — no AI</span>
+            <span class="setup-pill current hidden">Current</span>
+          </span>
+          <span id="setupOfflineCopy" class="setup-choice-copy">Groups tabs by site and title on this computer.</span>
+        </button>
+        <button type="button" id="setupKeepChoice" class="setup-choice hidden" data-choice="keep" aria-labelledby="setupKeepName" aria-describedby="setupKeepCopy" aria-current="true">
+          <span class="setup-choice-head">
+            <span id="setupKeepName" class="setup-choice-name">Keep Ollama</span>
+            <span class="setup-pill current">Current</span>
+          </span>
+          <span id="setupKeepCopy" class="setup-choice-copy">Runs through the Ollama server on this device.</span>
+        </button>
+      </div>
+    </section>
+
     <section class="card engine-card" aria-label="Grouping method">
       <div class="card-header">
         <span class="card-label">Grouping strategy</span>

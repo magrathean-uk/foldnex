@@ -20,6 +20,7 @@
   --action: #0b6bcb;
   --action-hover: #0858a8;
   --action-soft: #eaf3ff;
+  --selection-soft: #f1edff;
   --violet: #7c3aed;
   --focus: #7c3aed;
   --success: #34745a;
@@ -217,6 +218,43 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .secondary-field-label { display: block; margin: 14px 0 7px; }
 .engine-meta { margin: 9px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .nano-hint { margin: 9px 0 0; color: var(--quiet); font-size: 12px; }
+.setup-card { display: flex; flex-direction: column; gap: 8px; }
+.setup-title { margin: 0; font-size: 16px; font-weight: 720; line-height: 1.25; letter-spacing: -0.02em; }
+.setup-intro { margin: -4px 0 4px; color: var(--muted); font-size: 12px; }
+.setup-choices { display: flex; flex-direction: column; gap: 8px; }
+.setup-choice {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.setup-choice:hover { border-color: var(--hover-border); background: var(--surface-muted); }
+.setup-choice[aria-current="true"] { border-color: var(--violet); background: var(--selection-soft); }
+.setup-choice[aria-disabled="true"] { border-color: var(--line); color: var(--muted); background: var(--surface-muted); cursor: not-allowed; }
+.setup-choice-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.setup-choice-name { font-size: 13px; font-weight: 720; }
+.setup-pill {
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.setup-pill.current { color: var(--violet); background: var(--selection-soft); }
+.setup-choice-copy { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.setup-choice-detail { color: var(--quiet); font-size: 11px; line-height: 1.4; }
+.setup-choice-status { color: var(--warning); font-size: 12px; font-weight: 650; line-height: 1.4; }
 .stats-card { display: grid; grid-template-columns: 1fr 1.35fr; gap: 22px; }
 .stat-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .stat-desc { color: var(--quiet); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
