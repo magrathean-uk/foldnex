@@ -3,6 +3,8 @@
  * Provides instant 0ms local classification using learned URL pattern memory.
  */
 
+import { CATEGORY_KEYS, GROUP_NAME_LIMIT, LABEL_VOCAB_VERSION, REVIEW_GROUP_NAME } from './label-vocabulary.js';
+
 // Strict allowlist: Only retain non-sensitive semantic parameters relevant for grouping
 const ALLOWED_SEMANTIC_PARAMS = new Set([
   'q', 'query', 'search', 'k', 'keyword', 'tab', 'view', 'cat', 'category', 'topic', 'id', 'p'
@@ -19,6 +21,72 @@ const EXACT_RESULTS_KEY = 'foldnex_exact_results_v1';
 const EXACT_RESULT_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_EXACT_RESULTS = 12;
 const MAX_GROUP_PREFERENCES = 100;
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Dev-only key from the unshipped TabAssignmentCache; removed, never read.
+const LEGACY_TAB_ASSIGNMENTS_KEY = 'foldnex_tab_assignments_v1';
+const TAB_LABELS_KEY = 'foldnex_tab_labels_v1';
+const TAB_LABEL_TTL_MS = 7 * DAY_MS;
+const MAX_TAB_LABELS = 3000;
+const PLAN_MEMORY_KEY = 'foldnex_plan_memory_v1';
+const PLAN_MEMORY_VERSION = 1;
+const USER_NAME_TTL_MS = 90 * DAY_MS;
+const MODEL_NAME_TTL_MS = 14 * DAY_MS;
+const MAX_NAME_RECORDS = 120;
+const MAX_ADVICE_PAIRS = 200;
+const MAX_NAME_TOKEN_HASHES = 8;
+const MAX_NAME_FINGERPRINTS = 60;
+const MAX_NAME_KEYS = 32;
+const MAX_STORED_NAME_LENGTH = 40;
+const MODEL_NAME_SOURCES = new Set(['cloud', 'nano']);
+const RESET_EPOCH_KEY = 'foldnex_reset_epoch';
+const WINDOW_PLAN_PREFIX = 'foldnex_window_plan_v1:';
+const WINDOW_PLAN_VERSION = 1;
+// Mirrors CHROME_GROUP_COLORS in ai-engine.js; importing it here would create an import cycle.
+const CHROME_COLORS = new Set(['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange']);
+const CATEGORY_KEY_SET = new Set(CATEGORY_KEYS);
+
+/**
+ * TabLabelCache and PlanMemory are read-modify-write records. The click and the
+ * background classifier both run in the service worker, so every write goes
+ * through this one chain to stop a slower writer from dropping a faster one's entries.
+ */
+let storageWriteChain = Promise.resolve();
+
+function serializeWrite(task) {
+  const run = storageWriteChain.then(task);
+  storageWriteChain = run.catch(() => {});
+  return run;
+}
+
+/** Let reads observe writes that were queued before them. */
+function settledWrites() {
+  return storageWriteChain;
+}
+
+/**
+ * resetRules runs on the options page, whose module instance has its own write
+ * chain, so it cannot wait for the service worker's writes. It bumps this epoch
+ * instead. Every read-modify-write reads the epoch with its record and drops its
+ * write when the epoch moved. Labels, plan memory, group preferences and exact
+ * results are also stamped with the epoch (g), so a write that still lands just
+ * after a reset reads as empty. Learned rules are a plain array the options page
+ * writes directly, so they only get the check.
+ */
+function epochOf(value) {
+  const epoch = Number(value);
+  return Number.isSafeInteger(epoch) && epoch > 0 ? epoch : 0;
+}
+
+function resetEpochOf(data) {
+  return epochOf(data?.[RESET_EPOCH_KEY]);
+}
+
+/** Write unless a reset landed after the caller read its record at `epoch`. */
+async function setUnlessReset(epoch, values) {
+  if (resetEpochOf(await chrome.storage.local.get(RESET_EPOCH_KEY)) !== epoch) return false;
+  await chrome.storage.local.set(values);
+  return true;
+}
 
 /**
  * Clean & sanitize URL to retain semantic paths while stripping noise, tokens & auth credentials.
@@ -120,7 +188,8 @@ export function sanitizeTitle(title) {
   // Strip newlines, tabs, and carriage returns to prevent prompt injection breakouts
   let trimmed = title.replace(/[\r\n\t]+/g, ' ').trim();
 
-  const suffixDelimiters = [' - ', ' | ', ' — ', ' · ', ' • '];
+  // ' – ' (en dash) is the suffix German Wikipedia uses.
+  const suffixDelimiters = [' - ', ' | ', ' — ', ' – ', ' · ', ' • '];
   for (const delim of suffixDelimiters) {
     const idx = trimmed.lastIndexOf(delim);
     // If delimiter is in the last 40% of the title, trim off the brand suffix
@@ -131,6 +200,22 @@ export function sanitizeTitle(title) {
   }
 
   return trimmed.length > 80 ? trimmed.slice(0, 80) + '…' : trimmed;
+}
+
+/**
+ * Synchronous FNV-1a 32-bit hash over UTF-8 bytes, as 8 hex characters.
+ * Used for stable local keys (task tokens, rule names); not a security boundary.
+ * @param {string} str
+ * @returns {string}
+ */
+export function hashToken(str) {
+  const bytes = new TextEncoder().encode(String(str ?? ''));
+  let hash = 0x811c9dc5;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 function normalizeCompleteTitle(title) {
@@ -232,7 +317,7 @@ export class LearningCache {
   static MAX_RULES = 300;
 
   static async ensureSchema() {
-    const data = await chrome.storage.local.get([LEARNING_SCHEMA_KEY, this.STORAGE_KEY]);
+    const data = await chrome.storage.local.get([LEARNING_SCHEMA_KEY, this.STORAGE_KEY, RESET_EPOCH_KEY]);
     if (Number(data[LEARNING_SCHEMA_KEY]) >= LEARNING_SCHEMA_VERSION) return;
 
     const legacyRules = Array.isArray(data[this.STORAGE_KEY]) ? data[this.STORAGE_KEY] : [];
@@ -246,7 +331,7 @@ export class LearningCache {
         rules: legacyRules
       };
     }
-    await chrome.storage.local.set(changes);
+    await setUnlessReset(resetEpochOf(data), changes);
   }
 
   /**
@@ -254,9 +339,14 @@ export class LearningCache {
    * @returns {Promise<Array<{ pattern: string, category: string, color: string, confidence: number, matchCount: number }>>}
    */
   static async getRules() {
+    return (await this.readRules()).rules;
+  }
+
+  /** Rules plus the reset epoch they were read at, for read-modify-write. */
+  static async readRules() {
     await this.ensureSchema();
-    const data = await chrome.storage.local.get(this.STORAGE_KEY);
-    return data[this.STORAGE_KEY] || [];
+    const data = await chrome.storage.local.get([this.STORAGE_KEY, RESET_EPOCH_KEY]);
+    return { rules: data[this.STORAGE_KEY] || [], epoch: resetEpochOf(data) };
   }
 
   /**
@@ -368,7 +458,7 @@ export class LearningCache {
    * Reinforce / learn from successful AI groupings
    */
   static async learnFromGroupings(groups) {
-    const existingRules = await this.getRules();
+    const { rules: existingRules, epoch } = await this.readRules();
     const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
 
     for (const group of groups) {
@@ -424,7 +514,7 @@ export class LearningCache {
       ruleArray = ruleArray.slice(0, this.MAX_RULES);
     }
 
-    await chrome.storage.local.set({
+    await setUnlessReset(epoch, {
       [this.STORAGE_KEY]: ruleArray
     });
   }
@@ -435,7 +525,7 @@ export class LearningCache {
   static async learnUserCorrections(urls, newCategory, color) {
     if (!urls || urls.length === 0 || !newCategory) return;
 
-    const existingRules = await this.getRules();
+    const { rules: existingRules, epoch } = await this.readRules();
     const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
     let changed = false;
 
@@ -464,7 +554,7 @@ export class LearningCache {
       if (ruleArray.length > this.MAX_RULES) {
         ruleArray = ruleArray.slice(0, this.MAX_RULES);
       }
-      await chrome.storage.local.set({
+      await setUnlessReset(epoch, {
         [this.STORAGE_KEY]: ruleArray
       });
     }
@@ -478,9 +568,11 @@ export class LearningCache {
    * Delete a rule
    */
   static async deleteRule(pattern) {
-    const rules = await this.getRules();
+    const { rules, epoch } = await this.readRules();
     const filtered = rules.filter(r => r.pattern.toLowerCase() !== pattern.toLowerCase());
-    await chrome.storage.local.set({ [this.STORAGE_KEY]: filtered });
+    await setUnlessReset(epoch, { [this.STORAGE_KEY]: filtered });
+    // Labels and plan memory do not depend on rules: rules are applied as
+    // locked groups at plan time, so only whole cached results go stale.
     await ExactResultCache.clear();
   }
 
@@ -488,12 +580,21 @@ export class LearningCache {
    * Reset all learned rules
    */
   static async resetRules() {
-    await chrome.storage.local.remove([
-      this.STORAGE_KEY,
-      GROUP_PREFERENCES_KEY,
-      EXACT_RESULTS_KEY,
-      LEGACY_RULES_BACKUP_KEY
-    ]);
+    // Queued behind this context's pending writes. Writes queued in another
+    // context see the new epoch and drop, or land stamped as pre-reset.
+    await serializeWrite(async () => {
+      const data = await chrome.storage.local.get(RESET_EPOCH_KEY);
+      await chrome.storage.local.set({ [RESET_EPOCH_KEY]: resetEpochOf(data) + 1 });
+      await chrome.storage.local.remove([
+        this.STORAGE_KEY,
+        GROUP_PREFERENCES_KEY,
+        EXACT_RESULTS_KEY,
+        TAB_LABELS_KEY,
+        PLAN_MEMORY_KEY,
+        LEGACY_TAB_ASSIGNMENTS_KEY,
+        LEGACY_RULES_BACKUP_KEY
+      ]);
+    });
     await chrome.storage.local.set({ [LEARNING_SCHEMA_KEY]: LEARNING_SCHEMA_VERSION });
   }
 
@@ -504,24 +605,23 @@ export class LearningCache {
   static async learnGroupRename(tabs, category, color) {
     if (!tabs?.length || !category) return;
     const signature = await buildGroupSignature(tabs);
-    const data = await chrome.storage.local.get(GROUP_PREFERENCES_KEY);
-    const preferences = Array.isArray(data[GROUP_PREFERENCES_KEY]) ? data[GROUP_PREFERENCES_KEY] : [];
+    const { preferences, epoch } = await readGroupPreferences();
     const next = preferences.filter(pref => pref.signature !== signature);
     next.unshift({
       signature,
       category: String(category).slice(0, 40),
       color: color || 'blue',
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      g: epoch
     });
-    await chrome.storage.local.set({
+    await setUnlessReset(epoch, {
       [GROUP_PREFERENCES_KEY]: next.slice(0, MAX_GROUP_PREFERENCES)
     });
     await chrome.storage.local.remove(EXACT_RESULTS_KEY);
   }
 
   static async applyGroupPreferences(groups, tabs) {
-    const data = await chrome.storage.local.get(GROUP_PREFERENCES_KEY);
-    const preferences = Array.isArray(data[GROUP_PREFERENCES_KEY]) ? data[GROUP_PREFERENCES_KEY] : [];
+    const { preferences } = await readGroupPreferences();
     if (preferences.length === 0) return groups;
 
     const preferenceMap = new Map(preferences.map(pref => [pref.signature, pref]));
@@ -539,6 +639,24 @@ export class LearningCache {
   }
 }
 
+/** Group preferences written since the last reset. */
+async function readGroupPreferences() {
+  const data = await chrome.storage.local.get([GROUP_PREFERENCES_KEY, RESET_EPOCH_KEY]);
+  const epoch = resetEpochOf(data);
+  const stored = Array.isArray(data[GROUP_PREFERENCES_KEY]) ? data[GROUP_PREFERENCES_KEY] : [];
+  return { preferences: stored.filter(pref => epochOf(pref?.g) === epoch), epoch };
+}
+
+/** Exact results written since the last reset and still inside their TTL. */
+async function readExactResults(now) {
+  const data = await chrome.storage.local.get([EXACT_RESULTS_KEY, RESET_EPOCH_KEY]);
+  const epoch = resetEpochOf(data);
+  const stored = Array.isArray(data[EXACT_RESULTS_KEY]) ? data[EXACT_RESULTS_KEY] : [];
+  const records = stored.filter(record =>
+    epochOf(record?.g) === epoch && now - Number(record?.createdAt || 0) <= EXACT_RESULT_TTL_MS);
+  return { records, epoch };
+}
+
 /**
  * Content-addressed reuse for an unchanged semantic tab set. Unlike learned URL
  * rules, a changed title or URL hint always produces a cache miss.
@@ -554,10 +672,7 @@ export class ExactResultCache {
 
   static async get(tabs, scope) {
     const context = await this.makeContext(tabs, scope);
-    const data = await chrome.storage.local.get(this.STORAGE_KEY);
-    const now = Date.now();
-    const records = (Array.isArray(data[this.STORAGE_KEY]) ? data[this.STORAGE_KEY] : [])
-      .filter(record => now - Number(record.createdAt || 0) <= EXACT_RESULT_TTL_MS);
+    const { records } = await readExactResults(Date.now());
     const record = records.find(item => item.signature === context.signature && item.scope === scope);
     if (!record) return { groups: null, context };
 
@@ -595,20 +710,451 @@ export class ExactResultCache {
       fingerprints: (group.tabIds || []).map(id => fingerprintById.get(id)).filter(Boolean)
     })).filter(group => group.fingerprints.length > 0);
 
-    const data = await chrome.storage.local.get(this.STORAGE_KEY);
-    const records = (Array.isArray(data[this.STORAGE_KEY]) ? data[this.STORAGE_KEY] : [])
-      .filter(record => record.signature !== context.signature && Date.now() - Number(record.createdAt || 0) <= EXACT_RESULT_TTL_MS);
+    const read = await readExactResults(Date.now());
+    const records = read.records.filter(record => record.signature !== context.signature);
     records.unshift({
       signature: context.signature,
       scope: context.scope,
       createdAt: Date.now(),
+      g: read.epoch,
       groups: cachedGroups
     });
-    await chrome.storage.local.set({ [this.STORAGE_KEY]: records.slice(0, MAX_EXACT_RESULTS) });
+    await setUnlessReset(read.epoch, { [this.STORAGE_KEY]: records.slice(0, MAX_EXACT_RESULTS) });
   }
 
   static async clear() {
     await chrome.storage.local.remove(this.STORAGE_KEY);
+  }
+}
+
+/**
+ * Fresh label entries with a known category key, keyed by tab fingerprint,
+ * and the reset epoch they were read at.
+ */
+async function readLabelEntries(now) {
+  const data = await chrome.storage.local.get([TAB_LABELS_KEY, RESET_EPOCH_KEY]);
+  const epoch = resetEpochOf(data);
+  const record = data[TAB_LABELS_KEY];
+  const entries = new Map();
+  // A vocabulary change makes every stored key meaningless, and a record
+  // stamped before the last reset was cleared, so either reads as empty.
+  if (!record || record.v !== LABEL_VOCAB_VERSION || epochOf(record.g) !== epoch
+    || !record.entries || typeof record.entries !== 'object') {
+    return { entries, epoch };
+  }
+  for (const [fingerprint, entry] of Object.entries(record.entries)) {
+    if (entry && CATEGORY_KEY_SET.has(entry.c) && now - Number(entry.t || 0) <= TAB_LABEL_TTL_MS) {
+      entries.set(fingerprint, entry);
+    }
+  }
+  return { entries, epoch };
+}
+
+/**
+ * Remembers the category label a model gave each tab, keyed by the same
+ * content fingerprint as the exact cache. Labels are context-free (no window
+ * vocabulary, greedy decoding), so a label from any batch, window, click or
+ * engine can be reused. Engine, model and effort changes do not invalidate it.
+ */
+export class TabLabelCache {
+  static STORAGE_KEY = TAB_LABELS_KEY;
+
+  /** Fresh entries as {[fingerprint]: {c, t, e}}. */
+  static async read() {
+    await settledWrites();
+    return Object.fromEntries((await readLabelEntries(Date.now())).entries);
+  }
+
+  /**
+   * Split tabs into cached labels and tabs that still need a model.
+   * acceptEngines is null for local engines (every label is accepted). For
+   * cloud engines it lists the cloud provider IDs, so a cloud user never
+   * silently gets a Nano-quality label.
+   * @returns {Promise<{labels: Map<number, {c: string, e: string|null}>, missing: object[], fingerprintById: Map<number, string>}>}
+   */
+  static async lookup(tabs, { acceptEngines = null } = {}) {
+    const list = Array.isArray(tabs) ? tabs : [];
+    const accepted = acceptEngines == null
+      ? null
+      : new Set(typeof acceptEngines === 'string' ? [acceptEngines] : acceptEngines);
+    await settledWrites();
+    // Incognito tabs get no fingerprint, so they can be neither read nor stored.
+    const [{ entries }, fingerprints] = await Promise.all([
+      readLabelEntries(Date.now()),
+      Promise.all(list.map(tab => (tab?.incognito ? null : fingerprintTab(tab))))
+    ]);
+    const labels = new Map();
+    const missing = [];
+    const fingerprintById = new Map();
+    list.forEach((tab, index) => {
+      const fingerprint = fingerprints[index];
+      if (fingerprint) fingerprintById.set(tab.id, fingerprint);
+      const entry = fingerprint ? entries.get(fingerprint) : null;
+      if (entry && (accepted === null || accepted.has(entry.e))) {
+        labels.set(tab.id, { c: entry.c, e: entry.e ?? null });
+      } else {
+        missing.push(tab);
+      }
+    });
+    return { labels, missing, fingerprintById };
+  }
+
+  /**
+   * Store model labels only (never provisional or locally inferred ones).
+   * @param {Map<number, string>} labelsById category key per tab ID
+   * @param {Map<number, string>} fingerprintById from lookup()
+   * @param {string} engine provider ID that produced the labels
+   */
+  static async store(labelsById, fingerprintById, engine) {
+    if (!(labelsById instanceof Map) || !(fingerprintById instanceof Map)) return;
+    const fresh = [];
+    for (const [id, c] of labelsById) {
+      const fingerprint = fingerprintById.get(id);
+      if (fingerprint && CATEGORY_KEY_SET.has(c)) fresh.push([fingerprint, c]);
+    }
+    if (fresh.length === 0) return;
+    const e = typeof engine === 'string' && engine ? engine : null;
+
+    await serializeWrite(async () => {
+      const now = Date.now();
+      const { entries, epoch } = await readLabelEntries(now);
+      for (const [fingerprint, c] of fresh) entries.set(fingerprint, { c, t: now, e });
+      const kept = [...entries]
+        .sort((a, b) => Number(b[1].t) - Number(a[1].t))
+        .slice(0, MAX_TAB_LABELS);
+      await setUnlessReset(epoch, {
+        [TAB_LABELS_KEY]: { v: LABEL_VOCAB_VERSION, g: epoch, entries: Object.fromEntries(kept) }
+      });
+    });
+  }
+
+  static async clear() {
+    await serializeWrite(() => chrome.storage.local.remove(TAB_LABELS_KEY));
+  }
+}
+
+const TOKEN_HASH_PATTERN = /^[0-9a-f]{8}$/;
+
+function toList(values) {
+  return Array.isArray(values) || values instanceof Set ? [...values] : [];
+}
+
+function isPlanKey(value) {
+  return typeof value === 'string' && value.length > 0 && value.length <= 64;
+}
+
+function uniqueStrings(values, limit, accept) {
+  const out = [];
+  for (const value of toList(values)) {
+    if (out.length >= limit) break;
+    if (typeof value === 'string' && value && accept(value) && !out.includes(value)) out.push(value);
+  }
+  return out;
+}
+
+/** Sorted, de-duplicated candidate keys. */
+function planKeyList(values, limit = Infinity) {
+  return [...new Set(toList(values).filter(isPlanKey))].sort().slice(0, limit);
+}
+
+const TRAILING_JOINERS = /[\s&·|:;,/+\-\u2013\u2014\u200D]+$/u;
+
+/**
+ * A user's own group name as it is stored and re-applied: control characters
+ * and runs of spaces collapsed, cut to GROUP_NAME_LIMIT before a word that
+ * would not fit. Generic words, punctuation and emoji are the user's choice and
+ * stay. Returns '' for an empty name or the reserved Review Later name, so
+ * nothing is stored that would never be applied.
+ */
+export function normalizeUserGroupName(raw) {
+  if (typeof raw !== 'string') return '';
+  const name = raw
+    .normalize('NFC')
+    .replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const chars = [...name];
+  let clamped = name;
+  if (chars.length > GROUP_NAME_LIMIT) {
+    const head = chars.slice(0, GROUP_NAME_LIMIT).join('');
+    // Drop the partial last word; a single long word is cut where it is.
+    const atWord = chars[GROUP_NAME_LIMIT] === ' ' ? head : head.replace(/\s\S*$/u, '');
+    clamped = atWord.replace(TRAILING_JOINERS, '').trim() || head.trim();
+  }
+  if (clamped.toLocaleLowerCase() === REVIEW_GROUP_NAME.toLocaleLowerCase()) return '';
+  return clamped;
+}
+
+function normalizeStoredName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_STORED_NAME_LENGTH)
+    .trim();
+}
+
+/**
+ * Shape a name record for storage. Token hashes must look like hashToken
+ * output and fingerprints are kept for user records only, so no title word
+ * can reach the store.
+ */
+function normalizeNameRecord(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const user = raw.s === 'user';
+  const n = user ? normalizeUserGroupName(raw.n) : normalizeStoredName(raw.n);
+  if (!n) return null;
+  return {
+    k: planKeyList(raw.k, MAX_NAME_KEYS),
+    w: uniqueStrings(raw.w, MAX_NAME_TOKEN_HASHES, value => TOKEN_HASH_PATTERN.test(value)),
+    f: user ? uniqueStrings(raw.f, MAX_NAME_FINGERPRINTS, value => value.length <= 80) : [],
+    n,
+    c: CHROME_COLORS.has(raw.c) ? raw.c : null,
+    s: user ? 'user' : (MODEL_NAME_SOURCES.has(raw.s) ? raw.s : 'cloud'),
+    t: Number(raw.t) || 0
+  };
+}
+
+function isFreshNameRecord(record, now) {
+  return now - record.t <= (record.s === 'user' ? USER_NAME_TTL_MS : MODEL_NAME_TTL_MS);
+}
+
+function setJaccard(a, b) {
+  if (a.length === 0 && b.length === 0) return 1;
+  const other = new Set(b);
+  const shared = a.filter(value => other.has(value)).length;
+  return shared / (a.length + b.length - shared);
+}
+
+/** A newer model name for the same group replaces the older one. */
+function sameModelGroup(a, b) {
+  return a.k.join('|') === b.k.join('|') && setJaccard(a.w, b.w) >= 0.5;
+}
+
+/** A newer rename of the same tabs replaces the older one (the transfer rule's 50% overlap). */
+function sameUserCohort(a, b) {
+  if (a.f.length === 0 || b.f.length === 0) return false;
+  const other = new Set(b.f);
+  const shared = a.f.filter(fingerprint => other.has(fingerprint)).length;
+  return shared >= 0.5 * Math.min(a.f.length, b.f.length);
+}
+
+/**
+ * Newest first. Past the cap, model names go before user renames: renames are
+ * explicit choices, rarer, and cannot be regenerated by a model call.
+ */
+function capNameRecords(records) {
+  const sorted = [...records].sort((a, b) => b.t - a.t);
+  if (sorted.length <= MAX_NAME_RECORDS) return sorted;
+  const users = sorted.filter(record => record.s === 'user').slice(0, MAX_NAME_RECORDS);
+  const models = sorted.filter(record => record.s !== 'user').slice(0, MAX_NAME_RECORDS - users.length);
+  return [...users, ...models].sort((a, b) => b.t - a.t);
+}
+
+function adviceEntries(pairs) {
+  let list = [];
+  if (pairs instanceof Map || Array.isArray(pairs)) list = [...pairs];
+  else if (pairs && typeof pairs === 'object') list = Object.entries(pairs);
+  const entries = new Map();
+  for (const pair of list) {
+    const [candidate, anchor] = Array.isArray(pair) ? pair : [];
+    if (isPlanKey(candidate) && isPlanKey(anchor)) entries.set(candidate, anchor);
+  }
+  return entries;
+}
+
+function emptyPlanMemory() {
+  return { v: PLAN_MEMORY_VERSION, names: [], advice: { cloud: {}, t: 0 } };
+}
+
+/** Plan memory and the reset epoch it was read at. */
+async function readPlanMemoryState(now) {
+  const data = await chrome.storage.local.get([PLAN_MEMORY_KEY, RESET_EPOCH_KEY]);
+  const epoch = resetEpochOf(data);
+  return { memory: parsePlanMemory(data[PLAN_MEMORY_KEY], epoch, now), epoch };
+}
+
+function parsePlanMemory(record, epoch, now) {
+  if (!record || record.v !== PLAN_MEMORY_VERSION || epochOf(record.g) !== epoch) return emptyPlanMemory();
+  const names = (Array.isArray(record.names) ? record.names : [])
+    .map(normalizeNameRecord)
+    .filter(item => item && isFreshNameRecord(item, now))
+    .sort((a, b) => b.t - a.t);
+  const storedAdvice = record.advice?.cloud && typeof record.advice.cloud === 'object' ? record.advice.cloud : {};
+  const cloud = Object.fromEntries([...adviceEntries(storedAdvice)].slice(0, MAX_ADVICE_PAIRS));
+  return { v: PLAN_MEMORY_VERSION, names, advice: { cloud, t: Number(record.advice?.t) || 0 } };
+}
+
+async function writePlanMemory(memory, epoch) {
+  await setUnlessReset(epoch, {
+    [PLAN_MEMORY_KEY]: { v: PLAN_MEMORY_VERSION, g: epoch, names: memory.names, advice: memory.advice }
+  });
+}
+
+/**
+ * Group names and cloud merge advice, keyed by candidate keys and token
+ * hashes. Stores no title words or URLs. User renames (s: 'user') carry tab
+ * fingerprints and are kept 90 days; model names are kept 14 days.
+ */
+export class PlanMemory {
+  static STORAGE_KEY = PLAN_MEMORY_KEY;
+
+  /** @returns {Promise<{v: number, names: object[], advice: {cloud: Object<string, string>, t: number}}>} */
+  static async read() {
+    await settledWrites();
+    return (await readPlanMemoryState(Date.now())).memory;
+  }
+
+  /**
+   * Remember model names ({k, w, n, c, s: 'cloud' | 'nano'}). User renames go
+   * through recordUserRename instead, so any other source is stored as 'cloud'.
+   */
+  static async putNames(records) {
+    const now = Date.now();
+    const incoming = toList(records)
+      .map(record => normalizeNameRecord({
+        ...record,
+        s: MODEL_NAME_SOURCES.has(record?.s) ? record.s : 'cloud',
+        t: now
+      }))
+      .filter(Boolean);
+    if (incoming.length === 0) return;
+
+    await serializeWrite(async () => {
+      const { memory, epoch } = await readPlanMemoryState(now);
+      let names = memory.names;
+      for (const record of incoming) {
+        names = names.filter(old => old.s === 'user' || !sameModelGroup(old, record));
+        names.unshift(record);
+      }
+      memory.names = capNameRecords(names);
+      await writePlanMemory(memory, epoch);
+    });
+  }
+
+  /**
+   * Merge cloud consolidation advice {candidateKey: anchorKey} (a Map, an
+   * object or [candidate, anchor] pairs). Newer advice wins, a newer pair in
+   * the opposite direction retires the old one, and a self-pair clears the
+   * candidate's stored advice.
+   */
+  static async putAdvice(pairs) {
+    const incoming = adviceEntries(pairs);
+    if (incoming.size === 0) return;
+
+    await serializeWrite(async () => {
+      const now = Date.now();
+      const { memory, epoch } = await readPlanMemoryState(now);
+      const next = new Map();
+      for (const [candidate, anchor] of incoming) {
+        if (candidate !== anchor) next.set(candidate, anchor);
+      }
+      for (const [candidate, anchor] of Object.entries(memory.advice.cloud)) {
+        if (incoming.has(candidate) || next.get(anchor) === candidate) continue;
+        next.set(candidate, anchor);
+      }
+      memory.advice = { cloud: Object.fromEntries([...next].slice(0, MAX_ADVICE_PAIRS)), t: now };
+      await writePlanMemory(memory, epoch);
+    });
+  }
+
+  /**
+   * Remember a user rename for the tabs it covered. The record matches a later
+   * group whose fingerprints overlap it by at least half of the smaller set.
+   */
+  static async recordUserRename({ tabs, name, color, keys } = {}) {
+    const list = Array.isArray(tabs) ? tabs.filter(Boolean) : [];
+    // Nothing from an incognito window is remembered.
+    if (list.length === 0 || list.some(tab => tab.incognito)) return;
+    const fingerprints = await Promise.all(list.map(fingerprintTab));
+    const record = normalizeNameRecord({
+      k: keys,
+      w: [],
+      f: fingerprints,
+      n: name,
+      c: color,
+      s: 'user',
+      t: Date.now()
+    });
+    if (!record || record.f.length === 0) return;
+
+    await serializeWrite(async () => {
+      const { memory, epoch } = await readPlanMemoryState(record.t);
+      const names = memory.names.filter(old => old.s !== 'user' || !sameUserCohort(old, record));
+      names.unshift(record);
+      memory.names = capNameRecords(names);
+      await writePlanMemory(memory, epoch);
+    });
+  }
+
+  static async clear() {
+    await serializeWrite(() => chrome.storage.local.remove(PLAN_MEMORY_KEY));
+  }
+}
+
+function sessionArea() {
+  return globalThis.chrome?.storage?.session || null;
+}
+
+function toWindowId(windowId) {
+  const id = Number(windowId);
+  return Number.isInteger(id) && id >= 0 ? id : null;
+}
+
+/**
+ * The latest plan for each window, in storage.session: tab IDs, names and
+ * keys only, cleared when the browser restarts. Used by auto-grouping, by the
+ * rename key lookup and by the background refresh signature check.
+ */
+export class WindowPlanStore {
+  static KEY_PREFIX = WINDOW_PLAN_PREFIX;
+
+  static keyFor(windowId) {
+    return `${WINDOW_PLAN_PREFIX}${windowId}`;
+  }
+
+  /** @returns {Promise<{v: number, windowId: number, updatedAt: number, K: number|null, signature: string, groups: object[]}|null>} */
+  static async get(windowId) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null) return null;
+    const key = this.keyFor(id);
+    const record = (await area.get(key))[key];
+    if (!record || record.v !== WINDOW_PLAN_VERSION || record.windowId !== id || !Array.isArray(record.groups)) {
+      return null;
+    }
+    return record;
+  }
+
+  static async put(windowId, plan) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null || !Array.isArray(plan?.groups)) return;
+    const record = {
+      v: WINDOW_PLAN_VERSION,
+      windowId: id,
+      updatedAt: Date.now(),
+      K: Number.isFinite(plan.K) ? plan.K : null,
+      signature: typeof plan.signature === 'string' ? plan.signature : '',
+      // Copy only the listed fields so no title, URL or token rides along.
+      groups: plan.groups.map(group => ({
+        name: typeof group?.name === 'string' ? group.name : '',
+        color: CHROME_COLORS.has(group?.color) ? group.color : null,
+        keys: planKeyList(group?.keys),
+        tabIds: toList(group?.tabIds).filter(Number.isInteger),
+        dominant: typeof group?.dominant === 'string' ? group.dominant : null,
+        kind: typeof group?.kind === 'string' ? group.kind : null
+      }))
+    };
+    await area.set({ [this.keyFor(id)]: record });
+  }
+
+  static async remove(windowId) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null) return;
+    await area.remove(this.keyFor(id));
   }
 }
 

@@ -30,7 +30,7 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <span class="version-label">Foldnex v1.0.0</span>
+        <span class="version-label">Foldnex v2.0.0</span>
         <div class="sidebar-footer-links">
           <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
           <span aria-hidden="true">·</span>
@@ -76,7 +76,7 @@
           <div class="nano-status-banner" role="status" aria-live="polite">
             <div id="nanoStatusText">Checking Chrome’s local model…</div>
           </div>
-          <div class="setup-instructions">
+          <div id="nanoRequirements" class="setup-instructions">
             <h4>Local model requirements</h4>
             <ul>
               <li><strong>Chrome 138+</strong> on macOS 13 or newer.</li>
@@ -152,6 +152,17 @@
               <option value="">Checking model support…</option>
             </select>
             <span id="compatibleReasoningHelp" class="form-help" role="status">Reasoning options depend on the selected model.</span>
+          </div>
+
+          <div id="openaiPrioritySection" class="setting-item hidden">
+            <div class="setting-text">
+              <div class="setting-name">Priority processing</div>
+              <div class="setting-description">Faster OpenAI responses at a higher per-token price.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="prefOpenaiPriority" aria-label="Use OpenAI priority processing">
+              <span class="slider round"></span>
+            </label>
           </div>
 
           <div class="form-group">
@@ -293,6 +304,17 @@
             </div>
             <label class="switch">
               <input type="checkbox" id="prefOneClickMode" aria-label="Run directly from toolbar">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-text">
+              <div class="setting-name">Auto-group new tabs</div>
+              <div class="setting-description">File each tab you open, or send to a new page, into a matching group as it loads. A tab you take out of a group stays out until it opens another page. With a cloud engine, the title and host/path hint of each such tab are sent to that provider; tabs that were already open are sent only when you run a cleanup.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="prefAutoGroup" aria-label="Auto-group new tabs">
               <span class="slider round"></span>
             </label>
           </div>

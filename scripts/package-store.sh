@@ -20,10 +20,13 @@ FILES=(
   options/options.css
   options/options.js
   src/ai-engine.js
+  src/background-classifier.js
   src/cache-engine.js
+  src/debug-trace.js
   src/group-state.js
   src/grouper.js
-  src/offline-clusterer.js
+  src/label-vocabulary.js
+  src/planner.js
   src/site-clusterer.js
   icons/icon16.png
   icons/icon32.png

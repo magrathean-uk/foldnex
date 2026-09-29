@@ -20,7 +20,7 @@ done
 git diff --check
 ```
 
-`npm test` maps to `node --test`. Tests in `test/core.test.js` cover URL identity, site grouping, provider request construction, cache scope, fallback behaviour, and incognito persistence using fixtures and mocked browser APIs. They do not establish that a live provider or Chrome feature works on a particular device.
+`npm test` maps to `node --test`. Tests in `test/` cover URL identity, site grouping, label prompts and schemas, the local planner and group ceiling, provider request construction, the label cache and group-name memory, background labelling and Auto-group, cache scope, fallback behaviour, and incognito persistence using fixtures and mocked browser APIs. They do not establish that a live provider or Chrome feature works on a particular device.
 
 ## Validate the changed behaviour
 

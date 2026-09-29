@@ -13,8 +13,8 @@ Do not attach credentials, a real tab export, private titles or paths, or full p
 - If a change is not visible, reload Foldnex at `chrome://extensions` and reopen its popup or options page.
 - For a local baseline, choose **By site category** or **Offline smart mode**. These grouping paths need no cloud credentials.
 - If a cloud engine falls back, check its saved credentials and model, then use **Test connection**. This test uses synthetic tabs; follow it with a real grouping check only when you intend to send that window's titles and URL hints.
-- Chrome Gemini Nano depends on Chrome exposing the Prompt API in the extension context. Keep the popup open for an on-device run. Background runs can fall back offline.
+- Chrome Gemini Nano depends on Chrome exposing the Prompt API to the extension's service worker. The first model load takes 15-19 seconds; a cleanup during it places tabs by address, and Foldnex labels them in the background once the model is ready. `chrome://on-device-internals` shows Chrome's model state.
 - Shortcut assignments can be reviewed at `chrome://extensions/shortcuts`.
-- **Ungroup all** removes groups. It does not restore tabs closed during duplicate cleanup.
+- **Ungroup current window** removes groups. It does not restore tabs closed during duplicate cleanup.
 
 For data handling, see [Privacy](../docs/legal/privacy.md). For sensitive security reports, see [Security](SECURITY.md). No response-time commitment or supported-release schedule is published here.

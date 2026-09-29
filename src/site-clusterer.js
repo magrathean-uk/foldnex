@@ -308,7 +308,7 @@ function titleCaseSite(label) {
     .join(' ') || 'Other';
 }
 
-function colorForName(name) {
+export function colorForName(name) {
   let hash = 0;
   for (const char of name) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
   return CHROME_GROUP_COLORS[(hash >>> 0) % CHROME_GROUP_COLORS.length];
@@ -366,6 +366,22 @@ function resolveSite(rawUrl) {
       name: 'Other', color: 'grey', serviceName: 'Other', siteName: 'Other',
       known: false, atomic: true, overflowPrefix: 'Other'
     };
+  }
+}
+
+/** The site taxonomy entry for a URL, for local label inference and site names. */
+export function describeSite(rawUrl) {
+  const { name, color, serviceName, siteName, known } = resolveSite(rawUrl);
+  return { name, color, serviceName, siteName, known };
+}
+
+/** Registrable site label in lower case ('bbc' for www.bbc.co.uk), or '' without a host. */
+export function siteKeyForUrl(rawUrl) {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '');
+    return host ? baseSiteLabel(host).toLowerCase() : '';
+  } catch {
+    return '';
   }
 }
 

@@ -3,7 +3,6 @@
  */
 
 import { LearningCache } from './src/cache-engine.js';
-import { executeTabGrouping } from './src/grouper.js';
 import {
   checkChromeNanoStatus,
   PROVIDER_CATALOG,
@@ -219,28 +218,45 @@ async function refreshStats() {
   }
 }
 
+const REVIEW_CODES = new Set(['generic', 'regional', 'too_many']);
+
+/**
+ * Extra status sentences: tabs placed by address, and a model still loading.
+ * Only an on-device engine labels provisional tabs in the background; the
+ * worker reports that as `provisionalInBackground`.
+ */
+function resultNotes(res) {
+  let notes = '';
+  const provisional = Number(res.provisionalTabs) || 0;
+  if (provisional > 0) {
+    const placed = provisional === 1 ? '1 tab placed by address' : `${provisional} tabs placed by address`;
+    if (res.incognito) {
+      notes += ` ${placed}.`;
+    } else {
+      notes += res.provisionalInBackground
+        ? ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted in the background.`
+        : ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted on the next cleanup.`;
+    }
+  }
+  if (res.fallbackCode === 'nano_loading') notes += ' The on-device model is still loading.';
+  return notes;
+}
+
 // Event: Group tabs with actionable fallback diagnostics
 btnGroupTabs.addEventListener('click', async () => {
   showStatus('Analyzing tabs & organizing...', 'loading');
   try {
-    const [[activeTab], { provider = 'gemini_nano', groupingStrategy = 'task' }] = await Promise.all([
-      chrome.tabs.query({ active: true, lastFocusedWindow: true }),
-      chrome.storage.sync.get(['provider', 'groupingStrategy'])
-    ]);
+    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
-    // Nano must execute in an extension document. Cloud and offline engines run
-    // through the background worker so one context owns orchestration and locks.
-    let res;
-    if (groupingStrategy !== 'site' && provider === 'gemini_nano') {
-      res = await executeTabGrouping(activeTab?.windowId);
-    } else {
-      const response = await chrome.runtime.sendMessage({
-        type: 'TRIGGER_GROUPING',
-        windowId: activeTab?.windowId
-      });
-      if (!response?.success) throw new Error(response?.error || 'Grouping failed');
-      res = response.result;
-    }
+    // Every engine, Nano included, runs in the background worker. It owns the
+    // grouping lock and pauses background classification so the click gets
+    // the model immediately.
+    const response = await chrome.runtime.sendMessage({
+      type: 'TRIGGER_GROUPING',
+      windowId: activeTab?.windowId
+    });
+    if (!response?.success) throw new Error(response?.error || 'Grouping failed');
+    const res = response.result;
     const duplicates = res.duplicateTabsClosed || 0;
     const duplicateSummary = duplicates === 1
       ? ' Removed 1 duplicate tab.'
@@ -270,15 +286,19 @@ btnGroupTabs.addEventListener('click', async () => {
         reasonSnippet = 'local model unavailable';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
-    } else if (res.qualityFlags?.length) {
-      showStatus(`Created ${res.groupsCreated} groups; review recommended.${duplicateSummary}`, 'warning');
     } else {
-      showStatus(`Created ${res.groupsCreated} groups.${duplicateSummary}`, 'success');
+      const notes = resultNotes(res);
+      // 'oversized' alone is a diagnostic, not something to review.
+      const review = (res.qualityCodes || []).some(code => REVIEW_CODES.has(code));
+      showStatus(
+        `Created ${res.groupsCreated} groups${review ? '; review recommended' : ''}.${duplicateSummary}${notes}`,
+        review ? 'warning' : 'success'
+      );
     }
 
     refreshTabCount();
     refreshStats();
-    setTimeout(hideStatus, 3500);
+    setTimeout(hideStatus, res.provisionalTabs > 0 ? 6000 : 3500);
   } catch (error) {
     showStatus(error.message || 'Grouping failed. Check options.', 'error');
   }
@@ -347,6 +367,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
+  // Warm the on-device model and label this window's tabs first while the
+  // user reads the popup. Nothing is sent to a cloud engine.
+  chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    .then(([activeTab]) => chrome.runtime.sendMessage({ type: 'PREPARE_GROUPING', windowId: activeTab?.windowId }))
+    .catch(() => {});
   renderProviderSelect();
   chrome.commands.getAll().then(commands => {
     const shortcut = commands.find(command => command.name === 'group-tabs')?.shortcut;

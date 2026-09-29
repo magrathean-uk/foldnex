@@ -4,8 +4,9 @@
  */
 
 import { executeTabGrouping, ungroupAllTabs } from './src/grouper.js';
-import { LearningCache } from './src/cache-engine.js';
-import { checkChromeNanoStatus } from './src/ai-engine.js';
+import { LearningCache, PlanMemory, WindowPlanStore } from './src/cache-engine.js';
+import { checkChromeNanoStatus, runNanoSpike, warmChromeNano } from './src/ai-engine.js';
+import { createBackgroundClassifier, dumpWindowLabels, loadBackgroundScope } from './src/background-classifier.js';
 import {
   consumeProgrammaticGroupUpdate,
   getGroupTitleBaseline,
@@ -21,6 +22,47 @@ chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
 // Transient runtime locks & timers
 let activeBadgeTimer = null;
 let isGroupingActive = false;
+
+// Classify tabs as they finish loading so a cleanup only applies remembered groups.
+const backgroundClassifier = createBackgroundClassifier();
+
+// Tabs Chrome restores in the first seconds after startup are not new tabs.
+const STARTUP_QUIET_MS = 20000;
+const SESSION_STARTED_KEY = 'foldnex_session_started_v1';
+let startupQuietUntil = 0;
+let autoGroupSetting = null;
+
+// Session storage is empty after a browser start (or an install, update or
+// reload), so the first worker run of a session starts the quiet period even
+// when restored tabs' events reach the worker before onStartup.
+const workerStartedAt = Date.now();
+const sessionChecked = Promise.resolve()
+  .then(() => chrome.storage.session.get(SESSION_STARTED_KEY))
+  .then(data => {
+    if (data?.[SESSION_STARTED_KEY]) return;
+    startupQuietUntil = Math.max(startupQuietUntil, workerStartedAt + STARTUP_QUIET_MS);
+    return chrome.storage.session.set({ [SESSION_STARTED_KEY]: true });
+  })
+  .catch(() => {});
+
+/** Whether a tab event now marks a new tab for Auto-group (and cloud consent). */
+async function autoGroupForTabEvents() {
+  await sessionChecked;
+  autoGroupSetting ??= chrome.storage.sync.get('autoGroupNewTabs')
+    .then(data => Boolean(data.autoGroupNewTabs))
+    .catch(() => false);
+  return (await autoGroupSetting) && Date.now() >= startupQuietUntil;
+}
+
+/** Provisional tabs are labelled in the background only by an on-device engine. */
+async function provisionalLabelledInBackground() {
+  try {
+    const scope = await loadBackgroundScope();
+    return scope.allowed && scope.onDevice;
+  } catch {
+    return false;
+  }
+}
 
 function clearBadgeTimer() {
   if (activeBadgeTimer) {
@@ -66,9 +108,13 @@ async function triggerOneClickGrouping(windowId) {
   }
 
   isGroupingActive = true;
+  // Abort any in-flight background prompt so the click gets the model.
+  backgroundClassifier.pause();
+  let result = null;
   try {
     setBadgeLoading();
-    const result = await executeTabGrouping(windowId);
+    result = await executeTabGrouping(windowId);
+    if (result?.provisionalTabs > 0) result.provisionalInBackground = await provisionalLabelledInBackground();
     if (result.success) {
       setBadgeSuccess(result.groupsCreated);
     } else {
@@ -86,7 +132,63 @@ async function triggerOneClickGrouping(windowId) {
     throw err;
   } finally {
     isGroupingActive = false;
+    backgroundClassifier.resume();
+    // Tabs placed by address at the deadline get their model labels in the
+    // background, under the classifier's own consent gates.
+    backgroundClassifier.enqueue(result?.provisionalTabIds || [], { retryGivenUp: true });
+    if (result?.strategy === 'task' && !result.incognito && Number.isInteger(result.windowId)) {
+      backgroundClassifier.scheduleWindowPlanRefresh(result.windowId);
+    }
   }
+}
+
+/**
+ * Ungroup a window with the background paused, so an auto-group already
+ * running cannot regroup it, and stop treating its tabs as new.
+ */
+async function ungroupWindow(windowId) {
+  backgroundClassifier.pause();
+  let timer = null;
+  try {
+    await Promise.race([
+      backgroundClassifier.whenIdle(),
+      new Promise(resolve => { timer = setTimeout(resolve, 1000); })
+    ]);
+    clearTimeout(timer);
+    const result = await ungroupAllTabs(windowId);
+    await backgroundClassifier.noteWindowUngrouped(windowId);
+    return result;
+  } finally {
+    backgroundClassifier.resume();
+  }
+}
+
+/**
+ * Load the on-device model while nobody is waiting (a cold load takes 15-19 s),
+ * so a later cleanup finds it warm. Only for Nano in By task mode.
+ */
+async function maybeWarmNano() {
+  try {
+    const { provider = 'gemini_nano', groupingStrategy = 'task' } = await chrome.storage.sync.get(['provider', 'groupingStrategy']);
+    if (provider !== 'gemini_nano' || groupingStrategy === 'site') return;
+    if ((await checkChromeNanoStatus()).status === 'ready') await warmChromeNano();
+  } catch (err) {
+    console.warn('[Foldnex] Could not warm the on-device model:', err?.message);
+  }
+}
+
+/** Candidate keys of the stored plan group covering at least half of these tabs. */
+async function planKeysForTabs(windowId, tabIds) {
+  const plan = await WindowPlanStore.get(windowId);
+  const ids = new Set(tabIds);
+  let best = null;
+  for (const group of plan?.groups || []) {
+    const overlap = (group.tabIds || []).filter(id => ids.has(id)).length;
+    if (overlap > 0 && overlap >= 0.5 * ids.size && (!best || overlap > best.overlap)) {
+      best = { keys: group.keys || [], overlap };
+    }
+  }
+  return best?.keys || [];
 }
 
 // Expose helper on global scope for debugging and testing
@@ -113,7 +215,7 @@ chrome.commands.onCommand.addListener(async (command) => {
   } else if (command === 'ungroup-tabs') {
     try {
       const [currentTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      const res = await ungroupAllTabs(currentTab?.windowId);
+      const res = await ungroupWindow(currentTab?.windowId);
       setBadgeSuccess(res.ungroupedCount);
     } catch (err) {
       console.error('[Foldnex] Ungroup shortcut failed:', err);
@@ -149,6 +251,10 @@ chrome.tabGroups.onUpdated.addListener(async (group) => {
     const validTabs = tabsInGroup.filter(tab => tab.url && !tab.incognito);
     if (validTabs.length > 0) {
       await LearningCache.learnGroupRename(validTabs, group.title, group.color);
+      // Also remember it by tab fingerprints, so the name follows the group
+      // when tabs are added or removed.
+      const keys = await planKeysForTabs(group.windowId, validTabs.map(tab => tab.id));
+      await PlanMemory.recordUserRename({ tabs: validTabs, name: group.title, color: group.color, keys });
       console.log(`[Foldnex] Learned scoped rename "${group.title}" for ${validTabs.length} tabs.`);
     }
   } catch (err) {
@@ -160,6 +266,12 @@ chrome.tabGroups.onUpdated.addListener(async (group) => {
 chrome.tabGroups.onRemoved.addListener((group) => {
   removeGroupState(group.id).catch(err => {
     console.warn('[Foldnex] Failed to clear removed group state:', err);
+  });
+});
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  WindowPlanStore.remove(windowId).catch(err => {
+    console.warn('[Foldnex] Failed to clear a closed window plan:', err);
   });
 });
 
@@ -186,6 +298,13 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync' && 'oneClickIconMode' in changes) {
     syncPopupBehavior(Boolean(changes.oneClickIconMode.newValue));
   }
+  if (areaName === 'sync' && 'autoGroupNewTabs' in changes) {
+    const enabled = Boolean(changes.autoGroupNewTabs.newValue);
+    autoGroupSetting = Promise.resolve(enabled);
+    backgroundClassifier.setAutoGroup(enabled).catch(err => {
+      console.warn('[Foldnex] Could not reset new-tab tracking:', err?.message);
+    });
+  }
 });
 
 // Initialize on install or startup
@@ -201,13 +320,56 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     });
   }
   await LearningCache.ensureSchema();
+  // The per-tab assignment cache of development builds never shipped.
+  await chrome.storage.local.remove('foldnex_tab_assignments_v1');
   await syncPopupBehavior();
+  await queueOpenTabs();
+  maybeWarmNano();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  startupQuietUntil = Date.now() + STARTUP_QUIET_MS;
   await LearningCache.ensureSchema();
   await seedGroupTitleBaselines(await chrome.tabGroups.query({}));
   await syncPopupBehavior();
+  await queueOpenTabs();
+  maybeWarmNano();
+});
+
+/** Queue every open tab for an on-device engine. Tabs already open never go to a cloud engine. */
+async function queueOpenTabs() {
+  try {
+    const scope = await loadBackgroundScope();
+    if (!scope.allowed || !scope.onDevice) return;
+    const tabs = await chrome.tabs.query({});
+    backgroundClassifier.enqueue(tabs.filter(tab => !tab.incognito).map(tab => tab.id));
+  } catch (err) {
+    console.warn('[Foldnex] Could not queue open tabs:', err?.message);
+  }
+}
+
+chrome.tabs.onCreated?.addListener(async (tab) => {
+  if (tab?.incognito) return;
+  try {
+    await backgroundClassifier.noteTabCreated(tab, { autoGroup: await autoGroupForTabEvents() });
+  } catch (err) {
+    console.warn('[Foldnex] Could not track a new tab:', err?.message);
+  }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (tab?.incognito) return;
+  try {
+    await backgroundClassifier.noteTabUpdated(tabId, changeInfo, tab, { autoGroup: await autoGroupForTabEvents() });
+  } catch (err) {
+    console.warn('[Foldnex] Could not track a tab update:', err?.message);
+  }
+});
+
+chrome.tabs.onRemoved?.addListener((tabId) => {
+  backgroundClassifier.noteTabRemoved(tabId).catch(err => {
+    console.warn('[Foldnex] Could not forget a closed tab:', err?.message);
+  });
 });
 
 // Clear any stale badges on service worker evaluation
@@ -219,6 +381,15 @@ LearningCache.ensureSchema().catch(err => {
 chrome.tabGroups.query({}).then(seedGroupTitleBaselines).catch(err => {
   console.warn('[Foldnex] Could not seed group title baselines:', err);
 });
+maybeWarmNano();
+
+// Unpacked development installs only: measurement helpers for the console.
+// Nothing here is stored.
+Promise.resolve(chrome.management?.getSelf?.()).then(self => {
+  if (self?.installType !== 'development') return;
+  globalThis.foldnexNanoSpike = runNanoSpike;
+  globalThis.foldnexLabelDump = dumpWindowLabels;
+}).catch(() => {});
 
 /**
  * Messaging API for Popup & Options Pages
@@ -245,11 +416,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-        const result = await ungroupAllTabs(tab?.windowId);
+        const result = await ungroupWindow(tab?.windowId);
         sendResponse({ success: true, result });
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
+    })();
+    return true;
+  }
+
+  if (message.type === 'PREPARE_GROUPING') {
+    (async () => {
+      maybeWarmNano();
+      try {
+        // Opening the popup never sends a window's tabs to a cloud engine.
+        const scope = await loadBackgroundScope();
+        if (scope.allowed && scope.onDevice && Number.isInteger(message.windowId)) {
+          await backgroundClassifier.prioritize(message.windowId);
+        }
+      } catch (err) {
+        console.warn('[Foldnex] Could not prepare grouping:', err?.message);
+      }
+      sendResponse({ ok: true });
     })();
     return true;
   }

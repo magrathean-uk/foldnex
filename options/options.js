@@ -8,7 +8,7 @@ import {
   prepareChromeNano,
   CHROME_GROUP_COLORS,
   PROVIDER_CATALOG,
-  clusterTabsWithAI,
+  labelTabsWithAI,
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   isOpenAIResponsesOnlyModel,
@@ -36,6 +36,7 @@ const panelOfflineDetails = document.getElementById('panel-offline-details');
 
 const nanoStatusText = document.getElementById('nanoStatusText');
 const btnRecheckNano = document.getElementById('btnRecheckNano');
+const nanoRequirements = document.getElementById('nanoRequirements');
 
 // Gemini fields
 const geminiApiKey = document.getElementById('geminiApiKey');
@@ -55,6 +56,9 @@ const compatibleApiKeyLabel = document.getElementById('compatibleApiKeyLabel');
 const compatibleApiKey = document.getElementById('compatibleApiKey');
 const compatibleModel = document.getElementById('compatibleModel');
 const compatibleReasoningEffort = document.getElementById('compatibleReasoningEffort');
+const openaiPrioritySection = document.getElementById('openaiPrioritySection');
+const prefOpenaiPriority = document.getElementById('prefOpenaiPriority');
+const prefAutoGroup = document.getElementById('prefAutoGroup');
 const compatibleReasoningHelp = document.getElementById('compatibleReasoningHelp');
 const compatibleModelOptions = document.getElementById('compatibleModelOptions');
 const compatibleModelsStatus = document.getElementById('compatibleModelsStatus');
@@ -279,7 +283,7 @@ function focusProviderDetails(provider) {
     if (PROVIDER_CATALOG[provider]?.mode === 'compatible') {
       target = PROVIDER_CATALOG[provider].keyOptional ? compatibleModel : compatibleApiKey;
     }
-    if (provider === 'gemini_nano' && !btnRecheckNano.disabled) target = btnRecheckNano;
+    if (provider === 'gemini_nano' && !btnRecheckNano.disabled && !btnRecheckNano.classList.contains('hidden')) target = btnRecheckNano;
     target.focus({ preventScroll: true });
     panel.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'nearest' });
     setTimeout(() => panel.classList.remove('is-provider-entering'), 420);
@@ -470,7 +474,8 @@ async function loadCompatibleProvider(provider) {
       providerSettingKey(provider, 'reasoningEffort'),
       providerSettingKey(provider, 'baseUrl'),
       providerSettingKey(provider, 'apiKey'),
-      'openaiOAuthToken'
+      'openaiOAuthToken',
+      'openaiPriority'
     ]),
     chrome.storage.local.get([
       providerSettingKey(provider, 'apiKey'),
@@ -491,6 +496,8 @@ async function loadCompatibleProvider(provider) {
   renderReasoningControl(provider, compatibleModel.value, compatibleReasoningEffort, compatibleReasoningHelp);
   compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
   oauthSection.classList.toggle('hidden', provider !== 'openai');
+  openaiPrioritySection.classList.toggle('hidden', provider !== 'openai');
+  prefOpenaiPriority.checked = Boolean(syncData.openaiPriority);
   if (provider === 'openai') {
     openaiOAuthToken.value = localData.openaiOAuthToken || syncData.openaiOAuthToken || '';
   }
@@ -545,6 +552,12 @@ getProviderRadios().forEach(radio => {
   });
 });
 
+// Setup requirements and the action button only apply until the local model is ready.
+function setNanoSetupVisible(visible) {
+  nanoRequirements.classList.toggle('hidden', !visible);
+  btnRecheckNano.classList.toggle('hidden', !visible);
+}
+
 /**
  * Check and refresh Gemini Nano diagnostic status (safe DOM updates, no innerHTML)
  */
@@ -555,6 +568,7 @@ async function refreshNanoDiagnostics() {
   nanoBadge.textContent = 'Checking…';
   btnRecheckNano.disabled = true;
   btnRecheckNano.textContent = 'Checking…';
+  setNanoSetupVisible(true);
 
   try {
     const status = await checkChromeNanoStatus();
@@ -564,10 +578,10 @@ async function refreshNanoDiagnostics() {
     if (status.status === 'ready') {
       nanoBadge.className = 'status-pill ready';
       nanoBadge.textContent = 'Ready';
-      btnRecheckNano.textContent = 'Check again';
+      setNanoSetupVisible(false);
       const strong = document.createElement('strong');
       strong.textContent = 'Local model ready. ';
-      nanoStatusText.append(strong, 'Keep the Foldnex popup open while grouping with Nano.');
+      nanoStatusText.append(strong, 'Foldnex loads it in the background, so cleanups from the popup, toolbar or shortcut can use it.');
     } else if (status.status === 'downloadable') {
       nanoBadge.className = 'status-pill checking';
       nanoBadge.textContent = 'Download needed';
@@ -627,6 +641,7 @@ async function loadSettings() {
     'groupingStrategy',
     'oneClickIconMode',
     'collapseGroupsOnCreation',
+    'autoGroupNewTabs',
     'geminiApiKey'
   ]);
 
@@ -650,6 +665,7 @@ async function loadSettings() {
 
   prefOneClickMode.checked = Boolean(syncData.oneClickIconMode);
   prefCollapseGroups.checked = Boolean(syncData.collapseGroupsOnCreation);
+  prefAutoGroup.checked = Boolean(syncData.autoGroupNewTabs);
   const strategy = syncData.groupingStrategy === 'site' ? 'site' : 'task';
   const strategyInput = document.querySelector(`input[name="groupingStrategy"][value="${strategy}"]`);
   if (strategyInput) strategyInput.checked = true;
@@ -673,8 +689,10 @@ async function loadRunDiagnostics() {
   diagEngine.textContent = run.strategy === 'site'
     ? 'Site categories · local'
     : run.model ? `${providerName} · ${run.model}` : providerName;
-  diagSource.textContent = String(run.source || 'unknown').replaceAll('-', ' ');
-  diagOutcome.textContent = `${run.tabsGrouped || 0} tabs · ${run.groupsCreated || 0} groups · ${run.duplicateTabsClosed || 0} duplicates`;
+  const provisional = Number(run.provisionalTabs) || 0;
+  diagSource.textContent = `${String(run.source || 'unknown').replaceAll('-', ' ')}${provisional > 0 ? ` · ${provisional} provisional` : ''}`;
+  diagOutcome.textContent = `${run.tabsGrouped || 0} tabs · ${run.groupsCreated || 0} groups · ${run.duplicateTabsClosed || 0} duplicates`
+    + (Number.isFinite(run.groupCeiling) ? ` · ceiling ${run.groupCeiling}` : '');
   diagTokens.textContent = run.promptTokens || run.completionTokens
     ? `${run.promptTokens || 0} in · ${run.completionTokens || 0} out · ${run.cachedTokens || 0} cached`
     : 'Local or cache result';
@@ -682,15 +700,16 @@ async function loadRunDiagnostics() {
   diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
   diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
   const inferredOffline = run.strategy === 'site' || ['offline', 'offline-fallback'].includes(run.source);
+  const cachedResult = ['exact-cache', 'label-cache'].includes(run.source);
   let reasoningStatus = 'Provider default';
   if (inferredOffline) reasoningStatus = 'Not used · local grouping';
-  else if (run.source === 'exact-cache') reasoningStatus = 'Not used · cached result';
+  else if (cachedResult) reasoningStatus = 'Not used · cached result';
   else if (run.source === 'nano') reasoningStatus = 'Managed by Chrome';
   else if (run.reasoningEffort) {
     reasoningStatus = `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)}`;
   }
   diagReasoning.textContent = reasoningStatus;
-  diagReasoningTokens.textContent = inferredOffline || run.source === 'exact-cache'
+  diagReasoningTokens.textContent = inferredOffline || cachedResult
     ? 'Not used'
     : Number.isFinite(run.reasoningTokens)
       ? String(run.reasoningTokens)
@@ -748,6 +767,12 @@ const CONNECTION_TEST_TABS = [
   { id: 2, title: 'Project notes', url: 'https://example.com/notes' }
 ];
 
+/** Label the two synthetic tabs; the test passes when at least one label comes back. */
+async function runConnectionTest(settings) {
+  const { labels } = await labelTabsWithAI(CONNECTION_TEST_TABS, settings);
+  if (!labels || labels.size === 0) throw new Error('The provider returned no usable labels');
+}
+
 /**
  * Save Gemini Settings securely to storage.local
  */
@@ -782,7 +807,7 @@ btnTestGemini.addEventListener('click', async () => {
 
   try {
     const selectedModel = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
-    await clusterTabsWithAI(CONNECTION_TEST_TABS, {
+    await runConnectionTest({
       provider: 'gemini_api',
       geminiApiKey: key,
       geminiModel: selectedModel,
@@ -846,7 +871,7 @@ btnTestCompatible.addEventListener('click', async () => {
 
   try {
     const base = compatibleBaseUrl.value.trim() || config.baseUrl;
-    await clusterTabsWithAI(CONNECTION_TEST_TABS, {
+    await runConnectionTest({
       provider,
       [providerSettingKey(provider, 'apiKey')]: keyOrToken,
       [providerSettingKey(provider, 'model')]: selectedModel,
@@ -1039,6 +1064,7 @@ btnAddRule.addEventListener('click', async () => {
   }
 
   await chrome.storage.local.set({ [LearningCache.STORAGE_KEY]: rules });
+  // Rules apply as locked groups at plan time, so labels stay valid.
   await ExactResultCache.clear();
   newRulePattern.value = '';
   newRuleCategory.value = '';
@@ -1187,6 +1213,16 @@ groupingStrategyInputs.forEach(input => {
 prefOneClickMode.addEventListener('change', async (e) => {
   await chrome.storage.sync.set({ oneClickIconMode: e.target.checked });
   showToast(e.target.checked ? '1-Click icon mode enabled!' : 'Popup menu mode enabled.');
+});
+
+prefOpenaiPriority.addEventListener('change', async (e) => {
+  await chrome.storage.sync.set({ openaiPriority: e.target.checked });
+  showToast(e.target.checked ? 'Priority processing on.' : 'Priority processing off.');
+});
+
+prefAutoGroup.addEventListener('change', async (e) => {
+  await chrome.storage.sync.set({ autoGroupNewTabs: e.target.checked });
+  showToast(e.target.checked ? 'New tabs will join matching groups.' : 'Auto-grouping off.');
 });
 
 prefCollapseGroups.addEventListener('change', async (e) => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Foldnex - Tab Organizer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Remove exact duplicate tabs and organize the current window into clear groups using local or optional cloud engines.",
   "author": "MAGRATHEAN UK LTD",
   "minimum_chrome_version": "120",

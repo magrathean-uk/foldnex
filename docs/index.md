@@ -1,6 +1,6 @@
 # Documentation
 
-Foldnex's documentation, beyond the [README](../README.md).
+Foldnex's documentation, beyond the [README](../README.md). The README lists [what's new in 2.0](../README.md#whats-new-in-20).
 
 ## Architecture
 

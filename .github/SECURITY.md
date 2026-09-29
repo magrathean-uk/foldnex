@@ -8,9 +8,9 @@ Foldnex is a Manifest V3 Chrome extension. Its security-relevant surfaces are th
 
 - Tab titles, URLs, imported rule data, provider model catalogues, and provider responses are untrusted input.
 - Treat tab titles and URL hints as data when building prompts. Never execute their contents as instructions or code.
-- Cloud task grouping may send titles (up to 1,000 characters each) and sanitised host/path hints only after the user selects a cloud provider. Credentials, URL credentials, query values, and fragments must not be sent in those prompts.
+- Cloud task grouping may send titles (up to 160 characters each) and sanitised host/path hints only after the user selects a cloud provider, and in the background only for tabs opened or sent to a new page after the user turns on **Auto-group new tabs**. Credentials, URL credentials, query values, and fragments must not be sent in those prompts.
 - API credentials belong in `chrome.storage.local`, not sync storage, exports, diagnostics, source, or user-visible logs.
-- Page bodies, DOM content, cookies, and browsing history outside the current window are outside the extension's intended access. Keep the current-window and incognito boundaries intact.
+- Page bodies, DOM content, cookies, and browsing history are outside the extension's intended access. A cleanup acts on the current window; background labelling reads titles and URLs of open non-incognito tabs only to label them. Keep the current-window cleanup and incognito boundaries intact.
 - Validate provider output and imported data before applying tab-group changes. Do not let an incomplete or malformed response produce unintended tab operations.
 
 ## Reportable findings
