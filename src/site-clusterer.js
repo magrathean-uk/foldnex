@@ -317,11 +317,14 @@ export function colorForName(name) {
 function isLocalDevelopmentHost(host) {
   return host === 'localhost'
     || host === '127.0.0.1'
-    || host === '::1'
-    || /^10\./.test(host)
+    || host === '[::1]'
+    || host.endsWith('.localhost');
+}
+
+function isPrivateNetworkHost(host) {
+  return /^10\./.test(host)
     || /^192\.168\./.test(host)
     || /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-    || host.endsWith('.localhost')
     || host.endsWith('.local');
 }
 
@@ -335,6 +338,12 @@ function resolveSite(rawUrl) {
       return {
         name: 'Local Development', color: 'cyan', serviceName: titleCaseSite(host),
         siteName: titleCaseSite(host), known: true, atomic: false, overflowPrefix: 'Local'
+      };
+    }
+    if (isPrivateNetworkHost(host)) {
+      return {
+        name: 'Network & Devices', color: 'cyan', serviceName: titleCaseSite(host),
+        siteName: titleCaseSite(host), known: true, atomic: false, overflowPrefix: 'Network'
       };
     }
 
@@ -373,6 +382,11 @@ function resolveSite(rawUrl) {
 export function describeSite(rawUrl) {
   const { name, color, serviceName, siteName, known } = resolveSite(rawUrl);
   return { name, color, serviceName, siteName, known };
+}
+
+/** True when a service or unknown site's tabs should retain one stable group. */
+export function isAtomicSite(rawUrl) {
+  return resolveSite(rawUrl).atomic;
 }
 
 /** Registrable site label in lower case ('bbc' for www.bbc.co.uk), or '' without a host. */

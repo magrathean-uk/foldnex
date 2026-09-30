@@ -287,7 +287,10 @@ input::placeholder { color: #999b92; }
 .form-help a, .shortcut-tip a { color: var(--action-hover); text-decoration: none; }
 .form-help a:hover, .shortcut-tip a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .model-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
-.model-picker-row .secondary-btn { white-space: nowrap; }
+.api-key-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.model-picker-row .secondary-btn, .api-key-row .secondary-btn { white-space: nowrap; }
+.model-picker-row .form-select { min-width: 0; }
+.custom-model-field { display: grid; gap: 8px; margin-top: 10px; }
 .sub-section { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
 
 .primary-btn, .secondary-btn, .danger-btn {
@@ -330,6 +333,8 @@ input::placeholder { color: #999b92; }
 .settings-list { padding-block: 4px; }
 .diagnostics-heading { margin-top: 22px; margin-bottom: 16px; }
 .diagnostics-heading::before { content: "Privacy-safe report"; }
+.provider-usage-heading { margin-top: 22px; }
+.provider-usage-heading::before { content: "Accumulated usage"; }
 .diagnostics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; }
 .diagnostics-grid div { min-width: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .diagnostics-grid div:nth-last-child(-n+3) { border-bottom: 0; }
@@ -412,7 +417,7 @@ kbd { padding: 4px 7px; color: var(--ink); font-size: 11px; }
   .shortcut-row { grid-template-columns: 1fr; gap: 10px; }
   .shortcut-keys { justify-content: flex-start; }
   .action-buttons { align-items: stretch; flex-direction: column; }
-  .model-picker-row { grid-template-columns: 1fr; }
+  .model-picker-row, .api-key-row { grid-template-columns: 1fr; }
   .diagnostics-grid { grid-template-columns: 1fr; }
   .diagnostics-grid div:nth-last-child(-n+3) { border-bottom: 1px solid var(--line); }
   .diagnostics-grid div:last-child { border-bottom: 0; }

@@ -10,7 +10,7 @@
  */
 
 // Bump when keys, hints or lexicon change in a way that invalidates cached labels.
-export const LABEL_VOCAB_VERSION = 'v1';
+export const LABEL_VOCAB_VERSION = 'v2';
 
 // Longest group name Foldnex writes, and the reserved name of the unsure
 // bucket. Here so cache-engine.js and planner.js share them without a cycle.
@@ -242,6 +242,7 @@ export const DEMONYMS = new Map([
 const LABEL_SYSTEM_INTRO = [
   'You sort browser tabs into categories for a tab organiser.',
   'For each tab choose the one category key that matches what the page is for: its subject and purpose, not the website or the media type. A YouTube tutorial about React is dev. A video recipe is food. An encyclopedia or reference article is learn, whatever its subject.',
+  'Classify each tab independently. A category used by only one tab is valid; do not balance category sizes or combine unrelated purposes. If a title is vague, use the site/path function. Other tabs are not evidence for its category.',
   'Categories:'
 ];
 

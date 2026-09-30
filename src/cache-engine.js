@@ -33,6 +33,7 @@ const USER_NAME_TTL_MS = 90 * DAY_MS;
 const MODEL_NAME_TTL_MS = 14 * DAY_MS;
 const MAX_NAME_RECORDS = 120;
 const MAX_ADVICE_PAIRS = 200;
+const MAX_ADVICE_SCOPES = 12;
 const MAX_NAME_TOKEN_HASHES = 8;
 const MAX_NAME_FINGERPRINTS = 60;
 const MAX_NAME_KEYS = 32;
@@ -44,11 +45,12 @@ const WINDOW_PLAN_VERSION = 1;
 // Mirrors CHROME_GROUP_COLORS in ai-engine.js; importing it here would create an import cycle.
 const CHROME_COLORS = new Set(['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange']);
 const CATEGORY_KEY_SET = new Set(CATEGORY_KEYS);
+export const MAX_RULE_PATTERN_LENGTH = 200;
 
 /**
- * TabLabelCache and PlanMemory are read-modify-write records. The click and the
- * background classifier both run in the service worker, so every write goes
- * through this one chain to stop a slower writer from dropping a faster one's entries.
+ * Read-modify-write caches share one chain in each extension context to stop
+ * a slower writer from dropping a faster one's entries. The origin epoch also
+ * keeps a queued pre-reset operation from writing as a new-generation result.
  */
 let storageWriteChain = Promise.resolve();
 
@@ -68,9 +70,9 @@ function settledWrites() {
  * chain, so it cannot wait for the service worker's writes. It bumps this epoch
  * instead. Every read-modify-write reads the epoch with its record and drops its
  * write when the epoch moved. Labels, plan memory, group preferences and exact
- * results are also stamped with the epoch (g), so a write that still lands just
- * after a reset reads as empty. Learned rules are a plain array the options page
- * writes directly, so they only get the check.
+ * results and session window plans are stamped with the epoch (g), so a write
+ * that still lands just after a reset reads as empty. Learned rules are a plain
+ * array the options page writes directly, so they only get the check.
  */
 function epochOf(value) {
   const epoch = Number(value);
@@ -81,10 +83,23 @@ function resetEpochOf(data) {
   return epochOf(data?.[RESET_EPOCH_KEY]);
 }
 
+/** Capture the generation before asynchronous work whose results may be saved. */
+export async function readResetEpoch() {
+  return resetEpochOf(await chrome.storage.local.get(RESET_EPOCH_KEY));
+}
+
+function writeOrigin(options) {
+  // Fingerprint maps and exact-cache contexts are reusable data, not proof of
+  // when a model or Chrome operation began. Its caller supplies that epoch.
+  const epoch = options?.epoch;
+  return epoch === undefined ? readResetEpoch()
+    : Promise.resolve(Number.isSafeInteger(epoch) && epoch >= 0 ? epoch : NaN);
+}
+
 /** Write unless a reset landed after the caller read its record at `epoch`. */
-async function setUnlessReset(epoch, values) {
-  if (resetEpochOf(await chrome.storage.local.get(RESET_EPOCH_KEY)) !== epoch) return false;
-  await chrome.storage.local.set(values);
+async function setUnlessReset(epoch, values, area = chrome.storage.local) {
+  if (await readResetEpoch() !== epoch) return false;
+  await area.set(values);
   return true;
 }
 
@@ -289,24 +304,55 @@ export function extractPatternKey(rawUrl) {
 }
 
 /**
- * Safely convert a wildcard glob pattern to a ReDoS-safe RegExp
+ * Compile a case-insensitive wildcard matcher. Keep the historical helper
+ * name and .test() interface, but never generate a backtracking expression.
+ * Each literal segment is searched once, so separated '*' cannot cause an
+ * exponential non-match. All punctuation other than '*' is literal.
  * @param {string} pattern
- * @returns {RegExp|null}
+ * @returns {{test(value: string): boolean}|null}
  */
 export function safeGlobToRegExp(pattern) {
-  if (!pattern || typeof pattern !== 'string') return null;
-  try {
-    // Collapse multiple consecutive asterisks into a single wildcard
-    const cleanPattern = pattern.trim().replace(/\*+/g, '*');
-    // Escape all regex special characters except asterisk
-    const escaped = cleanPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-    // Convert '*' to non-greedy '.*?' to prevent exponential backtracking
-    const regexSource = '^' + escaped.replace(/\*/g, '.*?') + '$';
-    return new RegExp(regexSource, 'i');
-  } catch (err) {
-    console.warn('[Foldnex] Invalid rule pattern regex:', pattern, err);
-    return null;
-  }
+  if (typeof pattern !== 'string') return null;
+  const trimmed = pattern.trim();
+  if (!trimmed || trimmed.length > MAX_RULE_PATTERN_LENGTH || /[\u0000-\u001F\u007F-\u009F]/u.test(pattern)
+    || /[\s\u0000-\u001F\u007F-\u009F]/u.test(trimmed)) return null;
+  const cleanPattern = foldRuleCase(trimmed.replace(/\*+/g, '*'));
+  const segments = cleanPattern.split('*');
+  return Object.freeze({
+    test(value) {
+      const input = foldRuleCase(String(value));
+      if (segments.length === 1) return input === cleanPattern;
+      // Match the old '.' wildcard's line-terminator behavior.
+      if (/[\r\n\u2028\u2029]/u.test(input)) return false;
+      const first = segments[0];
+      if (!input.startsWith(first)) return false;
+      let position = first.length;
+      for (let index = 1; index < segments.length - 1; index++) {
+        const found = input.indexOf(segments[index], position);
+        if (found < 0) return false;
+        position = found + segments[index].length;
+      }
+      const last = segments[segments.length - 1];
+      return input.length - last.length >= position && input.endsWith(last);
+    }
+  });
+}
+
+/** Preserve the case folding of the previous non-Unicode /i matcher. */
+function foldRuleCase(value) {
+  return value.replace(/[a-z\u0080-\uFFFF]/g, char => {
+    const upper = char.toUpperCase();
+    // Expanding a character, or folding a non-ASCII character into ASCII,
+    // would give it matches the previous regular expression did not allow.
+    return upper.length !== 1 || (char.charCodeAt(0) >= 128 && upper.charCodeAt(0) < 128)
+      ? char : upper;
+  });
+}
+
+function isValidRule(rule) {
+  return rule && typeof rule === 'object' && !Array.isArray(rule)
+    && typeof rule.category === 'string' && rule.category.trim().length > 0
+    && Boolean(safeGlobToRegExp(rule.pattern));
 }
 
 /**
@@ -346,7 +392,8 @@ export class LearningCache {
   static async readRules() {
     await this.ensureSchema();
     const data = await chrome.storage.local.get([this.STORAGE_KEY, RESET_EPOCH_KEY]);
-    return { rules: data[this.STORAGE_KEY] || [], epoch: resetEpochOf(data) };
+    const stored = Array.isArray(data[this.STORAGE_KEY]) ? data[this.STORAGE_KEY] : [];
+    return { rules: stored.filter(isValidRule), epoch: resetEpochOf(data) };
   }
 
   /**
@@ -354,17 +401,19 @@ export class LearningCache {
    */
   static buildDomainIndex(rules) {
     const domainMap = new Map();
-    for (const rule of rules) {
+    for (const rule of Array.isArray(rules) ? rules : []) {
+      if (!isValidRule(rule)) continue;
       if ((rule.confidence ?? 1.0) < 0.6) continue;
-      const host = rule.pattern.split('/')[0].toLowerCase();
+      const pattern = rule.pattern.trim().replace(/\*+/g, '*');
+      const host = pattern.split('/')[0].toLowerCase();
       if (!domainMap.has(host)) {
         domainMap.set(host, []);
       }
-      const prefix = rule.pattern.replace(/\/\*$/, '');
+      const prefix = foldRuleCase(pattern.replace(/\/\*$/, ''));
       domainMap.get(host).push({
         ...rule,
         prefix,
-        _regex: rule._regex || safeGlobToRegExp(rule.pattern)
+        _regex: safeGlobToRegExp(pattern)
       });
     }
     return domainMap;
@@ -375,7 +424,7 @@ export class LearningCache {
    */
   static matchUrl(url, domainIndex) {
     if (!url || !domainIndex) return null;
-    const sanitized = sanitizeUrl(url);
+    const sanitized = foldRuleCase(sanitizeUrl(url));
 
     try {
       const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
@@ -457,123 +506,136 @@ export class LearningCache {
   /**
    * Reinforce / learn from successful AI groupings
    */
-  static async learnFromGroupings(groups) {
-    const { rules: existingRules, epoch } = await this.readRules();
-    const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
+  static async learnFromGroupings(groups, options) {
+    const origin = await writeOrigin(options);
+    await serializeWrite(async () => {
+      const { rules: existingRules, epoch } = await this.readRules();
+      if (epoch !== origin) return;
+      const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
 
-    for (const group of groups) {
-      if (!group.tabs || group.tabs.length === 0) continue;
+      for (const group of groups) {
+        if (!group.tabs || group.tabs.length === 0) continue;
 
-      // Group tabs by pattern key
-      const patternCounts = new Map();
-      for (const tab of group.tabs) {
-        if (!tab.url) continue;
-        const key = extractPatternKey(tab.url);
-        if (key) {
-          patternCounts.set(key, (patternCounts.get(key) || 0) + 1);
-        }
-      }
-
-      for (const [pattern, count] of patternCounts.entries()) {
-        const lowerKey = pattern.toLowerCase();
-        const existing = ruleMap.get(lowerKey);
-        if (existing) {
-          if (existing.category.toLowerCase() === group.name.toLowerCase()) {
-            existing.confidence = Math.min(1.0, (existing.confidence || 0.8) + 0.1);
-            existing.matchCount = (existing.matchCount || 0) + count;
-            existing.updatedAt = Date.now();
+        // Group tabs by pattern key
+        const patternCounts = new Map();
+        for (const tab of group.tabs) {
+          if (!tab.url) continue;
+          const key = extractPatternKey(tab.url);
+          if (key && safeGlobToRegExp(key)) {
+            patternCounts.set(key, (patternCounts.get(key) || 0) + 1);
           }
-        } else if (count >= 1) {
-          // Learn new pattern
-          ruleMap.set(lowerKey, {
-            pattern,
-            category: group.name,
-            color: group.color || 'blue',
-            confidence: 0.85,
-            matchCount: count,
-            source: 'ai_observation',
-            schemaVersion: LEARNING_SCHEMA_VERSION,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          });
+        }
+
+        for (const [pattern, count] of patternCounts.entries()) {
+          const lowerKey = pattern.toLowerCase();
+          const existing = ruleMap.get(lowerKey);
+          if (existing) {
+            if (existing.category.toLowerCase() === group.name.toLowerCase()) {
+              existing.confidence = Math.min(1.0, (existing.confidence || 0.8) + 0.1);
+              existing.matchCount = (existing.matchCount || 0) + count;
+              existing.updatedAt = Date.now();
+            }
+          } else if (count >= 1) {
+            // Learn new pattern
+            ruleMap.set(lowerKey, {
+              pattern,
+              category: group.name,
+              color: group.color || 'blue',
+              confidence: 0.85,
+              matchCount: count,
+              source: 'ai_observation',
+              schemaVersion: LEARNING_SCHEMA_VERSION,
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            });
+          }
         }
       }
-    }
 
-    let ruleArray = Array.from(ruleMap.values());
+      let ruleArray = Array.from(ruleMap.values());
 
-    // Enforce Rule Cap with LRU / Confidence Pruning
-    if (ruleArray.length > this.MAX_RULES) {
-      ruleArray.sort((a, b) => {
-        if (a.userOverride && !b.userOverride) return -1;
-        if (!a.userOverride && b.userOverride) return 1;
-        const scoreA = (a.confidence || 0) * 1000 + (a.updatedAt || 0);
-        const scoreB = (b.confidence || 0) * 1000 + (b.updatedAt || 0);
-        return scoreB - scoreA;
+      // Enforce Rule Cap with LRU / Confidence Pruning
+      if (ruleArray.length > this.MAX_RULES) {
+        ruleArray.sort((a, b) => {
+          if (a.userOverride && !b.userOverride) return -1;
+          if (!a.userOverride && b.userOverride) return 1;
+          const scoreA = (a.confidence || 0) * 1000 + (a.updatedAt || 0);
+          const scoreB = (b.confidence || 0) * 1000 + (b.updatedAt || 0);
+          return scoreB - scoreA;
+        });
+        ruleArray = ruleArray.slice(0, this.MAX_RULES);
+      }
+
+      await setUnlessReset(epoch, {
+        [this.STORAGE_KEY]: ruleArray
       });
-      ruleArray = ruleArray.slice(0, this.MAX_RULES);
-    }
-
-    await setUnlessReset(epoch, {
-      [this.STORAGE_KEY]: ruleArray
     });
   }
 
   /**
    * Learn from explicit user correction in a single batched write
    */
-  static async learnUserCorrections(urls, newCategory, color) {
+  static async learnUserCorrections(urls, newCategory, color, options) {
     if (!urls || urls.length === 0 || !newCategory) return;
+    const origin = await writeOrigin(options);
+    await serializeWrite(async () => {
+      const { rules: existingRules, epoch } = await this.readRules();
+      if (epoch !== origin) return;
+      const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
+      let changed = false;
 
-    const { rules: existingRules, epoch } = await this.readRules();
-    const ruleMap = new Map(existingRules.map(r => [r.pattern.toLowerCase(), r]));
-    let changed = false;
+      for (const url of urls) {
+        if (!url) continue;
+        const pattern = extractPatternKey(url);
+        if (!safeGlobToRegExp(pattern)) continue;
 
-    for (const url of urls) {
-      if (!url) continue;
-      const pattern = extractPatternKey(url);
-      if (!pattern) continue;
-
-      const lowerKey = pattern.toLowerCase();
-      ruleMap.set(lowerKey, {
-        pattern,
-        category: newCategory,
-        color: color || 'blue',
-        confidence: 1.0, // Explicit user preference gets max confidence
-        matchCount: (ruleMap.get(lowerKey)?.matchCount || 0) + 1,
-        userOverride: true,
-        source: 'manual_rule',
-        schemaVersion: LEARNING_SCHEMA_VERSION,
-        updatedAt: Date.now()
-      });
-      changed = true;
-    }
-
-    if (changed) {
-      let ruleArray = Array.from(ruleMap.values());
-      if (ruleArray.length > this.MAX_RULES) {
-        ruleArray = ruleArray.slice(0, this.MAX_RULES);
+        const lowerKey = pattern.toLowerCase();
+        ruleMap.set(lowerKey, {
+          pattern,
+          category: newCategory,
+          color: color || 'blue',
+          confidence: 1.0, // Explicit user preference gets max confidence
+          matchCount: (ruleMap.get(lowerKey)?.matchCount || 0) + 1,
+          userOverride: true,
+          source: 'manual_rule',
+          schemaVersion: LEARNING_SCHEMA_VERSION,
+          updatedAt: Date.now()
+        });
+        changed = true;
       }
-      await setUnlessReset(epoch, {
-        [this.STORAGE_KEY]: ruleArray
-      });
-    }
+
+      if (changed) {
+        let ruleArray = Array.from(ruleMap.values());
+        if (ruleArray.length > this.MAX_RULES) {
+          ruleArray = ruleArray.slice(0, this.MAX_RULES);
+        }
+        await setUnlessReset(epoch, {
+          [this.STORAGE_KEY]: ruleArray
+        });
+      }
+    });
   }
 
-  static async learnUserCorrection(url, newCategory, color) {
-    return this.learnUserCorrections([url], newCategory, color);
+  static async learnUserCorrection(url, newCategory, color, options) {
+    return this.learnUserCorrections([url], newCategory, color, options);
   }
 
   /**
    * Delete a rule
    */
-  static async deleteRule(pattern) {
-    const { rules, epoch } = await this.readRules();
-    const filtered = rules.filter(r => r.pattern.toLowerCase() !== pattern.toLowerCase());
-    await setUnlessReset(epoch, { [this.STORAGE_KEY]: filtered });
-    // Labels and plan memory do not depend on rules: rules are applied as
-    // locked groups at plan time, so only whole cached results go stale.
-    await ExactResultCache.clear();
+  static async deleteRule(pattern, options) {
+    if (typeof pattern !== 'string') return;
+    const origin = await writeOrigin(options);
+    await serializeWrite(async () => {
+      const { rules, epoch } = await this.readRules();
+      if (epoch !== origin) return;
+      const filtered = rules.filter(r => r.pattern.toLowerCase() !== pattern.toLowerCase());
+      if (!await setUnlessReset(epoch, { [this.STORAGE_KEY]: filtered })) return;
+      if (await readResetEpoch() !== epoch) return;
+      // Labels and plan memory do not depend on rules: rules are applied as
+      // locked groups at plan time, so only whole cached results go stale.
+      await chrome.storage.local.remove(EXACT_RESULTS_KEY);
+    });
   }
 
   /**
@@ -594,6 +656,8 @@ export class LearningCache {
         LEGACY_TAB_ASSIGNMENTS_KEY,
         LEGACY_RULES_BACKUP_KEY
       ]);
+      // Session plans keep their origin stamp; get() rejects them after this
+      // epoch bump, including old writes that land after the reset completes.
     });
     await chrome.storage.local.set({ [LEARNING_SCHEMA_KEY]: LEARNING_SCHEMA_VERSION });
   }
@@ -602,22 +666,27 @@ export class LearningCache {
    * Remember a user rename only for the exact semantic cohort they renamed.
    * This cannot turn one Slack channel or Gmail message into a domain-wide rule.
    */
-  static async learnGroupRename(tabs, category, color) {
+  static async learnGroupRename(tabs, category, color, options) {
     if (!tabs?.length || !category) return;
+    const origin = await writeOrigin(options);
     const signature = await buildGroupSignature(tabs);
-    const { preferences, epoch } = await readGroupPreferences();
-    const next = preferences.filter(pref => pref.signature !== signature);
-    next.unshift({
-      signature,
-      category: String(category).slice(0, 40),
-      color: color || 'blue',
-      updatedAt: Date.now(),
-      g: epoch
+    await serializeWrite(async () => {
+      const { preferences, epoch } = await readGroupPreferences();
+      if (epoch !== origin) return;
+      const next = preferences.filter(pref => pref.signature !== signature);
+      next.unshift({
+        signature,
+        category: String(category).slice(0, 40),
+        color: color || 'blue',
+        updatedAt: Date.now(),
+        g: epoch
+      });
+      if (!await setUnlessReset(epoch, {
+        [GROUP_PREFERENCES_KEY]: next.slice(0, MAX_GROUP_PREFERENCES)
+      })) return;
+      if (await readResetEpoch() !== epoch) return;
+      await chrome.storage.local.remove(EXACT_RESULTS_KEY);
     });
-    await setUnlessReset(epoch, {
-      [GROUP_PREFERENCES_KEY]: next.slice(0, MAX_GROUP_PREFERENCES)
-    });
-    await chrome.storage.local.remove(EXACT_RESULTS_KEY);
   }
 
   static async applyGroupPreferences(groups, tabs) {
@@ -685,7 +754,8 @@ export class ExactResultCache {
     const groups = [];
     const assigned = new Set();
     for (const cachedGroup of record.groups || []) {
-      const { fingerprints = [], ...cachedDetails } = cachedGroup;
+      const { fingerprints = [] } = cachedGroup;
+      const cachedDetails = { name: cachedGroup.name, color: cachedGroup.color, ...planGroupMetadata(cachedGroup) };
       const tabIds = [];
       for (const fingerprint of fingerprints) {
         const id = idsByFingerprint.get(fingerprint)?.shift();
@@ -701,25 +771,30 @@ export class ExactResultCache {
     return { groups, context };
   }
 
-  static async put(context, groups) {
+  static async put(context, groups, options) {
     if (!context?.signature || !Array.isArray(groups)) return;
+    const origin = await writeOrigin(options);
     const fingerprintById = new Map(context.entries.map(entry => [entry.tab.id, entry.fingerprint]));
     const cachedGroups = groups.map(group => ({
       name: group.name,
       color: group.color,
+      ...planGroupMetadata(group),
       fingerprints: (group.tabIds || []).map(id => fingerprintById.get(id)).filter(Boolean)
     })).filter(group => group.fingerprints.length > 0);
 
-    const read = await readExactResults(Date.now());
-    const records = read.records.filter(record => record.signature !== context.signature);
-    records.unshift({
-      signature: context.signature,
-      scope: context.scope,
-      createdAt: Date.now(),
-      g: read.epoch,
-      groups: cachedGroups
+    await serializeWrite(async () => {
+      const { records: stored, epoch } = await readExactResults(Date.now());
+      if (epoch !== origin) return;
+      const records = stored.filter(record => record.signature !== context.signature);
+      records.unshift({
+        signature: context.signature,
+        scope: context.scope,
+        createdAt: Date.now(),
+        g: epoch,
+        groups: cachedGroups
+      });
+      await setUnlessReset(epoch, { [this.STORAGE_KEY]: records.slice(0, MAX_EXACT_RESULTS) });
     });
-    await setUnlessReset(read.epoch, { [this.STORAGE_KEY]: records.slice(0, MAX_EXACT_RESULTS) });
   }
 
   static async clear() {
@@ -751,10 +826,9 @@ async function readLabelEntries(now) {
 }
 
 /**
- * Remembers the category label a model gave each tab, keyed by the same
- * content fingerprint as the exact cache. Labels are context-free (no window
- * vocabulary, greedy decoding), so a label from any batch, window, click or
- * engine can be reused. Engine, model and effort changes do not invalidate it.
+ * Remembers model categories within a semantic engine scope. Separate scope
+ * keys preserve an earlier engine's labels when another engine is selected
+ * and prevent a late old request from overwriting a newer engine's result.
  */
 export class TabLabelCache {
   static STORAGE_KEY = TAB_LABELS_KEY;
@@ -767,12 +841,11 @@ export class TabLabelCache {
 
   /**
    * Split tabs into cached labels and tabs that still need a model.
-   * acceptEngines is null for local engines (every label is accepted). For
-   * cloud engines it lists the cloud provider IDs, so a cloud user never
-   * silently gets a Nano-quality label.
+   * Runtime callers supply scope; legacy unscoped labels then miss. The
+   * optional engine filter remains available for unscoped cache consumers.
    * @returns {Promise<{labels: Map<number, {c: string, e: string|null}>, missing: object[], fingerprintById: Map<number, string>}>}
    */
-  static async lookup(tabs, { acceptEngines = null } = {}) {
+  static async lookup(tabs, { acceptEngines = null, scope = null } = {}) {
     const list = Array.isArray(tabs) ? tabs : [];
     const accepted = acceptEngines == null
       ? null
@@ -789,7 +862,7 @@ export class TabLabelCache {
     list.forEach((tab, index) => {
       const fingerprint = fingerprints[index];
       if (fingerprint) fingerprintById.set(tab.id, fingerprint);
-      const entry = fingerprint ? entries.get(fingerprint) : null;
+      const entry = fingerprint ? entries.get(labelEntryKey(fingerprint, scope)) : null;
       if (entry && (accepted === null || accepted.has(entry.e))) {
         labels.set(tab.id, { c: entry.c, e: entry.e ?? null });
       } else {
@@ -805,7 +878,7 @@ export class TabLabelCache {
    * @param {Map<number, string>} fingerprintById from lookup()
    * @param {string} engine provider ID that produced the labels
    */
-  static async store(labelsById, fingerprintById, engine) {
+  static async store(labelsById, fingerprintById, engine, options) {
     if (!(labelsById instanceof Map) || !(fingerprintById instanceof Map)) return;
     const fresh = [];
     for (const [id, c] of labelsById) {
@@ -814,11 +887,13 @@ export class TabLabelCache {
     }
     if (fresh.length === 0) return;
     const e = typeof engine === 'string' && engine ? engine : null;
+    const origin = await writeOrigin(options);
 
     await serializeWrite(async () => {
       const now = Date.now();
       const { entries, epoch } = await readLabelEntries(now);
-      for (const [fingerprint, c] of fresh) entries.set(fingerprint, { c, t: now, e });
+      if (epoch !== origin) return;
+      for (const [fingerprint, c] of fresh) entries.set(labelEntryKey(fingerprint, options?.scope), { c, t: now, e });
       const kept = [...entries]
         .sort((a, b) => Number(b[1].t) - Number(a[1].t))
         .slice(0, MAX_TAB_LABELS);
@@ -831,6 +906,15 @@ export class TabLabelCache {
   static async clear() {
     await serializeWrite(() => chrome.storage.local.remove(TAB_LABELS_KEY));
   }
+}
+
+function semanticScope(value) {
+  return typeof value === 'string' && value.length > 0 && value.length <= 128 ? value : null;
+}
+
+function labelEntryKey(fingerprint, scope) {
+  const selected = semanticScope(scope);
+  return selected ? `${selected}:${fingerprint}` : fingerprint;
 }
 
 const TOKEN_HASH_PATTERN = /^[0-9a-f]{8}$/;
@@ -855,6 +939,22 @@ function uniqueStrings(values, limit, accept) {
 /** Sorted, de-duplicated candidate keys. */
 function planKeyList(values, limit = Infinity) {
   return [...new Set(toList(values).filter(isPlanKey))].sort().slice(0, limit);
+}
+
+/** Only semantic identifiers and provenance, never title/URL/token payloads. */
+function planGroupMetadata(group) {
+  const metadata = {};
+  if (isPlanKey(group?.key)) metadata.key = group.key;
+  if (Array.isArray(group?.keys) || group?.keys instanceof Set) metadata.keys = planKeyList(group.keys, MAX_NAME_KEYS);
+  if (Array.isArray(group?.categories) || group?.categories instanceof Set) {
+    const categories = new Set(group.categories);
+    metadata.categories = CATEGORY_KEYS.filter(key => categories.has(key));
+  }
+  if (group?.dominant !== undefined) metadata.dominant = CATEGORY_KEY_SET.has(group.dominant) ? group.dominant : null;
+  if (group?.kind !== undefined) metadata.kind = ['task', 'category', 'folder', 'site', 'split', 'rule', 'social', 'review'].includes(group.kind) ? group.kind : null;
+  if (typeof group?.locked === 'boolean') metadata.locked = group.locked;
+  if (['deterministic', 'model', 'memory-model', 'memory-user', 'user'].includes(group?.nameSource)) metadata.nameSource = group.nameSource;
+  return metadata;
 }
 
 const TRAILING_JOINERS = /[\s&·|:;,/+\-\u2013\u2014\u200D]+$/u;
@@ -905,7 +1005,7 @@ function normalizeNameRecord(raw) {
   const user = raw.s === 'user';
   const n = user ? normalizeUserGroupName(raw.n) : normalizeStoredName(raw.n);
   if (!n) return null;
-  return {
+  const record = {
     k: planKeyList(raw.k, MAX_NAME_KEYS),
     w: uniqueStrings(raw.w, MAX_NAME_TOKEN_HASHES, value => TOKEN_HASH_PATTERN.test(value)),
     f: user ? uniqueStrings(raw.f, MAX_NAME_FINGERPRINTS, value => value.length <= 80) : [],
@@ -914,6 +1014,9 @@ function normalizeNameRecord(raw) {
     s: user ? 'user' : (MODEL_NAME_SOURCES.has(raw.s) ? raw.s : 'cloud'),
     t: Number(raw.t) || 0
   };
+  const scope = user ? null : semanticScope(raw.p);
+  if (scope) record.p = scope;
+  return record;
 }
 
 function isFreshNameRecord(record, now) {
@@ -929,7 +1032,7 @@ function setJaccard(a, b) {
 
 /** A newer model name for the same group replaces the older one. */
 function sameModelGroup(a, b) {
-  return a.k.join('|') === b.k.join('|') && setJaccard(a.w, b.w) >= 0.5;
+  return a.p === b.p && a.k.join('|') === b.k.join('|') && setJaccard(a.w, b.w) >= 0.5;
 }
 
 /** A newer rename of the same tabs replaces the older one (the transfer rule's 50% overlap). */
@@ -981,9 +1084,34 @@ function parsePlanMemory(record, epoch, now) {
     .map(normalizeNameRecord)
     .filter(item => item && isFreshNameRecord(item, now))
     .sort((a, b) => b.t - a.t);
-  const storedAdvice = record.advice?.cloud && typeof record.advice.cloud === 'object' ? record.advice.cloud : {};
-  const cloud = Object.fromEntries([...adviceEntries(storedAdvice)].slice(0, MAX_ADVICE_PAIRS));
-  return { v: PLAN_MEMORY_VERSION, names, advice: { cloud, t: Number(record.advice?.t) || 0 } };
+  return { v: PLAN_MEMORY_VERSION, names, advice: normalizeAdvice(record.advice, now) };
+}
+
+/** Bound advice across all scopes and expire model decisions with names. */
+function normalizeAdvice(raw, now) {
+  const legacy = { cloud: {}, t: Number(raw?.t) || 0 };
+  const buckets = [];
+  if (now - legacy.t <= MODEL_NAME_TTL_MS) buckets.push({ scope: null, ...legacy, entries: adviceEntries(raw?.cloud) });
+  for (const [scope, bucket] of Object.entries(raw?.scopes || {})) {
+    const t = Number(bucket?.t) || 0;
+    if (!semanticScope(scope) || now - t > MODEL_NAME_TTL_MS) continue;
+    buckets.push({ scope, t, entries: adviceEntries(bucket?.cloud) });
+  }
+  buckets.sort((a, b) => b.t - a.t);
+  let remaining = MAX_ADVICE_PAIRS;
+  const scopes = {};
+  for (const bucket of buckets) {
+    if (remaining === 0) break;
+    if (bucket.scope && Object.keys(scopes).length >= MAX_ADVICE_SCOPES) continue;
+    const pairs = [...bucket.entries].slice(0, remaining);
+    remaining -= pairs.length;
+    if (pairs.length === 0) continue;
+    const value = { cloud: Object.fromEntries(pairs), t: bucket.t };
+    if (bucket.scope) scopes[bucket.scope] = value;
+    else Object.assign(legacy, value);
+  }
+  if (Object.keys(scopes).length > 0) legacy.scopes = scopes;
+  return legacy;
 }
 
 async function writePlanMemory(memory, epoch) {
@@ -1001,28 +1129,38 @@ export class PlanMemory {
   static STORAGE_KEY = PLAN_MEMORY_KEY;
 
   /** @returns {Promise<{v: number, names: object[], advice: {cloud: Object<string, string>, t: number}}>} */
-  static async read() {
+  static async read({ scope = null } = {}) {
     await settledWrites();
-    return (await readPlanMemoryState(Date.now())).memory;
+    const memory = (await readPlanMemoryState(Date.now())).memory;
+    const selected = semanticScope(scope);
+    if (!selected) return memory;
+    return {
+      ...memory,
+      names: memory.names.filter(record => record.s === 'user' || record.p === selected),
+      advice: memory.advice.scopes?.[selected] || { cloud: {}, t: 0 }
+    };
   }
 
   /**
    * Remember model names ({k, w, n, c, s: 'cloud' | 'nano'}). User renames go
    * through recordUserRename instead, so any other source is stored as 'cloud'.
    */
-  static async putNames(records) {
+  static async putNames(records, options) {
     const now = Date.now();
     const incoming = toList(records)
       .map(record => normalizeNameRecord({
         ...record,
+        p: semanticScope(options?.scope) || record?.p,
         s: MODEL_NAME_SOURCES.has(record?.s) ? record.s : 'cloud',
         t: now
       }))
       .filter(Boolean);
     if (incoming.length === 0) return;
+    const origin = await writeOrigin(options);
 
     await serializeWrite(async () => {
       const { memory, epoch } = await readPlanMemoryState(now);
+      if (epoch !== origin) return;
       let names = memory.names;
       for (const record of incoming) {
         names = names.filter(old => old.s === 'user' || !sameModelGroup(old, record));
@@ -1039,22 +1177,29 @@ export class PlanMemory {
    * the opposite direction retires the old one, and a self-pair clears the
    * candidate's stored advice.
    */
-  static async putAdvice(pairs) {
+  static async putAdvice(pairs, options) {
     const incoming = adviceEntries(pairs);
     if (incoming.size === 0) return;
+    const origin = await writeOrigin(options);
 
     await serializeWrite(async () => {
       const now = Date.now();
       const { memory, epoch } = await readPlanMemoryState(now);
+      if (epoch !== origin) return;
       const next = new Map();
       for (const [candidate, anchor] of incoming) {
         if (candidate !== anchor) next.set(candidate, anchor);
       }
-      for (const [candidate, anchor] of Object.entries(memory.advice.cloud)) {
+      const scope = semanticScope(options?.scope);
+      const previous = scope ? memory.advice.scopes?.[scope] : memory.advice;
+      for (const [candidate, anchor] of Object.entries(previous?.cloud || {})) {
         if (incoming.has(candidate) || next.get(anchor) === candidate) continue;
         next.set(candidate, anchor);
       }
-      memory.advice = { cloud: Object.fromEntries([...next].slice(0, MAX_ADVICE_PAIRS)), t: now };
+      const updated = { cloud: Object.fromEntries([...next].slice(0, MAX_ADVICE_PAIRS)), t: now };
+      memory.advice = normalizeAdvice(scope
+        ? { ...memory.advice, scopes: { ...memory.advice.scopes, [scope]: updated } }
+        : { ...updated, ...(memory.advice.scopes ? { scopes: memory.advice.scopes } : {}) }, now);
       await writePlanMemory(memory, epoch);
     });
   }
@@ -1063,10 +1208,11 @@ export class PlanMemory {
    * Remember a user rename for the tabs it covered. The record matches a later
    * group whose fingerprints overlap it by at least half of the smaller set.
    */
-  static async recordUserRename({ tabs, name, color, keys } = {}) {
+  static async recordUserRename({ tabs, name, color, keys } = {}, options) {
     const list = Array.isArray(tabs) ? tabs.filter(Boolean) : [];
     // Nothing from an incognito window is remembered.
     if (list.length === 0 || list.some(tab => tab.incognito)) return;
+    const origin = await writeOrigin(options);
     const fingerprints = await Promise.all(list.map(fingerprintTab));
     const record = normalizeNameRecord({
       k: keys,
@@ -1081,6 +1227,7 @@ export class PlanMemory {
 
     await serializeWrite(async () => {
       const { memory, epoch } = await readPlanMemoryState(record.t);
+      if (epoch !== origin) return;
       const names = memory.names.filter(old => old.s !== 'user' || !sameUserCohort(old, record));
       names.unshift(record);
       memory.names = capNameRecords(names);
@@ -1104,7 +1251,7 @@ function toWindowId(windowId) {
 
 /**
  * The latest plan for each window, in storage.session: tab IDs, names and
- * keys only, cleared when the browser restarts. Used by auto-grouping, by the
+ * semantic metadata only, cleared when the browser restarts. Used by auto-grouping, by the
  * rename key lookup and by the background refresh signature check.
  */
 export class WindowPlanStore {
@@ -1114,25 +1261,30 @@ export class WindowPlanStore {
     return `${WINDOW_PLAN_PREFIX}${windowId}`;
   }
 
-  /** @returns {Promise<{v: number, windowId: number, updatedAt: number, K: number|null, signature: string, groups: object[]}|null>} */
+  /** @returns {Promise<{v: number, g: number, windowId: number, updatedAt: number, K: number|null, signature: string, groups: object[]}|null>} */
   static async get(windowId) {
     const area = sessionArea();
     const id = toWindowId(windowId);
     if (!area || id === null) return null;
+    await settledWrites();
     const key = this.keyFor(id);
     const record = (await area.get(key))[key];
-    if (!record || record.v !== WINDOW_PLAN_VERSION || record.windowId !== id || !Array.isArray(record.groups)) {
+    const epoch = await readResetEpoch();
+    if (!record || record.v !== WINDOW_PLAN_VERSION || epochOf(record.g) !== epoch
+      || record.windowId !== id || !Array.isArray(record.groups)) {
       return null;
     }
     return record;
   }
 
-  static async put(windowId, plan) {
+  static async put(windowId, plan, options) {
     const area = sessionArea();
     const id = toWindowId(windowId);
     if (!area || id === null || !Array.isArray(plan?.groups)) return;
+    const origin = await writeOrigin(options);
     const record = {
       v: WINDOW_PLAN_VERSION,
+      g: origin,
       windowId: id,
       updatedAt: Date.now(),
       K: Number.isFinite(plan.K) ? plan.K : null,
@@ -1141,13 +1293,17 @@ export class WindowPlanStore {
       groups: plan.groups.map(group => ({
         name: typeof group?.name === 'string' ? group.name : '',
         color: CHROME_COLORS.has(group?.color) ? group.color : null,
-        keys: planKeyList(group?.keys),
+        ...planGroupMetadata(group),
+        keys: planKeyList(group?.keys, MAX_NAME_KEYS),
         tabIds: toList(group?.tabIds).filter(Number.isInteger),
-        dominant: typeof group?.dominant === 'string' ? group.dominant : null,
-        kind: typeof group?.kind === 'string' ? group.kind : null
+        dominant: CATEGORY_KEY_SET.has(group?.dominant) ? group.dominant : null,
+        kind: planGroupMetadata(group).kind || null
       }))
     };
-    await area.set({ [this.keyFor(id)]: record });
+    await serializeWrite(async () => {
+      if (await readResetEpoch() !== origin) return;
+      await setUnlessReset(origin, { [this.keyFor(id)]: record }, area);
+    });
   }
 
   static async remove(windowId) {

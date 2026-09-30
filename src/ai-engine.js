@@ -8,9 +8,10 @@
  *  3. OpenAI-compatible cloud providers and local endpoints
  */
 
-import { sanitizeTitle, sanitizeUrl } from './cache-engine.js';
+import { fingerprintTab, hashToken, readResetEpoch, sanitizeTitle, sanitizeUrl } from './cache-engine.js';
+import { beginProviderUsage, recordProviderUsage } from './provider-usage.js';
 import { noopTrace } from './debug-trace.js';
-import { buildLabelSystem, CATEGORY_KEYS, normalizeCategoryKey } from './label-vocabulary.js';
+import { buildLabelSystem, CATEGORY_KEYS, LABEL_VOCAB_VERSION, normalizeCategoryKey } from './label-vocabulary.js';
 
 export { buildLabelSystem };
 
@@ -245,6 +246,38 @@ export function getEffectiveReasoningEffort(provider, model, savedValue) {
   // the live alias resolves to a known, generation-specific model ID.
   if (provider === 'gemini_api' && isGeminiLegacyLowDefault(model)) return 'low';
   return null;
+}
+
+/**
+ * Semantic cache identity. Repeated cleanups keep their labels, while a
+ * deliberate engine, model, effort or endpoint change asks that engine anew.
+ * Credentials and processing priority do not affect classification quality
+ * and never enter this persisted identity.
+ */
+export function labelCacheScope(settings = {}) {
+  const provider = settings.provider || 'gemini_nano';
+  const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
+  const model = provider === 'gemini_api'
+    ? settings.geminiModel || config.defaultModel
+    : config.mode === 'compatible'
+      ? settings[providerSettingKey(provider, 'model')] || config.defaultModel
+      : provider;
+  const savedEffort = provider === 'gemini_api'
+    ? settings.geminiReasoningEffort
+    : settings[providerSettingKey(provider, 'reasoningEffort')];
+  const effort = getEffectiveReasoningEffort(provider, model, savedEffort);
+  let endpoint = config.mode === 'compatible'
+    ? settings[providerSettingKey(provider, 'baseUrl')] || config.baseUrl
+    : provider === 'gemini_api' ? 'https://generativelanguage.googleapis.com/v1beta' : provider;
+  try {
+    const url = new URL(endpoint);
+    // Endpoint credentials, query values and fragments are never cache data.
+    endpoint = `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    endpoint = String(endpoint || '').split(/[?#]/, 1)[0].replace(/\/+$/, '');
+  }
+  const semantic = JSON.stringify([LABEL_VOCAB_VERSION, provider, model, effort]);
+  return `labels-v2:${provider}:${hashToken(semantic)}:${hashToken(endpoint)}`;
 }
 
 /**
@@ -760,9 +793,9 @@ export function compactUrlHint(rawUrl, { maxSegments = 3 } = {}) {
 export const MAX_GROUPS = 10;
 
 /**
- * The most groups a window of n groupable tabs may get: about sqrt(2n), never
- * more than MAX_GROUPS and never fewer than 2 tabs per group on average.
- * It is a ceiling, not a quota; a less varied window gets fewer groups.
+ * Preferred compactness target: about sqrt(2n), capped at MAX_GROUPS, with
+ * at least two tabs per group on average. Distinct subjects may exceed this
+ * target rather than being merged into an unrelated folder.
  */
 export function groupCeiling(n) {
   const count = Number(n) || 0;
@@ -770,7 +803,7 @@ export function groupCeiling(n) {
   return Math.max(1, Math.min(MAX_GROUPS, Math.floor(Math.sqrt(2 * count)), Math.floor(count / 2)));
 }
 
-/** Smallest group the planner keeps on its own before folding it into a neighbour. */
+/** Preferred minimum size; a small distinct subject may remain on its own. */
 export function minGroupSize(n) {
   if (n <= 12) return 2;
   if (n <= 40) return 3;
@@ -788,7 +821,7 @@ export function getMaxGroupSize(tabCount) {
 
 const GENERIC_GROUP_NAMES = new Set([
   'general', 'other', 'misc', 'miscellaneous', 'work', 'research',
-  'tabs', 'browsing', 'stuff', 'various', 'mixed', 'unsorted'
+  'tabs', 'browsing', 'stuff', 'various', 'mixed', 'unsorted', 'technology', 'tech'
 ]);
 
 export function isGenericGroupName(name) {
@@ -933,8 +966,8 @@ export function assessGroupingQuality(groups, tabsOrCount) {
     codes.add('oversized');
   }
   // There is no lower bound: a less varied window correctly gets fewer groups.
-  if ((groups || []).length > range.max) {
-    issues.push(`${(groups || []).length} groups exceed the maximum of ${range.max}`);
+  if ((groups || []).length > MAX_GROUPS) {
+    issues.push(`${(groups || []).length} groups exceed the maximum of ${MAX_GROUPS}`);
     codes.add('too_many');
   }
   return { passed: issues.length === 0, issues, codes: [...codes], range };
@@ -1012,17 +1045,27 @@ function anySignal(signals) {
   return controller.signal;
 }
 
-async function fetchProviderRequest(url, options, consumeResponse, reasoningEffort = null, signal = null) {
+async function fetchProviderRequest(url, options, consumeResponse, reasoningEffort = null, signal = null, usageContext = null, onDispatch = null) {
+  if (signal?.aborted) throw abortReason(signal);
+  const usageEpoch = usageContext ? await beginProviderUsage().catch(() => null) : null;
   if (signal?.aborted) throw abortReason(signal);
   const timeoutMs = providerRequestTimeoutMs(reasoningEffort);
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
   const combined = anySignal([timeoutController.signal, signal]);
+  let sent = false;
+  let usage = null;
+  let serviceTier = null;
   try {
     // Racing as well as passing the signal frees the click even when a
     // response body stalls after the headers arrived.
+    onDispatch?.();
+    sent = true;
     const response = await untilAborted(fetch(url, { ...options, signal: combined }), combined);
-    return await untilAborted(consumeResponse(response), combined);
+    const data = await untilAborted(consumeResponse(response), combined);
+    usage = normalizeUsage(data?.usageMetadata || data?.usage);
+    serviceTier = data?.service_tier;
+    return data;
   } catch (error) {
     if (signal?.aborted) throw abortReason(signal);
     if (timeoutController.signal.aborted) {
@@ -1031,6 +1074,10 @@ async function fetchProviderRequest(url, options, consumeResponse, reasoningEffo
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    if (sent && usageContext) {
+      // Diagnostics must not turn a successful provider response into a failure.
+      await recordProviderUsage(usageContext.provider, usage, usageEpoch, serviceTier).catch(() => {});
+    }
   }
 }
 
@@ -1046,6 +1093,7 @@ function normalizeUsage(usage) {
     completionTokens: Number(usage.completion_tokens ?? usage.candidatesTokenCount ?? 0),
     totalTokens: Number(usage.total_tokens ?? usage.totalTokenCount ?? 0),
     cachedTokens: Number(usage.prompt_tokens_details?.cached_tokens ?? usage.cachedContentTokenCount ?? 0),
+    cacheWriteTokens: Number(usage.prompt_tokens_details?.cache_write_tokens ?? usage.input_tokens_details?.cache_write_tokens ?? 0),
     reasoningTokens: Number.isFinite(Number(reasoningTokens)) ? Number(reasoningTokens) : null
   };
 }
@@ -1060,6 +1108,7 @@ function sumUsage(usages) {
     completionTokens: sum('completionTokens'),
     totalTokens: sum('totalTokens'),
     cachedTokens: sum('cachedTokens'),
+    cacheWriteTokens: sum('cacheWriteTokens'),
     reasoningTokens: reasoning.every(Number.isFinite) ? reasoning.reduce((a, b) => a + b, 0) : null
   };
 }
@@ -1673,22 +1722,30 @@ export function consolidateOutputBudget(rowCount) {
   return Math.min(1536, Math.max(768, 400 + 40 * rowCount));
 }
 
-async function requestGeminiJson(request, { system, user, geminiSchema, signal }) {
+async function requestGeminiJson(request, { system, user, geminiSchema, outputBudget, signal, recordUsage, onDispatch }) {
   const { apiKey, model, savedEffort } = request;
   if (!apiKey) throw new Error('Gemini API key is not configured');
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const reasoningEffort = getEffectiveReasoningEffort('gemini_api', model, savedEffort);
+  const generationConfig = getGeminiGenerationConfig(model, {
+    responseMimeType: 'application/json',
+    ...(geminiSchema ? { responseSchema: geminiSchema } : {}),
+    maxOutputTokens: scaleOutputBudget(outputBudget, reasoningEffort),
+    temperature: 0
+  }, savedEffort);
+  // Gemini 2.5's explicit thinking budget shares the total output limit.
+  // Reserve the requested reasoning budget as well as room for the JSON.
+  const thinkingBudget = generationConfig.thinkingConfig?.thinkingBudget;
+  if (Number.isFinite(thinkingBudget) && thinkingBudget > 0) {
+    generationConfig.maxOutputTokens += thinkingBudget;
+  }
   const payload = {
     system_instruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: getGeminiGenerationConfig(model, {
-      responseMimeType: 'application/json',
-      ...(geminiSchema ? { responseSchema: geminiSchema } : {}),
-      temperature: 0
-    }, savedEffort)
+    generationConfig
   };
 
-  const reasoningEffort = getEffectiveReasoningEffort('gemini_api', model, savedEffort);
   const data = await fetchProviderRequest(endpoint, {
     method: 'POST',
     headers: {
@@ -1701,7 +1758,7 @@ async function requestGeminiJson(request, { system, user, geminiSchema, signal }
       throw new Error(`Gemini API HTTP ${response.status}: ${await getSafeApiError(response)}`);
     }
     return response.json();
-  }, reasoningEffort, signal);
+  }, reasoningEffort, signal, recordUsage ? { provider: 'gemini_api' } : null, onDispatch);
 
   // Thinking models may return thought parts; only the answer parts are JSON.
   const parts = data?.candidates?.[0]?.content?.parts || [];
@@ -1719,7 +1776,7 @@ function rejectsResponseFormat(error) {
   return error?.status === 400 && /response_format|json_schema/i.test(`${error.param || ''} ${error.message || ''}`);
 }
 
-async function requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, cacheKey, signal }) {
+async function requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, cacheKey, signal, recordUsage, onDispatch }) {
   const { provider, config, apiKey, model, baseUrl, savedEffort, priority, keepAlive } = request;
   if (!apiKey && !config.keyOptional) throw new Error(`${config.name} API key is not configured`);
   if (provider === 'openai' && isOpenAIResponsesOnlyModel(model)) {
@@ -1754,7 +1811,7 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
     // One cache key per request shape, so the static system prefix is reused.
     if (cacheKey) payload.prompt_cache_key = cacheKey;
     // Priority processing trades a higher per-token price for lower latency.
-    if (priority) payload.service_tier = 'priority';
+    payload.service_tier = priority ? 'priority' : 'default';
   }
   const budget = scaleOutputBudget(outputBudget, reasoningEffort);
   if (provider === 'openai' || provider === 'groq') payload.max_completion_tokens = budget;
@@ -1783,7 +1840,7 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
       throw error;
     }
     return response.json();
-  }, reasoningEffort, signal);
+  }, reasoningEffort, signal, recordUsage ? { provider } : null, onDispatch);
 
   let data;
   try {
@@ -1819,13 +1876,23 @@ export async function requestProviderJson(settings, {
   geminiSchema = null,
   outputBudget = 1536,
   cacheKey = '',
-  signal = null
+  signal = null,
+  recordUsage = true,
+  onDispatch = null
 } = {}) {
   const request = resolveProviderRequest(settings);
   const startedAt = performance.now();
+  // One logical batch may retry an unsupported response schema. Its owner
+  // counts one dispatch; the usage ledger records both actual HTTP attempts.
+  let dispatched = false;
+  const dispatch = () => {
+    if (dispatched) return;
+    dispatched = true;
+    onDispatch?.();
+  };
   const envelope = request.provider === 'gemini_api'
-    ? await requestGeminiJson(request, { system, user, geminiSchema, signal })
-    : await requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, cacheKey, signal });
+    ? await requestGeminiJson(request, { system, user, geminiSchema, outputBudget, signal, recordUsage, onDispatch: dispatch })
+    : await requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, cacheKey, signal, recordUsage, onDispatch: dispatch });
   return { ...envelope, latencyMs: Math.round(performance.now() - startedAt) };
 }
 
@@ -1842,12 +1909,14 @@ export function cloudLabelBatchSize(count, batchSize = null) {
  * in between and stops at the first failed batch. Every batch sees only the
  * fixed vocabulary, so batches cannot drift apart ('Travel' vs 'Trips').
  */
-export async function labelTabsWithCloud(tabs, settings, {
+async function requestCloudLabels(tabs, settings, {
   signal = null,
   trace = noopTrace,
   batchSize = null,
   onBatch = null,
-  sequential = false
+  sequential = false,
+  recordUsage = true,
+  onDispatch = null
 } = {}) {
   const startedAt = performance.now();
   let request;
@@ -1870,7 +1939,9 @@ export async function labelTabsWithCloud(tabs, settings, {
       geminiSchema: geminiLabelSchema(batch.length),
       outputBudget: labelOutputBudget(batch.length),
       cacheKey: 'foldnex-labels',
-      signal
+      signal,
+      recordUsage,
+      onDispatch
     });
     const batchLabels = new Map();
     for (const [ordinal, key] of parseLabelResponse(response.json, batch.length)) {
@@ -1883,6 +1954,7 @@ export async function labelTabsWithCloud(tabs, settings, {
       ms: response.latencyMs,
       count: batch.length,
       index,
+      calls: 1,
       usage: response.usage
     });
     return response;
@@ -1944,6 +2016,111 @@ export async function labelTabsWithCloud(tabs, settings, {
   };
 }
 
+// Only active work is shared. Keys and tab input stay in this worker's memory;
+// they are never persisted, logged, or shared with incognito requests.
+const pendingCloudLabels = new Map();
+const pendingConsolidations = new Map();
+
+function requestIdentity(settings, epoch) {
+  const { provider, apiKey, model, baseUrl, savedEffort, priority, keepAlive } = resolveProviderRequest(settings);
+  return JSON.stringify([provider, apiKey, model, baseUrl, savedEffort, priority, keepAlive, epoch]);
+}
+
+async function originEpoch(epoch) {
+  return epoch ?? (globalThis.chrome?.storage?.local ? await readResetEpoch() : 0);
+}
+
+export async function labelTabsWithCloud(tabs, settings, options = {}) {
+  if (options.recordUsage === false || tabs.some(tab => tab.incognito)) {
+    return requestCloudLabels(tabs, settings, { ...options, recordUsage: false });
+  }
+  const startedAt = performance.now();
+  const snapshot = { ...settings };
+  const epoch = await originEpoch(options.epoch);
+  const identity = requestIdentity(snapshot, epoch);
+  const fingerprints = await Promise.all(tabs.map(fingerprintTab));
+  const keys = fingerprints.map(fp => `${identity}:${fp}`);
+  const entries = new Map();
+  const fresh = [];
+  const found = new Map();
+  const shared = new Set();
+  for (const [index, tab] of tabs.entries()) {
+    const key = keys[index];
+    if (entries.has(key)) continue;
+    let entry = pendingCloudLabels.get(key);
+    if (entry?.signal?.aborted) entry = null;
+    if (entry) {
+      entries.set(key, entry);
+      shared.add(key);
+      continue;
+    }
+    let resolve, reject;
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+    promise.catch(() => {});
+    entry = { promise, resolve, reject, signal: options.signal, tab };
+    entries.set(key, entry);
+    pendingCloudLabels.set(key, entry);
+    fresh.push(tab);
+  }
+  const keyByFreshId = new Map(fresh.map(tab => [tab.id, keys[tabs.indexOf(tab)]]));
+  const owned = fresh.length ? requestCloudLabels(fresh, snapshot, {
+    ...options,
+    onBatch: async (labels, info) => {
+      const landedKeys = new Set(info.tabs.map(tab => keyByFreshId.get(tab.id)));
+      const delivered = new Map();
+      for (const key of landedKeys) {
+        const entry = entries.get(key);
+        entry.resolve(labels.get(entry.tab.id));
+      }
+      for (const [index, tab] of tabs.entries()) {
+        if (landedKeys.has(keys[index]) && labels.has(entries.get(keys[index]).tab.id)) {
+          const category = labels.get(entries.get(keys[index]).tab.id);
+          found.set(tab.id, category);
+          delivered.set(tab.id, category);
+        }
+      }
+      await notifyBatch(options.onBatch, delivered, { ...info, tabs: tabs.filter(tab => delivered.has(tab.id)) });
+    }
+  }).then(result => {
+    // Invalid/missing labels still settle their waiters instead of hanging.
+    for (const tab of fresh) entries.get(keyByFreshId.get(tab.id)).resolve(result.labels.get(tab.id));
+    return result;
+  }, error => {
+    for (const tab of fresh) entries.get(keyByFreshId.get(tab.id)).reject(error);
+    throw error;
+  }).finally(() => {
+    for (const tab of fresh) {
+      const key = keyByFreshId.get(tab.id);
+      if (pendingCloudLabels.get(key) === entries.get(key)) pendingCloudLabels.delete(key);
+    }
+  }) : null;
+  const sharedWork = [...shared].map(async key => {
+    const category = await untilAborted(entries.get(key).promise, options.signal);
+    if (!category || options.signal?.aborted) return;
+    const delivered = new Map();
+    for (const [index, tab] of tabs.entries()) if (keys[index] === key) {
+      found.set(tab.id, category);
+      delivered.set(tab.id, category);
+    }
+    await notifyBatch(options.onBatch, delivered, {
+      tabs: tabs.filter(tab => delivered.has(tab.id)), ms: Math.round(performance.now() - startedAt),
+      count: delivered.size, calls: 0, usage: null, shared: true
+    });
+  });
+  const settled = await Promise.allSettled([...(owned ? [owned] : []), ...sharedWork]);
+  const ownResult = owned && settled[0].status === 'fulfilled' ? settled[0].value : null;
+  const error = options.signal?.aborted ? null
+    : settled.find(item => item.status === 'rejected')?.reason || ownResult?.error || null;
+  const labels = new Map(tabs.filter(tab => found.has(tab.id)).map(tab => [tab.id, found.get(tab.id)]));
+  const unlabelledIds = tabs.filter(tab => !labels.has(tab.id)).map(tab => tab.id);
+  if (error && labels.size === 0) throw withUnlabelledIds(error, unlabelledIds);
+  const request = resolveProviderRequest(snapshot);
+  return { labels, unlabelledIds, error, aborted: Boolean(options.signal?.aborted) || Boolean(ownResult?.aborted),
+    meta: { ...(ownResult?.meta || { provider: request.provider, model: request.model, usage: null,
+      calls: 0, reasoningEffort: getEffectiveReasoningEffort(request.provider, request.model, request.savedEffort) }),
+    latencyMs: Math.round(performance.now() - startedAt), sharedLabels: shared.size } };
+}
+
 /**
  * Label tabs with the selected engine. Nano runs sequential batches (16 by
  * default, never more than 20); cloud engines send one request for up to 40
@@ -1985,18 +2162,35 @@ export async function labelTabsWithAI(tabs, settings = {}, options = {}) {
  * `tabsById`. Returns null when there is nothing to consolidate; the raw
  * folders still need planner.enforceFolders.
  */
-export async function consolidateWithCloud(candidates, k, settings, { signal = null, trace = noopTrace, tabsById = null } = {}) {
+export async function consolidateWithCloud(candidates, k, settings, { signal = null, trace = noopTrace, tabsById = null, epoch = null, recordUsage = true, onDispatch = null } = {}) {
   if (!isCloudProvider(settings?.provider) || !Array.isArray(candidates) || candidates.length < 2) return null;
-  const response = await requestProviderJson(settings, {
+  const user = buildConsolidatePrompt(candidates, k, tabsById);
+  const key = `${requestIdentity(settings, await originEpoch(epoch))}:${k}:${user}`;
+  let pending = recordUsage ? pendingConsolidations.get(key) : null;
+  if (pending?.signal?.aborted) pending = null;
+  const shared = Boolean(pending);
+  if (!pending) {
+    pending = { signal, promise: requestProviderJson(settings, {
     system: CONSOLIDATE_SYSTEM,
-    user: buildConsolidatePrompt(candidates, k, tabsById),
+    user,
     schemaName: 'tab_folders',
     jsonSchema: consolidateJsonSchema(),
     geminiSchema: consolidateGeminiSchema(),
     outputBudget: consolidateOutputBudget(candidates.length),
     cacheKey: 'foldnex-consolidate',
-    signal
-  });
+    signal,
+    recordUsage,
+    onDispatch
+  }) };
+    if (recordUsage) {
+      pendingConsolidations.set(key, pending);
+      const entry = pending;
+      pending.promise.finally(() => {
+        if (pendingConsolidations.get(key) === entry) pendingConsolidations.delete(key);
+      }).catch(() => {});
+    }
+  }
+  const response = await untilAborted(pending.promise, signal);
   const folders = parseConsolidateResponse(response.json, candidates.length);
   trace.mark('consolidation_done', { rows: candidates.length, folders: folders.length, ms: response.latencyMs });
   return {
@@ -2004,9 +2198,9 @@ export async function consolidateWithCloud(candidates, k, settings, { signal = n
     meta: {
       provider: response.provider,
       model: response.model,
-      usage: response.usage,
+      usage: shared ? null : response.usage,
       latencyMs: response.latencyMs,
-      calls: 1,
+      calls: shared ? 0 : 1,
       reasoningEffort: response.reasoningEffort
     }
   };

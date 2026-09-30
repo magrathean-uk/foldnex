@@ -27,6 +27,8 @@ FILES=(
   src/grouper.js
   src/label-vocabulary.js
   src/planner.js
+  src/provider-usage.js
+  src/settings.js
   src/site-clusterer.js
   icons/icon16.png
   icons/icon32.png

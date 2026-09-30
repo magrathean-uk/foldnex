@@ -41,6 +41,7 @@ import { CATEGORY_KEYS } from '../src/label-vocabulary.js';
 const EXPECTED_LABEL_SYSTEM = [
   'You sort browser tabs into categories for a tab organiser.',
   'For each tab choose the one category key that matches what the page is for: its subject and purpose, not the website or the media type. A YouTube tutorial about React is dev. A video recipe is food. An encyclopedia or reference article is learn, whatever its subject.',
+  'Classify each tab independently. A category used by only one tab is valid; do not balance category sizes or combine unrelated purposes. If a title is vague, use the site/path function. Other tabs are not evidence for its category.',
   'Categories:',
   'dev: programming, code, repositories, software documentation',
   'ai: AI chat assistants, AI models and AI platforms',

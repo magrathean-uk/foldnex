@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
 
 import {
   CACHE_SCHEMA,
   ExactResultCache,
   LearningCache,
+  MAX_RULE_PATTERN_LENGTH,
   PlanMemory,
   TabLabelCache,
   WindowPlanStore,
   fingerprintTab,
   hashToken,
   normalizeUserGroupName,
+  readResetEpoch,
+  safeGlobToRegExp,
   sanitizeTitle
 } from '../src/cache-engine.js';
 import { LABEL_VOCAB_VERSION } from '../src/label-vocabulary.js';
@@ -78,6 +82,76 @@ test('hashToken is a synchronous 32-bit FNV-1a over UTF-8 as 8 hex characters', 
 test('sanitizeTitle strips the en-dash suffix German Wikipedia uses', () => {
   assert.equal(sanitizeTitle('Bundesrepublik Deutschland – Wikipedia'), 'Bundesrepublik Deutschland');
   assert.equal(sanitizeTitle('Rust programming language - Wikipedia'), 'Rust programming language');
+});
+
+test('readResetEpoch returns a numeric generation with zero for an absent or invalid value', async () => {
+  const { local } = installChromeStorageMock();
+  assert.equal(await readResetEpoch(), 0);
+  for (const value of [-1, 1.5, 'invalid', Number.MAX_SAFE_INTEGER + 1]) {
+    local.foldnex_reset_epoch = value;
+    assert.equal(await readResetEpoch(), 0);
+  }
+  local.foldnex_reset_epoch = 3;
+  assert.equal(await readResetEpoch(), 3);
+});
+
+test('wildcard matching stays bounded for a long separated-wildcard non-match', () => {
+  // Run the adversarial input in a bounded subprocess: a regression to a
+  // backtracking expression must fail the test instead of hanging the suite.
+  const moduleUrl = new URL('../src/cache-engine.js', import.meta.url).href;
+  const script = `import { safeGlobToRegExp } from ${JSON.stringify(moduleUrl)};
+    const matcher = safeGlobToRegExp('example.test/' + 'a*'.repeat(26) + 'b');
+    if (matcher.test('example.test/' + 'a'.repeat(6000))) process.exit(1);`;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], { timeout: 3000 });
+  assert.equal(result.error, undefined, 'the non-match must complete within the subprocess deadline');
+  assert.equal(result.status, 0, result.stderr?.toString());
+});
+
+test('wildcard matcher preserves literal punctuation, case, anchors and consecutive wildcard semantics', () => {
+  const literal = 'example.test/a.+?^${}()|[x]\\';
+  assert.equal(safeGlobToRegExp(literal).test(literal.toUpperCase()), true);
+  assert.equal(safeGlobToRegExp(literal).test('example.test/abx'), false);
+  const matcher = safeGlobToRegExp(' EXAMPLE.TEST/A***B*C ');
+  assert.equal(matcher.test('example.test/abc'), true, 'wildcards may be empty');
+  assert.equal(matcher.test('example.test/alongbmiddlec'), true);
+  assert.equal(matcher.test('beforeexample.test/abc'), false);
+  assert.equal(matcher.test('example.test/abcafter'), false);
+  assert.equal(matcher.test('example.test/a\nbc'), false);
+  assert.equal(safeGlobToRegExp('*ab*ab').test('ab'), false, 'literals cannot overlap');
+  assert.equal(safeGlobToRegExp('*ab*ab').test('abab'), true);
+  assert.equal(safeGlobToRegExp('Σ*').test('ςpath'), true);
+  assert.equal(safeGlobToRegExp('k*').test('Kpath'), false);
+  assert.equal(safeGlobToRegExp('i*').test('İpath'), false);
+});
+
+test('rule validation uses a shared length bound and rejects controls, malformed rules and supplied matchers', async () => {
+  const { local } = installChromeStorageMock();
+  const valid = { pattern: 'EXAMPLE.TEST/Projects/*', category: 'Projects', confidence: 1, source: 'manual_rule' };
+  const longPattern = `example.test/${'x'.repeat(MAX_RULE_PATTERN_LENGTH)}`;
+  assert.equal(safeGlobToRegExp('x'.repeat(MAX_RULE_PATTERN_LENGTH)).test('x'.repeat(MAX_RULE_PATTERN_LENGTH)), true);
+  for (const pattern of [null, 12, '', longPattern, 'example.test/a b', 'example.test/a\u0000', 'example.test/a\u007f', 'example.test/a\n']) {
+    assert.equal(safeGlobToRegExp(pattern), null);
+  }
+  const malformed = [null, 5, {}, { pattern: 9, category: 'Bad' }, { pattern: longPattern, category: 'Bad' }, { pattern: 'example.test/*' }];
+  local[CACHE_SCHEMA.learningSchemaKey] = CACHE_SCHEMA.version;
+  local[LearningCache.STORAGE_KEY] = [valid, ...malformed];
+  assert.deepEqual(await LearningCache.getRules(), [valid]);
+  local[LearningCache.STORAGE_KEY] = {};
+  assert.deepEqual(await LearningCache.getRules(), []);
+
+  const index = LearningCache.buildDomainIndex([
+    ...malformed,
+    { pattern: 'example.test/never/*', category: 'Bypass', _regex: { test: () => true } },
+    valid,
+    { pattern: 'EXAMPLE.TEST/Projects/Specific/***', category: 'Specific' },
+    { pattern: 'example.test/projects/specific/hidden/*', category: 'Low confidence', confidence: 0.1 }
+  ]);
+  assert.equal(LearningCache.matchUrl('https://example.test/projects', index).category, 'Projects');
+  assert.equal(LearningCache.matchUrl('https://example.test/PROJECTS/Specific/page', index).category, 'Specific');
+  assert.equal(LearningCache.matchUrl('https://example.test/projects/specific/hidden/page', index).category, 'Specific');
+  assert.equal(LearningCache.matchUrl('https://example.test/unrelated', index), null);
+  assert.equal(LearningCache.matchUrl('https://example.test/projects-other', index), null);
+  assert.equal(LearningCache.buildDomainIndex({}).size, 0);
 });
 
 test('TabLabelCache stores model labels by fingerprint and returns them on lookup', async () => {
@@ -414,9 +488,9 @@ test('WindowPlanStore keeps one plan per window in session storage only', async 
   assert.equal(stored.K, 4);
   assert.equal(stored.signature, 'cat:dev|cat:food');
   assert.ok(stored.updatedAt > 0);
-  assert.deepEqual(Object.keys(stored).sort(), ['K', 'groups', 'signature', 'updatedAt', 'v', 'windowId']);
+  assert.deepEqual(Object.keys(stored).sort(), ['K', 'g', 'groups', 'signature', 'updatedAt', 'v', 'windowId']);
   assert.deepEqual(stored.groups[0], {
-    name: 'Coding', color: 'blue', keys: ['cat:dev', 'task:1'], tabIds: [1, 2, 3], dominant: 'dev', kind: 'category'
+    name: 'Coding', color: 'blue', keys: ['cat:dev', 'task:1'], tabIds: [1, 2, 3], dominant: 'dev', kind: 'category', nameSource: 'deterministic'
   });
   assert.equal(stored.groups[2].kind, 'review');
   assert.ok(!JSON.stringify(session).includes('secret'));
@@ -595,6 +669,182 @@ test('records written before the reset epoch existed stay readable until the fir
 
   await LearningCache.resetRules();
   assert.deepEqual(await readAll(), { labels: 0, names: [], preferred: 'A', exact: false });
+});
+
+test('an explicit operation epoch fences delayed results while fresh results may reuse fingerprints and contexts', async () => {
+  const { local, session } = installChromeStorageMock();
+  const worker = await import('../src/cache-engine.js?context=origin-worker');
+  const options = await import('../src/cache-engine.js?context=origin-options');
+  const tabs = makeTabs(2);
+  const { fingerprintById } = await worker.TabLabelCache.lookup(tabs);
+  const context = await worker.ExactResultCache.makeContext(tabs, 'origin');
+  const groups = [{ name: 'Model Name', color: 'blue', tabIds: [1, 2], keys: ['cat:dev'] }];
+  const epoch = await worker.readResetEpoch();
+  assert.equal(epoch, 0);
+  await options.LearningCache.resetRules();
+  assert.equal(await worker.readResetEpoch(), 1);
+
+  const save = async origin => {
+    await worker.TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai', origin);
+    await worker.PlanMemory.putNames([{ k: ['cat:dev'], w: [], n: 'Model Name', s: 'cloud' }], origin);
+    await worker.PlanMemory.putAdvice({ 'cat:games': 'cat:video' }, origin);
+    await worker.PlanMemory.recordUserRename({ tabs, name: 'My Group', keys: ['cat:dev'] }, origin);
+    await worker.LearningCache.learnGroupRename(tabs, 'My Group', 'green', origin);
+    await worker.LearningCache.learnFromGroupings([{ name: 'Work', tabs: [{ url: 'https://example.test/work' }] }], origin);
+    await worker.LearningCache.learnUserCorrections(['https://example.test/work'], 'Work', 'blue', origin);
+    await worker.ExactResultCache.put(context, groups, origin);
+    await worker.WindowPlanStore.put(7, { groups, signature: 'origin' }, origin);
+  };
+  await save({ epoch });
+  assert.equal((await worker.TabLabelCache.lookup(tabs)).labels.size, 0);
+  assert.equal((await worker.PlanMemory.read()).names.length, 0);
+  assert.deepEqual(await worker.LearningCache.getRules(), []);
+  assert.equal((await worker.ExactResultCache.get(tabs, 'origin')).groups, null);
+  assert.equal(await worker.WindowPlanStore.get(7), null);
+  assert.deepEqual(session, {});
+
+  // Fresh work explicitly reuses these pre-reset data objects. They carry no
+  // generation: the supplied operation epoch decides whether saving is safe.
+  await save({ epoch: await worker.readResetEpoch() });
+  assert.equal((await options.TabLabelCache.lookup(tabs)).labels.size, 1);
+  assert.deepEqual((await options.PlanMemory.read()).names.map(record => record.n).sort(), ['Model Name', 'My Group']);
+  assert.deepEqual((await options.PlanMemory.read()).advice.cloud, { 'cat:games': 'cat:video' });
+  assert.equal((await options.LearningCache.getRules()).length, 1);
+  assert.equal((await options.LearningCache.applyGroupPreferences(groups, tabs))[0].name, 'My Group');
+  assert.equal((await options.ExactResultCache.get(tabs, 'origin')).groups[0].name, 'Model Name');
+  assert.equal((await options.WindowPlanStore.get(7)).g, 1);
+  const freshState = structuredClone({ local, session });
+  await save({ epoch });
+  await save({ epoch: '1' });
+  await worker.LearningCache.deleteRule('example.test/work/*', { epoch });
+  assert.deepEqual({ local, session }, freshState, 'late pre-reset results cannot overwrite fresh state');
+});
+
+test('writes without an explicit origin capture their epoch before waiting behind another write', async () => {
+  const { local, session, hooks } = installChromeStorageMock();
+  const worker = await import('../src/cache-engine.js?context=queued-origin-worker');
+  const options = await import('../src/cache-engine.js?context=queued-origin-options');
+  const tabs = makeTabs(2);
+  const { fingerprintById } = await worker.TabLabelCache.lookup(tabs);
+  const context = await worker.ExactResultCache.makeContext(tabs, 'queued');
+  const groups = [{ name: 'Old Result', tabIds: [1, 2] }];
+  let started;
+  let release;
+  const blocked = new Promise(resolve => { started = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  hooks.beforeSet = async values => {
+    if (!(TabLabelCache.STORAGE_KEY in values)) return;
+    hooks.beforeSet = null;
+    started();
+    await gate;
+  };
+  const first = worker.TabLabelCache.store(new Map([[1, 'food']]), fingerprintById, 'openai', { epoch: 0 });
+  await blocked;
+  let captured;
+  const allCaptured = new Promise(resolve => { captured = resolve; });
+  let origins = 0;
+  hooks.afterGet = keys => {
+    if (keys.length === 1 && keys[0] === 'foldnex_reset_epoch' && ++origins === 7) {
+      hooks.afterGet = null;
+      captured();
+    }
+  };
+  const pending = [
+    worker.TabLabelCache.store(new Map([[2, 'dev']]), fingerprintById, 'openai'),
+    worker.PlanMemory.putNames([{ k: ['cat:dev'], n: 'Old Name' }]),
+    worker.PlanMemory.putAdvice({ 'cat:games': 'cat:video' }),
+    worker.PlanMemory.recordUserRename({ tabs, name: 'Old Rename' }),
+    worker.LearningCache.learnGroupRename(tabs, 'Old Preference', 'red'),
+    worker.ExactResultCache.put(context, groups),
+    worker.WindowPlanStore.put(7, { groups })
+  ];
+  await allCaptured;
+  await options.LearningCache.resetRules();
+  release();
+  await Promise.all([first, ...pending]);
+  assert.equal((await options.TabLabelCache.lookup(tabs)).labels.size, 0);
+  assert.deepEqual(await options.PlanMemory.read(), { v: 1, names: [], advice: { cloud: {}, t: 0 } });
+  assert.equal((await options.ExactResultCache.get(tabs, 'queued')).groups, null);
+  assert.equal(await options.WindowPlanStore.get(7), null);
+  assert.ok(!(PlanMemory.STORAGE_KEY in local), 'queued old work did not create new-generation memory');
+  assert.deepEqual(session, {});
+});
+
+test('rename writes capture their origin before asynchronous fingerprinting', async () => {
+  const { local } = installChromeStorageMock();
+  const worker = await import('../src/cache-engine.js?context=fingerprint-worker');
+  const options = await import('../src/cache-engine.js?context=fingerprint-options');
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  try {
+    for (const rename of [
+      () => worker.PlanMemory.recordUserRename({ tabs: makeTabs(2), name: 'Before Reset' }),
+      () => worker.LearningCache.learnGroupRename(makeTabs(2), 'Before Reset', 'red')
+    ]) {
+      let started;
+      let release;
+      const blocked = new Promise(resolve => { started = resolve; });
+      const gate = new Promise(resolve => { release = resolve; });
+      Object.defineProperty(globalThis, 'crypto', {
+        configurable: true,
+        value: { subtle: { async digest() { started(); await gate; return new Uint8Array(32).buffer; } } }
+      });
+      const pending = rename();
+      await blocked;
+      await options.LearningCache.resetRules();
+      release();
+      await pending;
+      assert.ok(!(PlanMemory.STORAGE_KEY in local));
+      assert.ok(!(CACHE_SCHEMA.groupPreferencesKey in local));
+    }
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+    else delete globalThis.crypto;
+  }
+});
+
+test('window plans from an older generation stay unreadable when their session write lands after reset', async () => {
+  const { session, hooks } = installChromeStorageMock();
+  const worker = await import('../src/cache-engine.js?context=plan-worker');
+  const options = await import('../src/cache-engine.js?context=plan-options');
+  const plan = { groups: [{ name: 'Old Plan', tabIds: [1] }] };
+  const key = worker.WindowPlanStore.keyFor(7);
+  await worker.WindowPlanStore.put(7, plan);
+  delete session[key].g;
+  assert.equal((await worker.WindowPlanStore.get(7)).groups[0].name, 'Old Plan', 'an unstamped legacy plan works before the first reset');
+  await options.LearningCache.resetRules();
+  assert.equal(await worker.WindowPlanStore.get(7), null, 'reset invalidates existing session plans');
+  let resetRan = false;
+  hooks.beforeSet = async values => {
+    if (!(key in values)) return;
+    hooks.beforeSet = null;
+    await options.LearningCache.resetRules();
+    resetRan = true;
+  };
+  await worker.WindowPlanStore.put(7, plan);
+  assert.equal(resetRan, true);
+  assert.equal(session[key].g, 1, 'the delayed write retains the generation it began in');
+  assert.equal(await worker.WindowPlanStore.get(7), null);
+  assert.equal(await options.WindowPlanStore.get(7), null);
+  await worker.WindowPlanStore.put(7, { groups: [{ name: 'Fresh Plan', tabIds: [1] }] });
+  assert.equal((await options.WindowPlanStore.get(7)).groups[0].name, 'Fresh Plan');
+  assert.equal((await options.WindowPlanStore.get(7)).g, 2);
+});
+
+test('a delayed old rename does not clear an exact result saved after reset', async () => {
+  const { hooks } = installChromeStorageMock();
+  const worker = await import('../src/cache-engine.js?context=rename-clear-worker');
+  const options = await import('../src/cache-engine.js?context=rename-clear-options');
+  const tabs = makeTabs(2);
+  const context = await worker.ExactResultCache.makeContext(tabs, 'rename-clear');
+  hooks.beforeSet = async values => {
+    if (!(CACHE_SCHEMA.groupPreferencesKey in values)) return;
+    hooks.beforeSet = null;
+    await options.LearningCache.resetRules();
+    await options.ExactResultCache.put(context, [{ name: 'Fresh Result', tabIds: [1, 2] }]);
+  };
+  await worker.LearningCache.learnGroupRename(tabs, 'Old Rename', 'blue');
+  assert.equal((await worker.ExactResultCache.get(tabs, 'rename-clear')).groups[0].name, 'Fresh Result');
+  assert.equal((await worker.LearningCache.applyGroupPreferences([{ name: 'Original', tabIds: [1, 2] }], tabs))[0].name, 'Original');
 });
 
 test('a failed write does not block later writes', async () => {

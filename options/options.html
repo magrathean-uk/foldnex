@@ -96,20 +96,26 @@
           <h3>Google Gemini API Configuration</h3>
           <div class="form-group">
             <label for="geminiApiKey">Gemini API Key</label>
-            <div class="input-with-action">
-              <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
-              <button type="button" id="btnToggleGeminiKey" class="icon-input-btn" aria-label="Show Gemini API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
+            <div class="api-key-row">
+              <div class="input-with-action">
+                <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
+                <button type="button" id="btnToggleGeminiKey" class="icon-input-btn" aria-label="Show Gemini API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
+              </div>
+              <button id="btnTestGemini" class="secondary-btn" type="button">Test connection</button>
             </div>
             <span class="form-help">Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</span>
           </div>
 
           <div class="form-group">
-            <label for="geminiModel">Model</label>
+            <label for="geminiModelOptions">Model</label>
             <div class="model-picker-row">
-              <input type="text" id="geminiModel" class="form-input" list="geminiModelOptions" autocomplete="off" placeholder="gemini-flash-lite-latest">
+              <select id="geminiModelOptions" class="form-select" aria-describedby="geminiModelsStatus"><option value="">Custom model…</option></select>
               <button id="btnRefreshGeminiModels" class="secondary-btn" type="button">Refresh models</button>
             </div>
-            <datalist id="geminiModelOptions"></datalist>
+            <div id="geminiCustomModel" class="custom-model-field">
+              <label for="geminiModel">Custom model ID</label>
+              <input type="text" id="geminiModel" class="form-input" autocomplete="off" placeholder="gemini-flash-lite-latest">
+            </div>
             <span id="geminiModelsStatus" class="form-help" role="status" aria-live="polite">Enter an API key to load the live catalog.</span>
           </div>
 
@@ -123,7 +129,6 @@
 
           <div class="action-buttons">
             <button id="btnSaveGemini" class="primary-btn">Save Gemini Settings</button>
-            <button id="btnTestGemini" class="secondary-btn">Test Connection</button>
           </div>
         </div>
 
@@ -132,20 +137,26 @@
           <h3 id="compatibleProviderTitle">Provider configuration</h3>
           <div class="form-group">
             <label for="compatibleApiKey" id="compatibleApiKeyLabel">API key</label>
-            <div class="input-with-action">
-              <input type="password" id="compatibleApiKey" autocomplete="off" placeholder="Paste provider key">
-              <button type="button" id="btnToggleCompatibleKey" class="icon-input-btn" aria-label="Show API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
+            <div class="api-key-row">
+              <div class="input-with-action">
+                <input type="password" id="compatibleApiKey" autocomplete="off" placeholder="Paste provider key">
+                <button type="button" id="btnToggleCompatibleKey" class="icon-input-btn" aria-label="Show API key" title="Show API key"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button>
+              </div>
+              <button id="btnTestCompatible" class="secondary-btn" type="button">Test connection</button>
             </div>
             <span class="form-help">Stored only in Chrome local storage on this device.</span>
           </div>
 
           <div class="form-group">
-            <label for="compatibleModel">Model</label>
+            <label for="compatibleModelOptions">Model</label>
             <div class="model-picker-row">
-              <input type="text" id="compatibleModel" class="form-input" list="compatibleModelOptions" autocomplete="off">
+              <select id="compatibleModelOptions" class="form-select" aria-describedby="compatibleModelsStatus"><option value="">Custom model…</option></select>
               <button id="btnRefreshCompatibleModels" class="secondary-btn" type="button">Refresh models</button>
             </div>
-            <datalist id="compatibleModelOptions"></datalist>
+            <div id="compatibleCustomModel" class="custom-model-field">
+              <label for="compatibleModel">Custom model ID</label>
+              <input type="text" id="compatibleModel" class="form-input" autocomplete="off">
+            </div>
             <span id="compatibleModelsStatus" class="form-help" role="status" aria-live="polite">Add a key to load the provider’s live catalog.</span>
           </div>
 
@@ -184,7 +195,6 @@
 
           <div class="action-buttons">
             <button id="btnSaveCompatible" class="primary-btn">Save provider</button>
-            <button id="btnTestCompatible" class="secondary-btn">Test connection</button>
           </div>
         </div>
 
@@ -203,13 +213,27 @@
           </div>
         </div>
 
+        <section id="cloudCostSettings" class="provider-settings-box hidden" aria-labelledby="cloudCostHeading">
+          <h3 id="cloudCostHeading">Cloud request cost</h3>
+          <div class="setting-item">
+            <div class="setting-text">
+              <div id="cloudEconomyName" class="setting-name">Cloud economy mode</div>
+              <div id="cloudEconomyHelp" class="setting-description">Use fewer requests by skipping optional group refinement and naming. Tabs still receive category labels; group names may be simpler. Off by default to keep the current grouping behaviour.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="prefCloudEconomy" aria-labelledby="cloudEconomyName" aria-describedby="cloudEconomyHelp">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </section>
+
         <!-- On-device engines only: background preparation and model memory -->
         <section id="onDeviceSettings" class="provider-settings-box on-device-settings hidden" aria-labelledby="onDeviceHeading">
           <h3 id="onDeviceHeading">Background work and memory</h3>
           <div class="setting-item">
             <div class="setting-text">
               <div id="backgroundPrepName" class="setting-name">Prepare groups in the background</div>
-              <div id="backgroundPrepHelp" class="setting-description">Labels tabs as they load, so a cleanup takes under a second. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.</div>
+              <div id="backgroundPrepHelp" class="setting-description">Labels tabs as they load, so a later cleanup can use saved labels. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.</div>
               <div id="backgroundPrepAutoNote" class="setting-note hidden">Auto-group new tabs is on, so background preparation stays active.</div>
             </div>
             <label class="switch">
@@ -390,6 +414,22 @@
         </dl>
         <div class="diagnostics-actions">
           <button id="btnClearDiagnostics" class="secondary-btn small-btn" type="button">Clear run history</button>
+        </div>
+
+        <div class="section-header provider-usage-heading">
+          <h3>Provider request usage</h3>
+          <p class="section-subtitle">Reported tokens from provider inference and connection-test requests, including late or background replies. Totals accumulate until cleared. Titles, URLs, prompts and keys are never stored here.</p>
+        </div>
+        <dl class="diagnostics-grid" aria-live="polite">
+          <div><dt>Requests</dt><dd id="usageRequests">0</dd></div>
+          <div><dt>Reported tokens</dt><dd id="usageTokens">—</dd></div>
+          <div><dt>Input cache tokens</dt><dd id="usageCache">—</dd></div>
+          <div><dt>Providers</dt><dd id="usageProviders">No requests recorded</dd></div>
+          <div><dt>Reasoning tokens</dt><dd id="usageReasoning">—</dd></div>
+          <div><dt>Usage coverage</dt><dd id="usageCoverage">No requests recorded</dd></div>
+        </dl>
+        <div class="diagnostics-actions">
+          <button id="btnClearProviderUsage" class="secondary-btn small-btn" type="button">Clear provider usage</button>
         </div>
 
         <div class="section-header" style="margin-top: 32px;">

@@ -4,11 +4,13 @@
  */
 
 import { executeTabGrouping, ungroupAllTabs } from './src/grouper.js';
-import { LearningCache, PlanMemory, WindowPlanStore } from './src/cache-engine.js';
+import { LearningCache, PlanMemory, readResetEpoch, WindowPlanStore } from './src/cache-engine.js';
 import {
   checkChromeNanoStatus,
   configureOnDeviceMemory,
   getOnDeviceModelState,
+  PROVIDER_CATALOG,
+  providerSettingKey,
   releaseOnDeviceModel,
   runNanoSpike,
   warmChromeNano
@@ -32,6 +34,16 @@ let isGroupingActive = false;
 
 // Classify tabs as they finish loading so a cleanup only applies remembered groups.
 const backgroundClassifier = createBackgroundClassifier();
+let backgroundSettingsRevision = 0;
+const BACKGROUND_SETTING_KEYS = new Set([
+  'backgroundPrep', 'autoGroupNewTabs', 'provider', 'groupingStrategy',
+  'geminiModel', 'geminiReasoningEffort', 'openaiPriority',
+  ...Object.keys(PROVIDER_CATALOG).flatMap(provider => ['baseUrl', 'model', 'reasoningEffort'].map(suffix => providerSettingKey(provider, suffix)))
+]);
+const BACKGROUND_SECRET_KEYS = new Set([
+  'geminiApiKey', 'openaiOAuthToken',
+  ...Object.keys(PROVIDER_CATALOG).map(provider => providerSettingKey(provider, 'apiKey'))
+]);
 
 // How long an idle on-device model stays loaded (modelUnloadAfter, '5m' when
 // unset): Nano's sessions here, loopback Ollama through keep_alive.
@@ -234,8 +246,9 @@ async function releaseNanoSessions() {
  * Auto-group was just turned on for an on-device engine, queue every open tab
  * once, as after an install.
  */
-async function backgroundOptInChanged(changes) {
+async function backgroundOptInChanged(changes, revision) {
   const scope = await loadBackgroundScope();
+  if (revision !== backgroundSettingsRevision) return;
   if (!scope.allowed) {
     await backgroundClassifier.clear();
     return;
@@ -298,6 +311,16 @@ chrome.commands.onCommand.addListener(async (command) => {
  */
 chrome.tabGroups.onUpdated.addListener(async (group) => {
   if (!group.title) return;
+  const epoch = await readResetEpoch();
+  // TabGroup does not reliably identify private windows. Resolve the member
+  // tabs before touching shared title state or learning anything from a name.
+  let tabsInGroup;
+  try {
+    tabsInGroup = await chrome.tabs.query({ groupId: group.id });
+  } catch {
+    return;
+  }
+  if (group.incognito || tabsInGroup.length === 0 || tabsInGroup.some(tab => tab.incognito)) return;
 
   if (await consumeProgrammaticGroupUpdate(group)) {
     return;
@@ -314,14 +337,13 @@ chrome.tabGroups.onUpdated.addListener(async (group) => {
   await setGroupTitleBaseline(group.id, group.title);
 
   try {
-    const tabsInGroup = await chrome.tabs.query({ groupId: group.id });
     const validTabs = tabsInGroup.filter(tab => tab.url && !tab.incognito);
     if (validTabs.length > 0) {
-      await LearningCache.learnGroupRename(validTabs, group.title, group.color);
+      await LearningCache.learnGroupRename(validTabs, group.title, group.color, { epoch });
       // Also remember it by tab fingerprints, so the name follows the group
       // when tabs are added or removed.
       const keys = await planKeysForTabs(group.windowId, validTabs.map(tab => tab.id));
-      await PlanMemory.recordUserRename({ tabs: validTabs, name: group.title, color: group.color, keys });
+      await PlanMemory.recordUserRename({ tabs: validTabs, name: group.title, color: group.color, keys }, { epoch });
       console.log(`[Foldnex] Learned scoped rename "${group.title}" for ${validTabs.length} tabs.`);
     }
   } catch (err) {
@@ -386,8 +408,14 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       });
     }
   }
-  if (areaName === 'sync' && ['backgroundPrep', 'autoGroupNewTabs', 'provider', 'groupingStrategy'].some(key => key in changes)) {
-    backgroundOptInChanged(changes).catch(err => {
+  const backgroundChanged = (areaName === 'sync' && Object.keys(changes).some(key => BACKGROUND_SETTING_KEYS.has(key) || BACKGROUND_SECRET_KEYS.has(key)))
+    || (areaName === 'local' && Object.keys(changes).some(key => BACKGROUND_SECRET_KEYS.has(key) || key === 'foldnex_reset_epoch'));
+  if (backgroundChanged) {
+    // Abort before any asynchronous settings read. Allowed-to-allowed engine
+    // and endpoint changes must not carry an older tab admission into a request.
+    backgroundClassifier.invalidate();
+    const revision = ++backgroundSettingsRevision;
+    backgroundOptInChanged(changes, revision).catch(err => {
       console.warn('[Foldnex] Could not apply the background setting:', err?.message);
     });
   }
@@ -427,10 +455,12 @@ chrome.runtime.onStartup.addListener(async () => {
  * or Auto-group allows it. Tabs already open never go to a cloud engine.
  */
 async function queueOpenTabs() {
+  const revision = backgroundSettingsRevision;
   try {
     const scope = await loadBackgroundScope();
     if (!scope.allowed || !scope.onDevice) return;
     const tabs = await chrome.tabs.query({});
+    if (revision !== backgroundSettingsRevision) return;
     backgroundClassifier.enqueue(tabs.filter(tab => !tab.incognito).map(tab => tab.id));
   } catch (err) {
     console.warn('[Foldnex] Could not queue open tabs:', err?.message);
@@ -439,8 +469,11 @@ async function queueOpenTabs() {
 
 chrome.tabs.onCreated?.addListener(async (tab) => {
   if (tab?.incognito) return;
+  const revision = backgroundSettingsRevision;
   try {
-    await backgroundClassifier.noteTabCreated(tab, { autoGroup: await autoGroupForTabEvents() });
+    const autoGroup = await autoGroupForTabEvents();
+    if (revision !== backgroundSettingsRevision) return;
+    await backgroundClassifier.noteTabCreated(tab, { autoGroup });
   } catch (err) {
     console.warn('[Foldnex] Could not track a new tab:', err?.message);
   }
@@ -448,8 +481,11 @@ chrome.tabs.onCreated?.addListener(async (tab) => {
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tab?.incognito) return;
+  const revision = backgroundSettingsRevision;
   try {
-    await backgroundClassifier.noteTabUpdated(tabId, changeInfo, tab, { autoGroup: await autoGroupForTabEvents() });
+    const autoGroup = await autoGroupForTabEvents();
+    if (revision !== backgroundSettingsRevision) return;
+    await backgroundClassifier.noteTabUpdated(tabId, changeInfo, tab, { autoGroup });
   } catch (err) {
     console.warn('[Foldnex] Could not track a tab update:', err?.message);
   }
@@ -516,11 +552,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'PREPARE_GROUPING') {
     (async () => {
+      const revision = backgroundSettingsRevision;
       maybeWarmNano();
       try {
         // Opening the popup never sends a window's tabs to a cloud engine.
         const scope = await loadBackgroundScope();
-        if (scope.allowed && scope.onDevice && Number.isInteger(message.windowId)) {
+        if (revision === backgroundSettingsRevision && scope.allowed && scope.onDevice && Number.isInteger(message.windowId)) {
           await backgroundClassifier.prioritize(message.windowId);
         }
       } catch (err) {

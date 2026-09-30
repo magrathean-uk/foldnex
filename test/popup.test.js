@@ -109,7 +109,7 @@ function makeArea(store, areaName, listeners) {
 let popupInstance = 0;
 
 /** Load a fresh popup instance over the given storage and Prompt API status. */
-async function openPopup({ sync = {}, local = {}, nano = 'available' } = {}) {
+async function openPopup({ sync = {}, local = {}, nano = 'available', groupingResult = null } = {}) {
   const root = parsePopup(POPUP_HTML);
   const documentListeners = {};
   globalThis.document = {
@@ -139,7 +139,10 @@ async function openPopup({ sync = {}, local = {}, nano = 'available' } = {}) {
     commands: { async getAll() { return []; } },
     runtime: {
       getURL: path => `chrome-extension://foldnex/${path}`,
-      async sendMessage() { return { ok: true }; },
+      async sendMessage(message) {
+        if (message.type === 'TRIGGER_GROUPING') return { success: true, result: groupingResult };
+        return { ok: true };
+      },
       openOptionsPage() {}
     }
   };
@@ -215,4 +218,118 @@ test('an unavailable Gemini Nano choice is disabled with its reason and saves no
   await ready.choice('nano').click();
   await sleep(10);
   assert.deepEqual(ready.sync, { provider: 'gemini_nano', backgroundPrep: true, setupChoice: 'nano' });
+});
+
+test('provisional cleanup copy says background labels prepare a later cleanup', async () => {
+  const popup = await openPopup({
+    sync: { provider: 'gemini_nano', setupChoice: 'nano' },
+    groupingResult: { groupsCreated: 2, provisionalTabs: 3, provisionalInBackground: true }
+  });
+  await popup.byId('btnGroupTabs').click();
+  assert.match(popup.byId('statusMessage').textContent, /3 tabs placed by address; background labelling prepares a later cleanup/);
+  assert.doesNotMatch(popup.byId('statusMessage').textContent, /will be sorted in the background/);
+});
+
+test('opening the popup migrates legacy Sync credentials without reviving an explicit local clear', async () => {
+  const migrated = await openPopup({ sync: { provider: 'offline', groqApiKey: 'synthetic-legacy-key' } });
+  assert.equal(Object.hasOwn(migrated.sync, 'groqApiKey'), false);
+  assert.equal(migrated.local.groqApiKey, 'synthetic-legacy-key');
+  assert.ok(!allText(migrated.root).includes('synthetic-legacy-key'));
+  const cleared = await openPopup({ sync: { provider: 'offline', groqApiKey: 'synthetic-old-key' }, local: { groqApiKey: '' } });
+  assert.equal(cleared.local.groqApiKey, '');
+  assert.equal(Object.hasOwn(cleared.sync, 'groqApiKey'), false);
+  await cleared.choice('cloud').click();
+  assert.equal(cleared.sync.provider, 'offline');
+  assert.deepEqual(cleared.opened, ['chrome-extension://foldnex/options/options.html#engine']);
+});
+
+test('saved cloud credentials mean configured without claiming an authenticated connection', async () => {
+  const openai = await openPopup({
+    sync: { provider: 'openai', setupChoice: 'cloud' },
+    local: { openaiApiKey: 'synthetic-unverified-key' }
+  });
+  assert.equal(openai.byId('engineBadge').textContent, 'OpenAI configured');
+  assert.equal(openai.byId('engineBadge').classList.contains('ready'), false);
+  assert.match(openai.byId('nanoHint').textContent, /Connection not verified/);
+  assert.ok(!allText(openai.root).includes('synthetic-unverified-key'));
+
+  const gemini = await openPopup({
+    sync: { provider: 'gemini_api', setupChoice: 'cloud' },
+    local: { geminiApiKey: 'synthetic-gemini-key' }
+  });
+  assert.equal(gemini.byId('engineBadge').textContent, 'Gemini configured');
+  assert.match(gemini.byId('nanoHint').textContent, /Google Gemini/);
+
+  const nano = await openPopup({ sync: { provider: 'gemini_nano', setupChoice: 'nano' } });
+  assert.equal(nano.byId('engineBadge').textContent, 'Nano available');
+  assert.equal(nano.byId('engineBadge').classList.contains('ready'), true);
+  assert.match(nano.byId('nanoHint').textContent, /If the model needs loading/);
+  assert.match(nano.byId('nanoHint').textContent, /temporary local groups/);
+});
+
+test('matching cloud authentication failure is historical, actionable, and never renders an error body', async () => {
+  const popup = await openPopup({
+    sync: { provider: 'openai', openaiModel: 'selected-model', setupChoice: 'cloud' },
+    local: {
+      openaiApiKey: 'synthetic-configured-key',
+      foldnex_last_run: {
+        provider: 'openai', model: 'selected-model', strategy: 'task', fallbackCode: 'auth',
+        fallbackDetail: 'Untrusted response with synthetic-secret', timestamp: Date.now(), groupsCreated: 4
+      }
+    }
+  });
+  assert.equal(popup.byId('engineBadge').textContent, 'Last run: auth failed');
+  assert.equal(popup.byId('engineBadge').classList.contains('danger'), true);
+  assert.match(popup.byId('nanoHint').textContent, /Last cleanup ran offline because authentication failed/);
+  assert.match(popup.byId('nanoHint').textContent, /Check the API key in Settings/);
+  assert.ok(!allText(popup.root).includes('synthetic-secret'));
+
+  await chrome.storage.sync.set({ openaiModel: 'another-model' });
+  await sleep(20);
+  assert.equal(popup.byId('engineBadge').textContent, 'OpenAI configured');
+  assert.doesNotMatch(popup.byId('nanoHint').textContent, /authentication failed/);
+});
+
+test('another provider or site cleanup cannot mark the selected cloud engine as failed', async () => {
+  for (const run of [
+    { provider: 'gemini_api', model: 'selected-model', strategy: 'task' },
+    { provider: 'openai', model: 'selected-model', strategy: 'site' }
+  ]) {
+    const popup = await openPopup({
+      sync: { provider: 'openai', openaiModel: 'selected-model', setupChoice: 'cloud' },
+      local: { openaiApiKey: 'synthetic-key', foldnex_last_run: { ...run, fallbackCode: 'auth' } }
+    });
+    assert.equal(popup.byId('engineBadge').textContent, 'OpenAI configured');
+    assert.doesNotMatch(popup.byId('nanoHint').textContent, /authentication failed/);
+  }
+});
+
+test('the badge follows a failed cleanup immediately, including a private result with no saved run', async () => {
+  const popup = await openPopup({
+    sync: { provider: 'openai', openaiModel: 'selected-model', setupChoice: 'cloud' },
+    local: { openaiApiKey: 'synthetic-key' },
+    groupingResult: {
+      provider: 'openai', model: 'selected-model', strategy: 'task', incognito: true,
+      groupsCreated: 4, fallbackUsed: true, fallbackCode: 'auth'
+    }
+  });
+  await popup.byId('btnGroupTabs').click();
+  assert.match(popup.byId('statusMessage').textContent, /offline \(Invalid API key\)/);
+  assert.equal(popup.byId('engineBadge').textContent, 'Last run: auth failed');
+  assert.equal(Object.hasOwn(popup.local, 'foldnex_last_run'), false);
+});
+
+test('stored cleanup failure changes refresh the badge and remote Ollama copy identifies data transfer', async () => {
+  const popup = await openPopup({
+    sync: { provider: 'ollama', ollamaModel: 'selected-model', ollamaBaseUrl: 'http://192.168.1.20:11434/v1' }
+  });
+  assert.equal(popup.byId('engineBadge').textContent, 'Ollama configured');
+  assert.doesNotMatch(popup.byId('nanoHint').textContent, /on this device/);
+  assert.match(popup.byId('nanoHint').textContent, /sends complete tab titles and host\/path hints to Ollama/);
+  await chrome.storage.local.set({ foldnex_last_run: {
+    provider: 'ollama', model: 'selected-model', strategy: 'task', fallbackCode: 'timeout'
+  } });
+  await sleep(20);
+  assert.equal(popup.byId('engineBadge').textContent, 'Last run: timed out');
+  assert.match(popup.byId('nanoHint').textContent, /Last cleanup ran offline because the provider timed out/);
 });

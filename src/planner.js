@@ -1,7 +1,8 @@
 /**
  * Foldnex - Deterministic group planner
  *
- * Turns one category label per tab into at most groupCeiling(n) groups. Models
+ * Turns one category label per tab into coherent groups. groupCeiling(n) is
+ * the preferred count; unrelated topics stay separate up to MAX_GROUPS. Models
  * never count or create groups: every group identity is a local candidate (a
  * category, a shared title token, a site, a locked rule or Review Later), and
  * every tie is broken by a stable key, so the same window always plans the same
@@ -15,10 +16,11 @@ import {
   getMaxGroupSize,
   groupCeiling,
   isGenericGroupName,
+  MAX_GROUPS,
   minGroupSize
 } from './ai-engine.js';
 import { extractPatternKey, hashToken, normalizeUserGroupName, sanitizeTitle } from './cache-engine.js';
-import { describeSite, siteKeyForUrl } from './site-clusterer.js';
+import { describeSite, isAtomicSite, siteKeyForUrl } from './site-clusterer.js';
 import {
   CATEGORY_BY_KEY,
   CATEGORY_KEYS,
@@ -39,8 +41,6 @@ export { GROUP_NAME_LIMIT, REVIEW_GROUP_NAME };
 const REVIEW_KEY = 'review';
 const TASK_MAX_SHARE = 0.5;
 const ATTACH_MIN_SCORE = 0.34;
-const MERGE_KEEP_SHARE = 0.6;
-const MERGED_NAME_LIMIT = 24;
 const TOKEN_HASH_LIMIT = 8;
 const SITE_AFFINITY_AGREEMENT = 0.8;
 const USER_FINGERPRINT_OVERLAP = 0.5;
@@ -66,6 +66,8 @@ const BARE_DOMAIN = /\.(com|org|net|io|ai|dev|co|app)\b/i;
 const CJK_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 const CHROME_COLORS = new Set(['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange']);
 const SHORT_BY_NAME = new Map(LABEL_CATEGORIES.map(category => [category.name, category.short]));
+const CATEGORY_RELATIONS = new Map(CATEGORY_KEYS.map(a => [a,
+  new Map(CATEGORY_KEYS.map(b => [b, categoryAffinity(a, b)]))]));
 
 // describeSite category names mapped to label keys. Search & Maps and
 // Reading & News depend on the service and are handled in categoryFromSite.
@@ -176,7 +178,47 @@ function isReviewGroup(group) {
 
 function groupSize(group) {
   if (Array.isArray(group?.tabIds)) return group.tabIds.length;
+  if (Array.isArray(group?.entries)) return group.entries.length;
   return Number(group?.size) || 0;
+}
+
+/** Keep every constituent label: a dominant label must not erase a minority. */
+function categoriesOf(group) {
+  if (isReviewGroup(group)) return [];
+  if (Array.isArray(group?.categories)) return group.categories.filter(key => CATEGORY_BY_KEY.has(key));
+  const keys = new Set();
+  if (Array.isArray(group?.entries)) {
+    for (const entry of group.entries) if (CATEGORY_BY_KEY.has(entry.label)) keys.add(entry.label);
+  } else {
+    for (const key of group?.keys || []) {
+      const category = String(key).startsWith('cat:') ? String(key).slice(4) : null;
+      if (CATEGORY_BY_KEY.has(category)) keys.add(category);
+    }
+  }
+  if (keys.size === 0 && CATEGORY_BY_KEY.has(group?.dominant)) keys.add(group.dominant);
+  return CATEGORY_KEYS.filter(key => keys.has(key));
+}
+
+/** Every category on either side must relate to every category on the other. */
+function compatibleGroups(a, b, minimum = 1) {
+  const left = a?.categories || categoriesOf(a);
+  const right = b?.categories || categoriesOf(b);
+  return left.length > 0 && right.length > 0
+    && left.every(x => right.every(y => (CATEGORY_RELATIONS.get(x)?.get(y) || 0) >= minimum));
+}
+
+function combinedCategories(a, b) {
+  const keys = new Set([...categoriesOf(a), ...categoriesOf(b)]);
+  return CATEGORY_KEYS.filter(key => keys.has(key));
+}
+
+function nameForMerge(a, b) {
+  const categories = combinedCategories(a, b);
+  if (categories.length > 1) {
+    const name = categories.map(key => CATEGORY_BY_KEY.get(key).short).join(' & ');
+    if (name.length <= GROUP_NAME_LIMIT) return name;
+  }
+  return mergedName(a, b);
 }
 
 function lookupTab(tabsById, id) {
@@ -414,20 +456,24 @@ export function shortOf(name) {
 }
 
 /**
- * Name for t after it absorbs s. The larger side keeps its name when it holds
- * at least 60% of the tabs; otherwise the name is 'A & B' from short forms.
+ * Name for t after it absorbs s. Distinct subjects remain visible even when
+ * one side has more tabs. Existing mixed names retain all of their parts.
  */
 export function mergedName(t, s) {
   const a = { name: String(t?.name || ''), size: groupSize(t) };
   const b = { name: String(s?.name || ''), size: groupSize(s) };
   const [big, small] = a.size >= b.size ? [a, b] : [b, a];
-  const total = a.size + b.size;
-  if (!small.name || big.name === small.name || big.size >= MERGE_KEEP_SHARE * total) return big.name || small.name;
-  const bigShort = shortOf(big.name);
-  const smallShort = shortOf(small.name);
-  if (bigShort === smallShort) return big.name;
-  const combined = `${bigShort} & ${smallShort}`;
-  return combined.length <= MERGED_NAME_LIMIT ? combined : big.name;
+  if (!small.name || big.name === small.name) return big.name || small.name;
+  const partsOf = name => SHORT_BY_NAME.has(name)
+    ? [SHORT_BY_NAME.get(name)]
+    : name.split(' & ').map(part => part.trim()).filter(Boolean);
+  const parts = [...new Set([...partsOf(big.name), ...partsOf(small.name)])];
+  const combined = parts.join(' & ');
+  if (combined.length <= GROUP_NAME_LIMIT) return combined;
+  if (parts.length > 8) return REVIEW_GROUP_NAME;
+  // Keep both subjects visible when their custom names cannot fit together.
+  const budget = Math.max(1, Math.floor((GROUP_NAME_LIMIT - 3 * (parts.length - 1)) / parts.length));
+  return parts.map(part => clampName(part, budget)).join(' & ');
 }
 
 function surfaceName(token, entries) {
@@ -500,6 +546,13 @@ export function validateGroupName(raw, group = null, tabsById = null, takenNames
   if (words.length === 0 || words.length > 4) return null;
   if (!isUsableDeterministicName(name)) return null;
   if (isVagueName(words)) return null;
+
+  const namedCategory = LABEL_CATEGORIES.find(category =>
+    lower(category.name) === lower(name) || lower(category.short) === lower(name));
+  if (namedCategory && group?.kind !== 'task') {
+    const categories = categoriesOf(group);
+    if (categories.some(key => key !== namedCategory.key)) return null;
+  }
 
   if (group && tabsById) {
     const tabs = (group.tabIds || []).map(id => lookupTab(tabsById, id)).filter(Boolean);
@@ -620,6 +673,8 @@ export function planSignature(groups) {
 }
 
 function refreshGroup(group) {
+  const categories = new Set(group.entries.map(entry => entry.label));
+  group.categories = CATEGORY_KEYS.filter(key => categories.has(key));
   if (group.kind === 'site' || group.kind === 'review') {
     group.dominant = null;
     return;
@@ -696,7 +751,8 @@ function uniqueKey(key, groups) {
  * while the plan is above the ceiling.
  *
  * Returns {K, n, groups, candidates, signature, flags, reviewTabIds, tokensById}.
- * The group count never exceeds max(K, lockedCount + 1) and every tab appears
+ * The group count never exceeds max(MAX_GROUPS, lockedCount + 1); K is a
+ * preferred count, never a reason to join unrelated subjects. Every tab appears
  * exactly once.
  */
 export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}) {
@@ -776,10 +832,7 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
   const mergeInto = (target, source) => {
     // Review Later never lends its name to real tabs.
     if (source.kind !== 'review') {
-      let name = mergedName(
-        { name: target.name, size: size(target) },
-        { name: source.name, size: size(source) }
-      );
+      let name = nameForMerge(target, source);
       // After step 5d no candidate holds a locked name; a combined one must not either.
       if (isLockedName(name)) name = size(target) >= size(source) ? target.name : source.name;
       target.name = name;
@@ -877,19 +930,9 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
   }
   for (const [group, entry] of attachments) group.entries.push(entry);
 
-  // Step 5c: what is left goes to Review Later when the ceiling has room,
-  // instead of being scattered into wrong groups.
-  if (stillLoose.length >= minSize && K - F >= 3) {
+  // Step 5c: an unknown tab is not evidence for the largest known topic.
+  if (stillLoose.length > 0) {
     groups.push(makeGroup({ key: REVIEW_KEY, kind: 'review', name: REVIEW_GROUP_NAME }, stillLoose));
-  } else if (stillLoose.length > 0) {
-    if (groups.length === 0) {
-      groups.push(makeGroup({ key: REVIEW_KEY, kind: 'review', name: REVIEW_GROUP_NAME }, stillLoose));
-    } else {
-      sizes = new Map(groups.map(group => [group, size(group)]));
-      const largest = [...groups].sort((a, b) => sizes.get(b) - sizes.get(a) || compareStrings(a.key, b.key))[0];
-      const joins = stillLoose.map(entry => [bestAttach(entry, groups, bags, sizes, 0) || largest, entry]);
-      for (const [group, entry] of joins) group.entries.push(entry);
-    }
   }
 
   // Step 5d: a candidate named like a locked group joins it now, as
@@ -903,16 +946,18 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
     remove(group);
   }
 
-  // Step 6: tiny candidates fold into a strongly related partner. Singletons
-  // fold anywhere in a window of 8 or more; other small groups stay.
+  // Step 6: tiny candidates may fold into a strongly related partner. Being
+  // alone never makes an unrelated category a suitable destination.
   const tinyPartner = (source, minAffinity) => {
     let best = null;
     for (const target of groups) {
       if (target === source || target.kind === 'review') continue;
+      if (!compatibleGroups(source, target, minAffinity)) continue;
       const affinity = categoryAffinity(source.dominant, target.dominant);
       if (affinity < minAffinity) continue;
       const combined = size(source) + size(target);
-      const key = [combined > maxSize ? 1 : 0, -affinity, size(target) < minSize ? 1 : 0, combined, target.key];
+      if (combined > maxSize) continue;
+      const key = [-affinity, size(target) < minSize ? 1 : 0, combined, target.key];
       if (!best || compareKeys(key, best.key) < 0) best = { target, key };
     }
     return best?.target || null;
@@ -920,28 +965,29 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
   const tinyOrder = [...groups].sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key));
   for (const source of tinyOrder) {
     if (!groups.includes(source) || source.kind === 'review' || size(source) >= minSize) continue;
-    let target = tinyPartner(source, 2);
-    if (!target && size(source) === 1 && n >= 8) target = tinyPartner(source, 0);
+    const target = tinyPartner(source, 2);
     if (target) mergeInto(target, source);
   }
 
-  // Step 7: consolidation sees the candidates before splits and forced merges.
-  const candidates = groups
-    .filter(group => group.kind !== 'review')
-    .sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key))
-    .map(group => ({
-      key: group.key,
-      keys: [...group.keys].sort(),
-      kind: group.kind,
-      name: group.name,
-      color: groupColor(group),
-      dominant: group.dominant,
-      tabIds: stripOrder(group.entries),
-      size: size(group)
-    }));
-
-  // Step 8: below the ceiling, oversized groups split on a shared title token,
-  // or failing that on a site.
+  // Step 7-8: split oversized categories on a shared title token or a site,
+  // using spare space up to the hard maximum. Shared tasks and atomic sites
+  // are already explicit coherent identities, so keep their membership.
+  const atomicIdentity = entry => {
+    const rawUrl = tabUrl(entry.tab);
+    if (!isAtomicSite(rawUrl)) return null;
+    const site = describeSite(rawUrl);
+    if (site.known) return `service:${site.name}`;
+    try {
+      return `host:${new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '')}`;
+    } catch {
+      return null;
+    }
+  };
+  const isAtomic = group => {
+    if (group.kind === 'task' || group.kind === 'site') return true;
+    const identity = atomicIdentity(group.entries[0]);
+    return Boolean(identity) && group.entries.every(entry => atomicIdentity(entry) === identity);
+  };
   const findCarve = group => {
     const remainderOk = count => count >= minSize && size(group) - count >= minSize;
     const byToken = new Map();
@@ -983,9 +1029,9 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
     }
     return best;
   };
-  while (F + groups.length < limit) {
+  while (F + groups.length < MAX_GROUPS) {
     const oversized = groups
-      .filter(group => group.kind !== 'review' && size(group) > maxSize)
+      .filter(group => group.kind !== 'review' && size(group) > maxSize && !isAtomic(group))
       .sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key));
     let carved = false;
     for (const group of oversized) {
@@ -1003,31 +1049,37 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
     if (!carved) break;
   }
 
-  // Step 9: above the ceiling, merge until it holds. Cached cloud advice goes
-  // first, then the closest pair by affinity and size.
+  // Consolidation sees the bounded candidates. Passing an unsplit parent
+  // would let a provider undo the size repair with one unchanged row.
+  const candidates = groups
+    .filter(group => group.kind !== 'review')
+    .sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key))
+    .map(group => ({
+      key: group.key,
+      keys: [...group.keys].sort(),
+      kind: group.kind,
+      name: group.name,
+      color: groupColor(group),
+      dominant: group.dominant,
+      categories: categoriesOf(group),
+      tabIds: stripOrder(group.entries),
+      size: size(group)
+    }));
+
+  // Step 9: approach the preferred count only through coherent merges.
+  // Advice cannot turn a merely dominant category into permission to absorb
+  // unrelated members. If the hard maximum still requires compaction, the
+  // smallest unrelated groups share the neutral review queue.
   const adviceEntries = advice instanceof Map ? [...advice] : Object.entries(advice || {});
-  const collapse = () => {
-    const ordered = [...groups].sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key));
-    const target = ordered.find(group => group.kind !== 'review') || ordered[0];
-    const sources = ordered
-      .filter(group => group !== target)
-      .sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key));
-    for (const source of sources) mergeInto(target, source);
-  };
-  if (F >= limit) {
-    if (groups.length > 1) collapse();
-  } else {
-    while (F + groups.length > limit) {
+  while (F + groups.length > limit) {
       const mergeable = groups.filter(group => group.kind !== 'review');
-      if (mergeable.length < 2) {
-        collapse();
-        break;
-      }
+      if (mergeable.length < 2) break;
       let best = null;
       for (const [sourceKey, anchorKey] of adviceEntries) {
         const source = mergeable.find(group => group.keys.has(sourceKey));
         const target = mergeable.find(group => group.keys.has(anchorKey));
-        if (!source || !target || source === target) continue;
+        if (!source || !target || source === target || size(source) + size(target) > maxSize
+          || !compatibleGroups(source, target)) continue;
         const key = pairKey(source, target);
         if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
       }
@@ -1035,15 +1087,37 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
         for (const source of mergeable) {
           for (const target of mergeable) {
             if (source === target || size(source) > size(target)) continue;
+            if (size(source) + size(target) > maxSize) continue;
+            if (!compatibleGroups(source, target)) continue;
             const key = pairKey(source, target);
             if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
           }
         }
       }
+      if (!best) break;
       mergeInto(best.target, best.source);
+  }
+  const hardAvailable = Math.max(1, MAX_GROUPS - F);
+  if (groups.length > hardAvailable) {
+    let review = groups.find(group => group.kind === 'review');
+    if (!review) {
+      review = [...groups].sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key))[0];
+      review.kind = 'review';
+      review.name = REVIEW_GROUP_NAME;
+      review.key = REVIEW_KEY;
+      review.keys.add(REVIEW_KEY);
+      review.dominant = null;
+      review.categories = [];
+    }
+    while (groups.length > hardAvailable) {
+      const source = groups.filter(group => group !== review)
+        .sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key))[0];
+      review.entries.push(...source.entries);
+      for (const key of source.keys) review.keys.add(key);
+      remove(source);
     }
   }
-  if (F + groups.length > limit) flags.push('rules_exceed_ceiling');
+  if (F + groups.length > MAX_GROUPS) flags.push('rules_exceed_ceiling');
 
   // Step 10-11: final fields. A name that contradicts a member's country
   // falls back to the category name.
@@ -1067,6 +1141,7 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
       key: group.key,
       keys: [...group.keys].sort(),
       dominant: group.dominant,
+      categories: categoriesOf(group),
       kind: group.kind,
       nameSource: 'deterministic'
     }));
@@ -1086,14 +1161,17 @@ export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}
   if (placed.size !== n) throw new Error(`planGroups placed ${placed.size} of ${n} tabs`);
 
   const tokensById = new Map(entries.map(entry => [entry.id, entry.tokens]));
+  const reviewTabIds = finalGroups.filter(group => group.kind === 'review').flatMap(group => group.tabIds);
+  const reviewIds = new Set(reviewTabIds);
   return {
     K,
+    hardLimit: MAX_GROUPS,
     n,
     groups: finalGroups,
-    candidates,
+    candidates: candidates.filter(candidate => !candidate.tabIds.every(id => reviewIds.has(id))),
     signature: planSignature(finalGroups),
     flags,
-    reviewTabIds: finalGroups.filter(group => group.kind === 'review').flatMap(group => group.tabIds),
+    reviewTabIds,
     tokensById
   };
 }
@@ -1217,199 +1295,184 @@ function nameOverMembers(members) {
 }
 
 /**
- * Make a consolidation answer safe: every candidate exactly once, at most k
- * folders, validated names and advice pairs for the next plan. `candidates`
- * is plan.candidates (row ID = index). Returns {groups, advice}.
+ * Make a consolidation answer safe: every candidate exactly once, coherent
+ * folders, validated names and compatible advice pairs for the next plan.
+ * `k` is the preferred count; `hardLimit` is the absolute available count.
+ * `n` is the full window size, including protected tabs absent from candidates.
+ * `candidates` is plan.candidates (row ID = index). Returns {groups, advice}.
  */
-export function enforceFolders(folders, candidates, k, { n = null, tabsById = null, takenNames = [] } = {}) {
+export function enforceFolders(folders, candidates, k, {
+  n = null, tabsById = null, takenNames = [], hardLimit = MAX_GROUPS
+} = {}) {
   const rows = (candidates || []).map((candidate, index) => ({
+    ...candidate,
     index,
     key: String(candidate.key),
     keys: candidate.keys || [candidate.key],
+    categories: categoriesOf(candidate),
     name: String(candidate.name || ''),
-    color: candidate.color,
     dominant: candidate.dominant ?? null,
     tabIds: [...(candidate.tabIds || [])],
     size: groupSize(candidate)
   }));
   const total = Number.isFinite(n) ? n : rows.reduce((sum, row) => sum + row.size, 0);
   const maxSize = getMaxGroupSize(total);
-  const limit = Math.max(1, Math.floor(Number(k)) || 1);
-  const rowPairKey = (a, b) => {
-    const [s, t] = a.size <= b.size ? [a, b] : [b, a];
-    const combined = a.size + b.size;
-    return [combined > maxSize ? 1 : 0, -categoryAffinity(a.dominant, b.dominant), combined, `${s.key}|${t.key}`];
+  const assigned = new Set();
+  const out = [];
+  const add = (members, modelName = '') => {
+    const ordered = [...members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key));
+    const categories = CATEGORY_KEYS.filter(key => members.some(member => categoriesOf(member).includes(key)));
+    const group = {
+      name: nameOverMembers(ordered),
+      color: ordered[0].color || CATEGORY_BY_KEY.get(weightedDominant(members))?.color || 'grey',
+      tabIds: members.flatMap(member => member.tabIds),
+      key: ordered[0].key,
+      keys: [...new Set(members.flatMap(member => member.keys))].sort(),
+      categories,
+      dominant: weightedDominant(members),
+      kind: members.length === 1 && members[0].kind === 'task' ? 'task' : 'folder',
+      nameSource: 'deterministic'
+    };
+    const name = validateGroupName(modelName, group, tabsById, takenNames);
+    if (name) {
+      group.name = name;
+      group.nameSource = 'model';
+    }
+    out.push(group);
   };
 
-  // 1. Valid, first-seen IDs only; empty folders drop out.
-  const assigned = new Map();
-  let out = [];
+  // A provider may name coherent candidates, but cannot hide unrelated rows
+  // inside one folder. First valid row ownership remains deterministic.
   for (const folder of Array.isArray(folders) ? folders : []) {
-    const next = { modelName: typeof folder?.name === 'string' ? folder.name : '', members: [] };
+    const subsets = [];
     for (const raw of Array.isArray(folder?.ids) ? folder.ids : []) {
       const id = typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : raw;
       if (!Number.isInteger(id) || id < 0 || id >= rows.length || assigned.has(id)) continue;
-      assigned.set(id, next);
-      next.members.push(rows[id]);
+      assigned.add(id);
+      const row = rows[id];
+      let subset = subsets.find(members => members.reduce((sum, member) => sum + member.size, 0) + row.size <= maxSize
+        && members.every(member => compatibleGroups(member, row)));
+      if (!subset) subsets.push(subset = []);
+      subset.push(row);
     }
-    if (next.members.length > 0) out.push(next);
+    for (const members of subsets) add(members, subsets.length === 1 ? folder.name : '');
   }
+  // Missing rows retain their own identity; omission is not merge evidence.
+  for (const row of rows) if (!assigned.has(row.index)) add([row]);
 
-  // 2. A missing row joins its deterministic merge partner's folder.
-  for (const row of rows) {
-    if (assigned.has(row.index)) continue;
-    let partner = null;
-    for (const other of rows) {
-      if (other === row) continue;
-      const key = rowPairKey(row, other);
-      if (!partner || compareKeys(key, partner.key) < 0) partner = { other, key };
-    }
-    const target = partner ? assigned.get(partner.other.index) : null;
-    if (target) {
-      target.members.push(row);
-      assigned.set(row.index, target);
-    } else {
-      const own = { modelName: '', members: [row] };
-      out.push(own);
-      assigned.set(row.index, own);
-    }
-  }
-
-  const describe = folder => {
-    const members = [...folder.members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key));
-    return {
-      anchor: members[0],
-      size: members.reduce((sum, member) => sum + member.size, 0),
-      dominant: weightedDominant(members),
-      name: folder.modelName || nameOverMembers(members)
-    };
-  };
-
-  // 3. Merge folders above k with the planner's ceiling key.
-  while (out.length > limit) {
-    const info = new Map(out.map(folder => [folder, describe(folder)]));
-    let best = null;
-    for (const source of out) {
-      for (const target of out) {
-        if (source === target) continue;
-        const s = info.get(source);
-        const t = info.get(target);
-        if (s.size > t.size) continue;
-        const combined = s.size + t.size;
-        const key = [
-          combined > maxSize ? 1 : 0,
-          -categoryAffinity(s.dominant, t.dominant),
-          combined,
-          `${s.anchor.key}|${t.anchor.key}`
-        ];
-        if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
-      }
-    }
-    const s = info.get(best.source);
-    const t = info.get(best.target);
-    best.target.modelName = mergedName({ name: t.name, size: t.size }, { name: s.name, size: s.size });
-    best.target.members.push(...best.source.members);
-    out = out.filter(folder => folder !== best.source);
-  }
-
-  // 4-5. Validate names and derive advice.
-  const taken = [...(takenNames || [])];
+  const groups = enforceGroupCeiling(out, { ceiling: k, hardLimit, n: total });
   const advice = {};
-  const groups = out
-    .map(folder => ({ folder, info: describe(folder) }))
-    .sort((a, b) => b.info.size - a.info.size || compareStrings(a.info.anchor.key, b.info.anchor.key))
-    .map(({ folder, info }) => {
-      const members = folder.members;
-      const tabIds = members.flatMap(member => member.tabIds);
-      if (tabsById) {
-        const position = id => {
-          const index = lookupTab(tabsById, id)?.index;
-          return Number.isFinite(index) ? index : Number.MAX_SAFE_INTEGER;
-        };
-        tabIds.sort((a, b) => position(a) - position(b));
-      }
-      const valid = validateGroupName(folder.modelName, { tabIds }, tabsById, taken);
-      const name = valid || nameOverMembers(members);
-      taken.push(name);
-      for (const member of members) {
-        if (member !== info.anchor) advice[member.key] = info.anchor.key;
-      }
-      return {
-        name,
-        color: CATEGORY_BY_KEY.get(info.dominant)?.color || info.anchor.color || 'grey',
-        tabIds,
-        key: info.anchor.key,
-        keys: [...new Set(members.flatMap(member => member.keys))].sort(),
-        dominant: info.dominant,
-        kind: 'folder',
-        nameSource: valid ? 'model' : 'deterministic'
-      };
-    });
+  const taken = [...takenNames];
+  for (const group of groups) {
+    if (tabsById) {
+      group.tabIds.sort((a, b) => {
+        const position = id => lookupTab(tabsById, id)?.index ?? Number.MAX_SAFE_INTEGER;
+        return position(a) - position(b);
+      });
+    }
+    if (isReviewGroup(group)) continue;
+    const members = rows.filter(row => group.keys.includes(row.key));
+    const anchor = [...members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key))[0];
+    if (anchor) {
+      group.key = anchor.key;
+      for (const member of members) if (member !== anchor) advice[member.key] = anchor.key;
+    }
+    const name = validateGroupName(group.name, group, tabsById, taken);
+    if (!name) {
+      group.name = nameOverMembers(members);
+      group.nameSource = 'deterministic';
+    }
+    taken.push(group.name);
+  }
   return { groups, advice };
 }
 
 /**
- * Last-line guarantee for every task-mode result: merge until the count is at
- * most `ceiling`, using the planner's merge key. Protected (locked) groups are
- * never merged; Review Later only when nothing else can. A no-op when the
- * input already fits.
+ * Approach the preferred `ceiling` through mutually related categories.
+ * Coherent groups may exceed that target up to `hardLimit` (default 10).
+ * If unrelated groups exceed the hard maximum, the smallest share a neutral
+ * Review Later queue. Explicit rules, Socials and remembered user names stay
+ * protected; their count may require the documented protected-groups exception.
+ * `n` optionally supplies the full window size when groups omit protected tabs.
  */
-export function enforceGroupCeiling(groups, { ceiling, protectedNames = [], dominantOf = null } = {}) {
+export function enforceGroupCeiling(groups, {
+  ceiling, hardLimit = MAX_GROUPS, protectedNames = [], dominantOf = null, n = null
+} = {}) {
   const limit = Math.floor(Number(ceiling));
+  const hard = Math.max(1, Math.min(MAX_GROUPS, Math.floor(Number(hardLimit)) || MAX_GROUPS));
   const input = groups || [];
-  if (!Number.isFinite(limit) || limit < 1 || input.length <= limit) return [...input];
+  if (!Number.isFinite(limit) || limit < 1 || (input.length <= limit && input.length <= hard)) return [...input];
 
   const protectedSet = new Set([...(protectedNames || [])].map(lower));
-  const total = input.reduce((sum, group) => sum + groupSize(group), 0);
+  const total = Number.isFinite(n) ? n : input.reduce((sum, group) => sum + groupSize(group), 0);
   const maxSize = getMaxGroupSize(total);
   let items = input.map((group, index) => {
-    const dominant = typeof dominantOf === 'function' ? dominantOf(group) : group.dominant;
-    const key = labelKey(dominant) || null;
+    const dominant = labelKey(typeof dominantOf === 'function' ? dominantOf(group) : group.dominant);
+    const known = { ...group, dominant };
     return {
-      group,
+      group: known,
       key: String(group.key || `${lower(group.name)}#${index}`),
-      protected: isLockedGroup(group) || protectedSet.has(lower(group.name)),
+      protected: isLockedGroup(group) || ['memory-user', 'user'].includes(group.nameSource) || protectedSet.has(lower(group.name)),
       reserved: isReviewGroup(group),
-      counts: new Map(key ? [[key, groupSize(group)]] : []),
-      dominant: key
+      categories: categoriesOf(known),
+      counts: new Map(dominant ? [[dominant, groupSize(group)]] : [])
     };
   });
-
   const size = item => groupSize(item.group);
-  while (items.length > limit) {
-    let mergeable = items.filter(item => !item.protected && !item.reserved);
-    if (mergeable.length < 2) mergeable = items.filter(item => !item.protected);
-    if (mergeable.length < 2) break;
-    let best = null;
-    for (const source of mergeable) {
-      for (const target of mergeable) {
-        if (source === target || size(source) > size(target)) continue;
-        const combined = size(source) + size(target);
-        const key = [
-          combined > maxSize ? 1 : 0,
-          -categoryAffinity(source.dominant, target.dominant),
-          combined,
-          `${source.key}|${target.key}`
-        ];
-        if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
-      }
-    }
-    const { source, target } = best;
-    const name = source.reserved ? target.group.name : mergedName(target.group, source.group);
+  const merge = (target, source) => {
     const counts = new Map(target.counts);
     for (const [key, count] of source.counts) counts.set(key, (counts.get(key) || 0) + count);
     const merged = {
       ...target.group,
-      name,
-      tabIds: [...(target.group.tabIds || []), ...(source.group.tabIds || [])],
-      dominant: topCategory(counts)
+      name: nameForMerge(target.group, source.group),
+      tabIds: [...target.group.tabIds, ...source.group.tabIds],
+      categories: combinedCategories(target.group, source.group),
+      dominant: topCategory(counts),
+      nameSource: 'deterministic'
     };
     if (Array.isArray(target.group.keys) || Array.isArray(source.group.keys)) {
       merged.keys = [...new Set([...(target.group.keys || []), ...(source.group.keys || [])])].sort();
     }
-    if (name !== target.group.name) merged.nameSource = 'deterministic';
-    const replacement = { ...target, group: merged, counts, dominant: merged.dominant, reserved: target.reserved && source.reserved };
-    items = items.filter(item => item !== source).map(item => (item === target ? replacement : item));
+    const replacement = { ...target, group: merged, categories: merged.categories, counts };
+    items = items.filter(item => item !== source).map(item => item === target ? replacement : item);
+  };
+
+  while (items.length > limit) {
+    const mergeable = items.filter(item => !item.protected && !item.reserved);
+    let best = null;
+    for (const source of mergeable) {
+      for (const target of mergeable) {
+        if (source === target || size(source) > size(target) || !compatibleGroups(source.group, target.group)) continue;
+        const combined = size(source) + size(target);
+        if (combined > maxSize) continue;
+        const key = [-categoryAffinity(source.group.dominant, target.group.dominant),
+          combined, `${source.key}|${target.key}`];
+        if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
+      }
+    }
+    if (!best) break;
+    merge(best.target, best.source);
+  }
+
+  if (items.length > hard) {
+    const smallest = list => [...list].sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key))[0];
+    let review = items.find(item => !item.protected && item.reserved);
+    if (!review) {
+      review = smallest(items.filter(item => !item.protected));
+      if (review) {
+        review.group = { ...review.group, name: REVIEW_GROUP_NAME, color: 'grey', kind: 'review',
+          key: REVIEW_KEY, dominant: null, categories: [], nameSource: 'deterministic' };
+        review.reserved = true;
+      }
+    }
+    while (review && items.length > hard) {
+      const source = smallest(items.filter(item => item !== review && !item.protected));
+      if (!source) break;
+      review.group = { ...review.group,
+        tabIds: [...review.group.tabIds, ...source.group.tabIds],
+        keys: [...new Set([...(review.group.keys || []), ...(source.group.keys || [])])].sort() };
+      items = items.filter(item => item !== source);
+    }
   }
   return items.map(item => item.group);
 }

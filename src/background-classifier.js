@@ -11,16 +11,17 @@
 import {
   CLOUD_BATCH_SIZE,
   consolidateWithCloud,
-  groupCeiling,
   isLoopbackUrl,
+  labelCacheScope,
   labelTabsWithAI,
+  MAX_GROUPS,
   nameGroupsWithNano,
   NANO_BACKGROUND_BATCH,
   PROVIDER_CATALOG,
   providerSettingKey,
   updateNanoPerf
 } from './ai-engine.js';
-import { hashToken, PlanMemory, TabLabelCache, WindowPlanStore } from './cache-engine.js';
+import { hashToken, PlanMemory, readResetEpoch, TabLabelCache, WindowPlanStore } from './cache-engine.js';
 import { createTrace, noopTrace } from './debug-trace.js';
 import { markProgrammaticGroupUpdate } from './group-state.js';
 import {
@@ -37,11 +38,13 @@ import {
 } from './grouper.js';
 import {
   buildLocalContext,
+  categoryFromTitle,
   ensureUniqueNames,
   inferLocalLabel,
   labelPriority,
   planGroups,
   REVIEW_GROUP_NAME,
+  titleTokens,
   transferNames
 } from './planner.js';
 
@@ -57,7 +60,7 @@ export const NAVIGATION_SETTLE_MS = 10000;
 export const RETRY_DELAYS_MS = Object.freeze([5000, 30000, 120000]);
 export const NEW_TABS_KEY = 'foldnex_new_tabs_v1';
 const NO_GROUP = -1;
-const REASON_RANK = Object.freeze({ title: 0, other: 1, load: 2, cleanup: 3 });
+const REASON_RANK = Object.freeze({ title: 0, other: 1, settle: 2, load: 2, cleanup: 3 });
 
 // Last background naming attempt per window: {at, signature}. In memory
 // only; a service-worker restart simply allows one more attempt.
@@ -107,6 +110,30 @@ export async function loadBackgroundScope(settings = null) {
   };
 }
 
+/** One immutable configuration for both admission and the eventual request. */
+async function loadBackgroundContext() {
+  const settings = Object.freeze({ ...await loadGroupingSettings() });
+  return Object.freeze({ ...await loadBackgroundScope(settings), settings });
+}
+
+/** Enforce fresh-page cloud consent at dispatch as well as at the queue. */
+function admittedTabs(tabIds, current, admission) {
+  if (!admission) return current.onDevice ? tabIds : [];
+  const reasons = new Map(admission.reasons || []);
+  const fresh = new Set(admission.freshIds || []);
+  return tabIds.filter(id => {
+    const reason = reasons.get(id);
+    if (!reason || (!current.allowed && !(current.cleanupFollowUp && reason === 'cleanup'))) return false;
+    return current.onDevice || (current.autoGroup && reason !== 'title' && fresh.has(id));
+  });
+}
+
+// Ignore numeric counters and boilerplate using the same topic vocabulary as
+// planning. A changed useful title may warrant one final label after load.
+function titleKey(tab) {
+  return hashToken(`${categoryFromTitle(tab?.title) || ''}|${[...titleTokens(tab)].sort().join('|')}`);
+}
+
 /** Address identity for "a new page": the URL without its fragment, hashed. */
 export function pageKey(url) {
   return hashToken(String(url || '').replace(/#.*$/, ''));
@@ -120,8 +147,9 @@ async function liveTabs(tabIds) {
 }
 
 /** Cached labels for a pool, plus local inference for the rest. */
-async function resolvePoolLabels(pool, provider) {
-  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider) });
+async function resolvePoolLabels(pool, settings) {
+  const { provider } = getRunScope(settings);
+  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope: labelCacheScope(settings) });
   const labelsById = new Map();
   for (const [id, entry] of lookup.labels) labelsById.set(id, { c: entry.c, src: 'cache' });
   const ctx = buildLocalContext(pool, labelsById);
@@ -141,13 +169,19 @@ async function resolvePoolLabels(pool, provider) {
  *   windows that got a new label, and `unlabelledIds` the tabs sent to the
  *   engine that came back without one.
  */
-export async function classifyTabs(tabIds, signal = null) {
-  const empty = { windowIds: [], storedWindowIds: [], labelledIds: [], unlabelledIds: [], aborted: false, error: null };
-  const settings = await loadGroupingSettings();
+export async function classifyTabs(tabIds, signal = null, { settings: snapshot = null, admission = null, epoch = null } = {}) {
+  const originEpoch = epoch ?? await readResetEpoch();
+  signal?.throwIfAborted();
+  const empty = { windowIds: [], storedWindowIds: [], labelledIds: [], labelledPages: [], unlabelledIds: [], aborted: false, error: null };
+  const settings = Object.freeze({ ...(snapshot || await loadGroupingSettings()) });
   if (!backgroundAllowed(settings)) return empty;
+  const current = await loadBackgroundScope(settings);
+  const eligibleIds = admittedTabs(tabIds, current, admission);
+  if (eligibleIds.length === 0) return empty;
   const { provider } = getRunScope(settings);
+  const scope = labelCacheScope(settings);
 
-  const tabs = await liveTabs(tabIds);
+  const tabs = await liveTabs(eligibleIds);
   if (tabs.length === 0) return empty;
   const windowIds = [...new Set(tabs.map(tab => tab.windowId))];
 
@@ -155,7 +189,7 @@ export async function classifyTabs(tabIds, signal = null) {
   if (pool.length === 0) return { ...empty, windowIds };
 
   const trace = createTrace({ kind: 'background', tabsInWindow: tabs.length });
-  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider) });
+  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope });
   trace.mark('bg_start', { tabs: pool.length, pending: lookup.missing.length, provider });
   if (lookup.missing.length === 0) return { ...empty, windowIds };
 
@@ -173,14 +207,20 @@ export async function classifyTabs(tabIds, signal = null) {
   const stored = new Set();
   let result;
   try {
+    signal?.throwIfAborted();
+    if (await readResetEpoch() !== originEpoch) return { ...empty, aborted: true };
     result = await labelTabsWithAI(ordered, settings, {
       signal,
+      epoch: originEpoch,
       trace,
       batchSize: provider === 'gemini_nano' ? NANO_BACKGROUND_BATCH : CLOUD_BATCH_SIZE,
       // Background batches never burst: rate limits and local servers see one at a time.
       sequential: true,
       onBatch: async (labels, info) => {
-        await TabLabelCache.store(labels, lookup.fingerprintById, provider);
+        signal?.throwIfAborted();
+        await TabLabelCache.store(labels, lookup.fingerprintById, provider, { epoch: originEpoch, scope });
+        signal?.throwIfAborted();
+        if (await readResetEpoch() !== originEpoch) throw new Error('Learning memory was reset');
         for (const id of labels.keys()) stored.add(id);
         if (provider === 'gemini_nano' && info.count > 0) await updateNanoPerf({ count: info.count, elapsedMs: info.ms });
         trace.mark('bg_stored', { labels: labels.size });
@@ -194,6 +234,7 @@ export async function classifyTabs(tabIds, signal = null) {
       unlabelledIds: Array.isArray(error?.unlabelledIds) ? error.unlabelledIds : ordered.map(tab => tab.id)
     };
   }
+  if (await readResetEpoch() !== originEpoch) return { ...empty, aborted: true };
   if (result.error) console.warn('[Foldnex] Background labelling stopped early:', result.error?.message);
 
   const labelledIds = [...stored];
@@ -205,6 +246,7 @@ export async function classifyTabs(tabIds, signal = null) {
     windowIds,
     storedWindowIds: [...new Set(labelledIds.map(id => windowOf.get(id)))],
     labelledIds,
+    labelledPages: tabs.filter(tab => stored.has(tab.id)).map(tab => ({ id: tab.id, page: pageKey(tab.url), title: titleKey(tab) })),
     unlabelledIds,
     aborted: Boolean(result.aborted),
     error: result.error || null
@@ -220,15 +262,18 @@ export async function classifyTabs(tabIds, signal = null) {
  * PlanMemory.
  * @returns {Promise<{K: number, signature: string, groups: object[]}|null>}
  */
-export async function refreshWindowPlan(windowId, settings, signal = null, { trace = noopTrace } = {}) {
+export async function refreshWindowPlan(windowId, settings, signal = null, { trace = noopTrace, epoch = null } = {}) {
+  const originEpoch = epoch ?? await readResetEpoch();
+  signal?.throwIfAborted();
   const windowTabs = getGroupableTabs(await chrome.tabs.query({ windowId }));
   // Incognito windows are never planned, named or stored.
   if (windowTabs.length < 2 || windowTabs.some(tab => tab.incognito)) return null;
   const { provider } = getRunScope(settings);
+  const scope = labelCacheScope(settings);
 
   const { locked, pool } = await buildLockedGroups(windowTabs, { incognito: false });
-  const { lookup, labelsById } = await resolvePoolLabels(pool, provider);
-  const memory = await PlanMemory.read();
+  const { lookup, labelsById } = await resolvePoolLabels(pool, settings);
+  const memory = await PlanMemory.read({ scope });
   signal?.throwIfAborted();
 
   const plan = planGroups(pool, labelsById, { locked, advice: memory.advice.cloud });
@@ -240,23 +285,26 @@ export async function refreshWindowPlan(windowId, settings, signal = null, { tra
   const need = namingNeed(groups);
   const previous = namingAttempts.get(windowId);
   const localNamer = isOnDeviceEngine(settings);
-  const due = !previous || (previous.signature !== plan.signature && Date.now() - previous.at >= NAMING_RATE_LIMIT_MS);
+  const due = !previous || previous.epoch !== originEpoch || previous.scope !== scope
+    || (previous.signature !== plan.signature && Date.now() - previous.at >= NAMING_RATE_LIMIT_MS);
   if (localNamer && need.needed && due) {
-    namingAttempts.set(windowId, { at: Date.now(), signature: plan.signature });
+    namingAttempts.set(windowId, { at: Date.now(), signature: plan.signature, epoch: originEpoch, scope });
     try {
       if (provider === 'gemini_nano') {
         const raw = await nameGroupsWithNano(need.toName, tabsById, { signal, trace });
+        signal?.throwIfAborted();
         const records = applyModelNames(need.toName, raw, groups, { tabsById, tokensById: plan.tokensById });
-        if (records.length > 0) await PlanMemory.putNames(records);
+        if (records.length > 0) await PlanMemory.putNames(records, { epoch: originEpoch, scope });
       } else {
         // Ollama on this device, so its consolidation may run here.
         const k = consolidationLimit(plan, groups);
-        const result = await consolidateWithCloud(plan.candidates, k, settings, { signal, trace, tabsById });
+        const result = await consolidateWithCloud(plan.candidates, k, settings, { signal, trace, tabsById, epoch: originEpoch });
+        signal?.throwIfAborted();
         if (hasFolders(result)) {
           const applied = applyFolders(groups, plan, result.folders, k, { tabsById, memory, fingerprintById });
           groups = applied.groups;
-          if (applied.records.length > 0) await PlanMemory.putNames(applied.records);
-          await PlanMemory.putAdvice(applied.advice);
+          if (applied.records.length > 0) await PlanMemory.putNames(applied.records, { epoch: originEpoch, scope });
+          await PlanMemory.putAdvice(applied.advice, { epoch: originEpoch, scope });
         }
       }
     } catch (error) {
@@ -271,8 +319,9 @@ export async function refreshWindowPlan(windowId, settings, signal = null, { tra
   }
 
   signal?.throwIfAborted();
+  if (await readResetEpoch() !== originEpoch) return null;
   const record = { K: plan.K, signature: plan.signature, groups };
-  await WindowPlanStore.put(windowId, record);
+  await WindowPlanStore.put(windowId, record, { epoch: originEpoch });
   trace.mark('bg_plan_refreshed', { windowId, groups: groups.length });
   return record;
 }
@@ -312,7 +361,7 @@ async function stillUngrouped(tabIds, windowId) {
  * B6: file ungrouped candidate tabs into the Chrome group their plan group
  * already occupies, or create that group once two of them share it, no
  * member is grouped yet, and the window still has fewer titled groups than
- * its ceiling. Grouped tabs are never moved and Review Later is never
+ * the absolute task-mode limit. Grouped tabs are never moved and Review Later is never
  * auto-created. `candidateIds` limits which ungrouped tabs may move (null:
  * every ungrouped tab). An abort stops before the next Chrome change; a
  * group already created still gets its title.
@@ -336,7 +385,7 @@ export async function autoGroupWindow(windowId, plan, {
   const titleOf = new Map(chromeGroups.map(group => [group.id, group.title || '']));
   const byTitle = new Map(chromeGroups.filter(group => group.title).map(group => [group.title.toLowerCase(), group.id]));
   const groupIdOf = new Map(windowTabs.map(tab => [tab.id, tab.groupId ?? NO_GROUP]));
-  const ceiling = groupCeiling(windowTabs.length);
+  const ceiling = MAX_GROUPS;
 
   const targets = [];
   for (const group of plan.groups) {
@@ -386,13 +435,17 @@ export async function autoGroupWindow(windowId, plan, {
 export async function refreshAndAutoGroup(windowId, signal = null, {
   autoGroup = true,
   candidateIds = null,
-  onGrouped = null
+  onGrouped = null,
+  settings: snapshot = null,
+  epoch = null
 } = {}) {
-  const settings = await loadGroupingSettings();
+  const originEpoch = epoch ?? await readResetEpoch();
+  signal?.throwIfAborted();
+  const settings = Object.freeze({ ...(snapshot || await loadGroupingSettings()) });
   if (!backgroundAllowed(settings)) return null;
   const trace = createTrace({ kind: 'background' });
-  const plan = await refreshWindowPlan(windowId, settings, signal, { trace });
-  if (plan && autoGroup && settings.autoGroupNewTabs) {
+  const plan = await refreshWindowPlan(windowId, settings, signal, { trace, epoch: originEpoch });
+  if (plan && autoGroup && settings.autoGroupNewTabs && await readResetEpoch() === originEpoch) {
     signal?.throwIfAborted();
     await autoGroupWindow(windowId, plan, { trace, signal, candidateIds, onGrouped });
   }
@@ -407,7 +460,7 @@ export async function dumpWindowLabels(windowId) {
   const settings = await loadGroupingSettings();
   const { provider } = getRunScope(settings);
   const tabs = getGroupableTabs(await chrome.tabs.query({ windowId })).filter(tab => !tab.incognito);
-  const { labelsById } = await resolvePoolLabels(tabs, provider);
+  const { labelsById } = await resolvePoolLabels(tabs, settings);
   return tabs.map(tab => {
     let host = '';
     try {
@@ -460,8 +513,9 @@ export function createNewTabTracker({ area = () => globalThis.chrome?.storage?.s
 
   return {
     ready,
-    async markNew(tabId, { grouped = false } = {}) {
+    async markNew(tabId, { grouped = false, isCurrent = () => true } = {}) {
       const s = await ready();
+      if (!isCurrent()) return;
       s.fresh.add(tabId);
       s.outKeys.delete(tabId);
       if (!grouped) s.candidates.add(tabId);
@@ -495,6 +549,13 @@ export function createNewTabTracker({ area = () => globalThis.chrome?.storage?.s
       s.outKeys.clear();
       await save();
     },
+    /** Retire old admissions while preserving explicit Ungroup choices. */
+    async retireAdmissions() {
+      const s = await ready();
+      s.fresh.clear();
+      s.candidates.clear();
+      await save();
+    },
     async outKey(tabId) {
       return (await ready()).outKeys.get(tabId);
     },
@@ -526,7 +587,7 @@ export function createNewTabTracker({ area = () => globalThis.chrome?.storage?.s
 export function createBackgroundClassifier({
   classify = classifyTabs,
   refresh = refreshAndAutoGroup,
-  scope = loadBackgroundScope,
+  scope = loadBackgroundContext,
   tracker = createNewTabTracker(),
   flushDelayMs = FLUSH_DELAY_MS,
   flushMaxWaitMs = FLUSH_MAX_WAIT_MS,
@@ -544,13 +605,21 @@ export function createBackgroundClassifier({
   const labelledAt = new Map();
   const navigatedAt = new Map();
   const lastPageKey = new Map();
+  const latestTabs = new Map();
+  const labelledPages = new Map();
+  const inFlightPages = new Set();
+  const settlingTitles = new Map();
+  const settledFollowUps = new Set();
   let pendingSince = null;
   let flushTimer = null;
   let refreshTimer = null;
   let retryTimer = null;
+  let settleTimer = null;
   let running = null;
   let idle = Promise.resolve();
   let holds = 0;
+  let configuration = 0;
+  let admissionsReady = Promise.resolve();
 
   const paused = () => holds > 0;
 
@@ -638,6 +707,53 @@ export function createBackgroundClassifier({
     gaveUp.delete(tabId);
     retries.delete(tabId);
     labelledAt.delete(tabId);
+    labelledPages.delete(tabId);
+    inFlightPages.delete(tabId);
+    settlingTitles.delete(tabId);
+    settledFollowUps.delete(tabId);
+  }
+
+  function armSettlingTitles() {
+    clearTimeout(settleTimer);
+    settleTimer = null;
+    if (paused()) return;
+    const waiting = [...settlingTitles].filter(([id]) => !inFlightPages.has(id));
+    if (waiting.length === 0) return;
+    const next = Math.min(...waiting.map(([, at]) => at));
+    settleTimer = setTimeout(releaseSettlingTitles, Math.max(0, next - Date.now()));
+  }
+
+  function releaseSettlingTitles() {
+    settleTimer = null;
+    const now = Date.now();
+    for (const [id, at] of [...settlingTitles]) {
+      if (at > now || inFlightPages.has(id)) continue;
+      settlingTitles.delete(id);
+      const tab = latestTabs.get(id);
+      if (!tab) continue;
+      const labelled = labelledPages.get(id);
+      if (labelled?.page === pageKey(tab.url)) {
+        if (labelled.title === titleKey(tab) || settledFollowUps.has(id)) continue;
+        // Only one final useful-title request per navigation. Failed requests
+        // still use the ordinary retry queue rather than spending this again.
+        settledFollowUps.add(id);
+      }
+      enqueue([id], { reason: 'settle' });
+    }
+    armSettlingTitles();
+  }
+
+  function noteSettlingTitle(tabId) {
+    settlingTitles.set(tabId, (navigatedAt.get(tabId) || Date.now()) + navigationSettleMs);
+    armSettlingTitles();
+  }
+
+  function batchStopped(batch, signal, version) {
+    if (!signal.aborted && version === configuration) return false;
+    // A cleanup pause returns work; a settings change discards its old
+    // admission. No pause hold is added by configuration invalidation.
+    if (signal.aborted && version === configuration) for (const [id, reason] of batch) addPending(id, reason);
+    return true;
   }
 
   function enqueue(tabIds, { reason = 'other', retryGivenUp = false } = {}) {
@@ -661,7 +777,10 @@ export function createBackgroundClassifier({
     if (added > 0) scheduleFlush();
   }
 
-  async function classifyBatch(batch, signal) {
+  async function classifyBatch(batch, signal, version) {
+    await admissionsReady;
+    if (batchStopped(batch, signal, version)) return;
+    const epoch = await readResetEpoch();
     let current;
     try {
       current = await scope();
@@ -669,25 +788,34 @@ export function createBackgroundClassifier({
       console.warn('[Foldnex] Could not read background settings:', error?.message);
       return;
     }
-    if (!current) return;
+    if (!current || batchStopped(batch, signal, version)) return;
     let sendable = batch;
     if (!current.allowed) {
       if (!current.cleanupFollowUp) return;
       sendable = batch.filter(([, reason]) => reason === 'cleanup');
     }
+    let freshIds = [];
     if (!current.onDevice) {
       // Cloud consent covers pages opened after Auto-group was turned on, never title-only changes.
-      const fresh = new Set(await tracker.freshIds());
+      freshIds = await tracker.freshIds();
+      const fresh = new Set(freshIds);
       sendable = sendable.filter(([id, reason]) => reason !== 'title' && fresh.has(id));
     }
-    if (sendable.length === 0) return;
+    if (sendable.length === 0 || batchStopped(sendable, signal, version)) return;
     const ids = sendable.map(([id]) => id);
     const reasonOf = new Map(sendable);
 
     let result = null;
     let unlabelled = [];
+    const dispatched = new Map((await liveTabs(ids)).map(tab => [tab.id, { id: tab.id, page: pageKey(tab.url), title: titleKey(tab) }]));
+    if (batchStopped(sendable, signal, version)) return;
+    for (const id of ids) inFlightPages.add(id);
     try {
-      result = await classify(ids, signal);
+      result = await classify(ids, signal, {
+        settings: current.settings || null,
+        admission: { freshIds, reasons: sendable },
+        epoch
+      });
       unlabelled = result?.error
         ? (Array.isArray(result.unlabelledIds) ? result.unlabelledIds : ids)
         : (Array.isArray(result?.unlabelledIds) ? result.unlabelledIds : []);
@@ -696,17 +824,26 @@ export function createBackgroundClassifier({
         console.warn('[Foldnex] Background classification failed:', error?.message);
         unlabelled = Array.isArray(error?.unlabelledIds) ? error.unlabelledIds : ids;
       }
+    } finally {
+      for (const id of ids) inFlightPages.delete(id);
     }
     if (signal.aborted) {
-      for (const [id, reason] of sendable) addPending(id, reason);
+      if (version === configuration) for (const [id, reason] of sendable) addPending(id, reason);
+      armSettlingTitles();
       return;
     }
+    if (version !== configuration || await readResetEpoch() !== epoch) return;
 
     const now = Date.now();
+    const actualPages = new Map((result?.labelledPages || []).map(entry => [entry.id, entry]));
     for (const id of result?.labelledIds || []) {
+      const page = actualPages.get(id) || dispatched.get(id);
+      if (page && lastPageKey.has(id) && page.page !== lastPageKey.get(id)) continue;
       labelledAt.set(id, now);
       failures.delete(id);
+      if (page && page.page === lastPageKey.get(id)) labelledPages.set(id, page);
     }
+    armSettlingTitles();
     const unlabelledSet = new Set(unlabelled.filter(id => reasonOf.has(id)));
     for (const id of unlabelledSet) scheduleRetry(id, reasonOf.get(id));
 
@@ -715,45 +852,49 @@ export function createBackgroundClassifier({
     if (current.autoGroup) {
       const candidates = new Set(await tracker.candidateIds());
       const triggers = sendable
-        .filter(([id, reason]) => reason === 'load' && candidates.has(id) && !unlabelledSet.has(id))
+        .filter(([id, reason]) => (reason === 'load' || reason === 'settle') && candidates.has(id) && !unlabelledSet.has(id))
         .map(([id]) => id);
       const tabs = await Promise.all(triggers.map(id => chrome.tabs.get(id).catch(() => null)));
       for (const tab of tabs) {
         if (tab && !tab.incognito && (tab.groupId ?? NO_GROUP) === NO_GROUP) autoWindows.add(tab.windowId);
       }
     }
+    if (signal.aborted || version !== configuration || await readResetEpoch() !== epoch) return;
     for (const windowId of new Set([...(result?.storedWindowIds || []), ...autoWindows])) {
       pushRefresh(windowId, autoWindows.has(windowId));
     }
   }
 
-  async function runDueRefreshes(signal) {
+  async function runDueRefreshes(signal, version) {
+    const epoch = await readResetEpoch();
     const now = Date.now();
     if (![...refreshDue.values()].some(entry => entry.at <= now)) return;
     // A refresh may prompt for names, so it needs the same opt-in as
     // labelling; a due refresh the settings do not allow is dropped.
-    let allowed = false;
+    let current = null;
     try {
-      allowed = Boolean((await scope())?.allowed);
+      current = await scope();
     } catch (error) {
       console.warn('[Foldnex] Could not read background settings:', error?.message);
     }
     for (const [windowId, entry] of [...refreshDue]) {
-      if (signal.aborted) break;
+      if (signal.aborted || version !== configuration) break;
       if (entry.at > now) continue;
       refreshDue.delete(windowId);
-      if (!allowed) continue;
+      if (!current?.allowed) continue;
       try {
         const candidateIds = entry.autoGroup ? await tracker.candidateIds() : [];
         await refresh(windowId, signal, {
           autoGroup: entry.autoGroup,
           candidateIds,
-          onGrouped: tabIds => tracker.markGrouped(tabIds)
+          onGrouped: tabIds => tracker.markGrouped(tabIds),
+          settings: current.settings || null,
+          epoch
         });
       } catch (error) {
-        if (signal.aborted) {
+        if (signal.aborted && version === configuration) {
           if (!refreshDue.has(windowId)) refreshDue.set(windowId, { ...entry, at: Date.now() + refreshDelayMs });
-        } else {
+        } else if (!signal.aborted) {
           console.warn('[Foldnex] Background plan refresh failed:', error?.message);
         }
       }
@@ -766,6 +907,8 @@ export function createBackgroundClassifier({
     flushTimer = null;
     clearTimeout(refreshTimer);
     refreshTimer = null;
+    clearTimeout(settleTimer);
+    settleTimer = null;
     running?.abort(new Error('Paused for cleanup'));
   }
 
@@ -774,6 +917,29 @@ export function createBackgroundClassifier({
     if (paused()) return;
     scheduleFlush();
     armRefresh();
+    armSettlingTitles();
+  }
+
+  /** Configuration changes invalidate work immediately without changing holds. */
+  function invalidate() {
+    configuration++;
+    admissionsReady = admissionsReady.then(() => tracker.retireAdmissions());
+    // Prevent an unhandled rejection; dispatch still awaits the original
+    // barrier and fails closed if admission retirement cannot complete.
+    admissionsReady.catch(() => {});
+    running?.abort(new Error('Background settings changed'));
+    pending.clear();
+    pendingSince = null;
+    retries.clear();
+    refreshDue.clear();
+    settlingTitles.clear();
+    failures.clear();
+    gaveUp.clear();
+    labelledAt.clear();
+    labelledPages.clear();
+    settledFollowUps.clear();
+    for (const timer of [flushTimer, refreshTimer, retryTimer, settleTimer]) clearTimeout(timer);
+    flushTimer = refreshTimer = retryTimer = settleTimer = null;
   }
 
   /** Settles once the current flush, if any, has finished or stopped. */
@@ -792,11 +958,12 @@ export function createBackgroundClassifier({
     pending.clear();
     pendingSince = null;
     const controller = new AbortController();
+    const version = configuration;
     running = controller;
     idle = (async () => {
       try {
-        if (batch.length > 0) await classifyBatch(batch, controller.signal);
-        await runDueRefreshes(controller.signal);
+        if (batch.length > 0) await classifyBatch(batch, controller.signal, version);
+        await runDueRefreshes(controller.signal, version);
       } catch (error) {
         console.warn('[Foldnex] Background queue failed:', error?.message);
       } finally {
@@ -816,7 +983,10 @@ export function createBackgroundClassifier({
      * waiting for a retry keep waiting; a given-up tab gets one more attempt.
      */
     async prioritize(windowId) {
+      const version = configuration;
+      await admissionsReady;
       const tabs = getGroupableTabs(await chrome.tabs.query({ windowId })).filter(tab => !tab.incognito);
+      if (version !== configuration) return;
       for (const tab of tabs) revive(tab.id);
       const ids = tabs.map(tab => tab.id).filter(id => !retries.has(id));
       if (ids.length === 0) return;
@@ -839,15 +1009,24 @@ export function createBackgroundClassifier({
     },
     async noteTabCreated(tab, { autoGroup = false } = {}) {
       if (!tab || tab.incognito || !Number.isInteger(tab.id)) return;
+      const version = configuration;
+      await admissionsReady;
+      if (version !== configuration) return;
       lastPageKey.set(tab.id, pageKey(tab.pendingUrl || tab.url));
+      latestTabs.set(tab.id, { ...tab, url: tab.pendingUrl || tab.url });
       navigatedAt.set(tab.id, Date.now());
       // A tab Chrome restores without loading is not new.
       if (autoGroup && tab.status !== 'unloaded' && !tab.discarded) {
-        await tracker.markNew(tab.id, { grouped: (tab.groupId ?? NO_GROUP) !== NO_GROUP });
+        await tracker.markNew(tab.id, { grouped: (tab.groupId ?? NO_GROUP) !== NO_GROUP, isCurrent: () => version === configuration });
       }
     },
     async noteTabUpdated(tabId, changeInfo = {}, tab = {}, { autoGroup = false } = {}) {
       if (!Number.isInteger(tabId) || tab?.incognito) return;
+      const version = configuration;
+      await admissionsReady;
+      if (version !== configuration) return;
+      const updated = { ...latestTabs.get(tabId), ...tab, ...changeInfo, id: tabId };
+      latestTabs.set(tabId, updated);
       if (Number.isInteger(changeInfo.groupId)) {
         if (changeInfo.groupId === NO_GROUP) await tracker.markTakenOut([[tabId, pageKey(tab?.url)]]);
         else await tracker.markGrouped([tabId]);
@@ -858,6 +1037,7 @@ export function createBackgroundClassifier({
       if (typeof changeInfo.url === 'string') {
         const key = pageKey(changeInfo.url);
         const known = (await tracker.outKey(tabId)) ?? lastPageKey.get(tabId);
+        if (version !== configuration) return;
         lastPageKey.set(tabId, key);
         // A same-document change (fragment, history API, a map rewriting its
         // address as it pans) is never a new page; it is treated like a
@@ -869,15 +1049,20 @@ export function createBackgroundClassifier({
           navigated = true;
           forgetLabelState(tabId);
           navigatedAt.set(tabId, Date.now());
-          if (autoGroup) await tracker.markNew(tabId, { grouped: (tab?.groupId ?? NO_GROUP) !== NO_GROUP });
+          if (autoGroup) await tracker.markNew(tabId, { grouped: (tab?.groupId ?? NO_GROUP) !== NO_GROUP, isCurrent: () => version === configuration });
         }
       }
 
+      if (version !== configuration) return;
       const settling = Date.now() - (navigatedAt.get(tabId) ?? -Infinity) < navigationSettleMs;
       if ((changeInfo.status === 'complete' && !addressRewritten) || (navigated && tab?.status === 'complete')) {
-        enqueue([tabId], { reason: 'load' });
+        if (settling && (labelledPages.has(tabId) || inFlightPages.has(tabId))) noteSettlingTitle(tabId);
+        else enqueue([tabId], { reason: 'load' });
       } else if ((changeInfo.title || addressRewritten) && tab?.status === 'complete') {
-        enqueue([tabId], { reason: settling ? 'load' : 'title' });
+        if (settling && !addressRewritten) {
+          noteSettlingTitle(tabId);
+          if (!labelledPages.has(tabId) && !inFlightPages.has(tabId)) enqueue([tabId], { reason: 'load' });
+        } else enqueue([tabId], { reason: 'title' });
       }
     },
     async noteTabRemoved(tabId) {
@@ -885,6 +1070,8 @@ export function createBackgroundClassifier({
       forgetLabelState(tabId);
       navigatedAt.delete(tabId);
       lastPageKey.delete(tabId);
+      latestTabs.delete(tabId);
+      inFlightPages.delete(tabId);
       await tracker.forget(tabId);
     },
     /** After Ungroup all: the window's tabs stop being candidates until they open a new page. */
@@ -904,6 +1091,7 @@ export function createBackgroundClassifier({
      */
     async clear({ waitMs = 1000 } = {}) {
       pause();
+      invalidate();
       let timer = null;
       try {
         await Promise.race([whenIdle(), new Promise(resolve => { timer = setTimeout(resolve, waitMs); })]);
@@ -915,10 +1103,12 @@ export function createBackgroundClassifier({
         clearTimeout(retryTimer);
         retryTimer = null;
         refreshDue.clear();
+        settlingTitles.clear();
         resume();
       }
     },
     pause,
+    invalidate,
     resume,
     whenIdle
   };

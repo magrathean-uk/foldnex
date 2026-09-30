@@ -16,6 +16,8 @@ import {
   providerSettingKey
 } from '../src/ai-engine.js';
 import { isOnDeviceEngine } from '../src/background-classifier.js';
+import { loadSettings as loadSavedSettings, saveProviderSecrets } from '../src/settings.js';
+import { PROVIDER_USAGE_KEY, readProviderUsageSummary, clearProviderUsage } from '../src/provider-usage.js';
 
 // DOM elements - Navigation
 const navItems = document.querySelectorAll('.nav-item');
@@ -45,6 +47,7 @@ const geminiModel = document.getElementById('geminiModel');
 const geminiReasoningEffort = document.getElementById('geminiReasoningEffort');
 const geminiReasoningHelp = document.getElementById('geminiReasoningHelp');
 const geminiModelOptions = document.getElementById('geminiModelOptions');
+const geminiCustomModel = document.getElementById('geminiCustomModel');
 const geminiModelsStatus = document.getElementById('geminiModelsStatus');
 const btnRefreshGeminiModels = document.getElementById('btnRefreshGeminiModels');
 const btnToggleGeminiKey = document.getElementById('btnToggleGeminiKey');
@@ -59,9 +62,12 @@ const compatibleModel = document.getElementById('compatibleModel');
 const compatibleReasoningEffort = document.getElementById('compatibleReasoningEffort');
 const openaiPrioritySection = document.getElementById('openaiPrioritySection');
 const prefOpenaiPriority = document.getElementById('prefOpenaiPriority');
+const cloudCostSettings = document.getElementById('cloudCostSettings');
+const prefCloudEconomy = document.getElementById('prefCloudEconomy');
 const prefAutoGroup = document.getElementById('prefAutoGroup');
 const compatibleReasoningHelp = document.getElementById('compatibleReasoningHelp');
 const compatibleModelOptions = document.getElementById('compatibleModelOptions');
+const compatibleCustomModel = document.getElementById('compatibleCustomModel');
 const compatibleModelsStatus = document.getElementById('compatibleModelsStatus');
 const btnRefreshCompatibleModels = document.getElementById('btnRefreshCompatibleModels');
 const compatibleBaseUrl = document.getElementById('compatibleBaseUrl');
@@ -98,6 +104,13 @@ const btnClearDiagnostics = document.getElementById('btnClearDiagnostics');
 const diagFallback = document.getElementById('diagFallback');
 const diagReasoning = document.getElementById('diagReasoning');
 const diagReasoningTokens = document.getElementById('diagReasoningTokens');
+const usageRequests = document.getElementById('usageRequests');
+const usageTokens = document.getElementById('usageTokens');
+const usageCache = document.getElementById('usageCache');
+const usageProviders = document.getElementById('usageProviders');
+const usageReasoning = document.getElementById('usageReasoning');
+const usageCoverage = document.getElementById('usageCoverage');
+const btnClearProviderUsage = document.getElementById('btnClearProviderUsage');
 const autoGroupPrepNote = document.getElementById('autoGroupPrepNote');
 
 // On-device background preparation and model memory
@@ -125,12 +138,14 @@ let savedOllamaBaseUrl = '';
 let autoGroupOn = false;
 let modelStateTimer = null;
 let modelStateBusy = false;
-const MODEL_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const catalogRevisions = { gemini: 0, compatible: 0 };
+const connectionRevisions = { gemini: 0, compatible: 0 };
+let compatibleLoadRevision = 0;
 const MODEL_STATE_POLL_MS = 5000;
 const MODEL_UNLOAD_VALUES = ['immediately', '2m', '5m', '15m', '60m', 'never'];
 const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
-const NANO_PREP_HELP = 'Labels tabs as they load, so a cleanup takes under a second. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.';
-const OLLAMA_PREP_HELP = 'Labels tabs as they load, so a cleanup takes under a second. Keeps the Ollama model in memory and uses some CPU when tabs change. Turn off to label only when you clean up: tabs the model has not reached yet are placed by site first and sorted right after.';
+const NANO_PREP_HELP = 'Labels tabs as they load, so a later cleanup can use saved labels. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.';
+const OLLAMA_PREP_HELP = 'Labels tabs as they load, so a later cleanup can use saved labels. Keeps the Ollama model in memory and uses some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
@@ -367,15 +382,12 @@ async function expandProviderPicker() {
   selectedRadio?.focus({ preventScroll: true });
 }
 
-function modelCatalogCacheKey(provider) {
-  return providerSettingKey(provider, 'modelCatalog');
-}
-
 function modelUi(provider) {
   if (provider === 'gemini_api') {
     return {
       input: geminiModel,
       options: geminiModelOptions,
+      custom: geminiCustomModel,
       status: geminiModelsStatus,
       button: btnRefreshGeminiModels
     };
@@ -383,58 +395,107 @@ function modelUi(provider) {
   return {
     input: compatibleModel,
     options: compatibleModelOptions,
+    custom: compatibleCustomModel,
     status: compatibleModelsStatus,
     button: btnRefreshCompatibleModels
   };
 }
 
+function catalogSlot(provider) {
+  return provider === 'gemini_api' ? 'gemini' : 'compatible';
+}
+
+function catalogProviderCurrent(provider) {
+  return panelProvider === provider && (provider === 'gemini_api' || selectedCompatibleProvider === provider);
+}
+
+// These request snapshots stay in this page's memory. Credentials never enter
+// model catalog storage, diagnostics, or UI messages.
+function catalogContext(provider) {
+  const config = PROVIDER_CATALOG[provider];
+  return {
+    provider,
+    apiKey: provider === 'gemini_api'
+      ? geminiApiKey.value.trim()
+      : compatibleApiKey.value.trim() || (provider === 'openai' ? openaiOAuthToken.value.trim() : ''),
+    baseUrl: provider === 'gemini_api' ? '' : compatibleBaseUrl.value.trim() || config.baseUrl
+  };
+}
+
+function catalogContextCurrent(context) {
+  if (!catalogProviderCurrent(context.provider)) return false;
+  const current = catalogContext(context.provider);
+  return current.apiKey === context.apiKey && current.baseUrl === context.baseUrl;
+}
+
 function renderModelOptions(provider, models, fetchedAt = 0) {
-  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
+  if (!catalogProviderCurrent(provider)) return;
   const ui = modelUi(provider);
   ui.options.textContent = '';
+  const custom = document.createElement('option');
+  custom.value = '';
+  custom.textContent = 'Custom model…';
+  ui.options.append(custom);
   for (const model of models) {
     const option = document.createElement('option');
     option.value = model;
+    option.textContent = model;
     ui.options.append(option);
   }
+  const selected = ui.input.value.trim();
+  const listed = models.includes(selected);
+  ui.options.value = listed ? selected : '';
+  ui.custom.classList.toggle('hidden', listed);
+  if (!models.length) return;
   const age = fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString()}` : '';
-  ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}.`;
+  ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}. Choose one or enter a custom ID; your model changes only when you save.`;
 }
 
-async function refreshModelCatalog(provider, { force = false } = {}) {
+function invalidateModelCatalog(provider) {
+  if (!PROVIDER_CATALOG[provider] || !['gemini', 'compatible'].includes(PROVIDER_CATALOG[provider].mode)) return;
+  const slot = catalogSlot(provider);
+  catalogRevisions[slot]++;
+  connectionRevisions[slot]++;
+  if (!catalogProviderCurrent(provider)) return;
+  const ui = modelUi(provider);
+  renderModelOptions(provider, []);
+  ui.button.disabled = false;
+  ui.button.textContent = 'Refresh models';
+  ui.status.textContent = 'Catalog needs refresh for the current connection settings.';
+  const testButton = provider === 'gemini_api' ? btnTestGemini : btnTestCompatible;
+  testButton.textContent = 'Test connection';
+  testButton.disabled = provider === 'openai' && isOpenAIResponsesOnlyModel(ui.input.value.trim() || PROVIDER_CATALOG[provider].defaultModel);
+}
+
+async function refreshModelCatalog(provider) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || !['gemini', 'compatible'].includes(config.mode)) return;
-  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
+  if (!config || !['gemini', 'compatible'].includes(config.mode) || !catalogProviderCurrent(provider)) return false;
 
   const ui = modelUi(provider);
-  const cacheKey = modelCatalogCacheKey(provider);
-  const cached = (await chrome.storage.local.get(cacheKey))[cacheKey];
-  if (Array.isArray(cached?.models) && cached.models.length) {
-    renderModelOptions(provider, cached.models, cached.fetchedAt);
-    if (!force && Date.now() - Number(cached.fetchedAt || 0) < MODEL_CACHE_MAX_AGE_MS) return;
-  }
-  if (provider !== 'gemini_api' && selectedCompatibleProvider !== provider) return;
-
-  const apiKey = provider === 'gemini_api'
-    ? geminiApiKey.value.trim()
-    : compatibleApiKey.value.trim() || (provider === 'openai' ? openaiOAuthToken.value.trim() : '');
-  const baseUrl = provider === 'gemini_api' ? '' : compatibleBaseUrl.value.trim();
+  const slot = catalogSlot(provider);
+  const revision = ++catalogRevisions[slot];
+  const context = catalogContext(provider);
+  const isCurrent = () => catalogRevisions[slot] === revision && catalogContextCurrent(context);
+  // Provider-only persistent caches can belong to a different account or
+  // endpoint. Catalog GETs always refresh; the selected model is preserved.
+  renderModelOptions(provider, []);
 
   ui.button.disabled = true;
   ui.button.textContent = 'Loading…';
   ui.status.textContent = 'Loading the live model catalog…';
   try {
-    const models = await listProviderModels(provider, { apiKey, baseUrl });
+    const models = await listProviderModels(provider, context);
     if (!models.length) throw new Error('The provider returned no models');
-    const catalog = { models, fetchedAt: Date.now() };
-    await chrome.storage.local.set({ [cacheKey]: catalog });
-    renderModelOptions(provider, models, catalog.fetchedAt);
+    if (!isCurrent()) return false;
+    renderModelOptions(provider, models, Date.now());
+    return true;
   } catch (error) {
-    if (provider === 'gemini_api' || selectedCompatibleProvider === provider) {
-      ui.status.textContent = error.message;
+    if (isCurrent()) {
+      ui.status.textContent = connectionErrorMessage(error, 'Model catalog request');
     }
+    return false;
   } finally {
-    if (provider === 'gemini_api' || selectedCompatibleProvider === provider) {
+    if (isCurrent()) {
       ui.button.disabled = false;
       ui.button.textContent = 'Refresh models';
     }
@@ -479,11 +540,37 @@ function renderReasoningControl(provider, model, select, help) {
 }
 
 geminiModel.addEventListener('input', () => {
+  geminiModelOptions.value = '';
   renderReasoningControl('gemini_api', geminiModel.value.trim(), geminiReasoningEffort, geminiReasoningHelp);
 });
 compatibleModel.addEventListener('input', () => {
+  compatibleModelOptions.value = '';
   renderReasoningControl(selectedCompatibleProvider, compatibleModel.value.trim(), compatibleReasoningEffort, compatibleReasoningHelp);
 });
+
+for (const provider of ['gemini_api', 'compatible']) {
+  const ui = modelUi(provider);
+  ui.options.addEventListener('change', () => {
+    const id = provider === 'compatible' ? selectedCompatibleProvider : provider;
+    const custom = !ui.options.value;
+    ui.custom.classList.toggle('hidden', !custom);
+    if (custom) ui.input.focus();
+    else ui.input.value = ui.options.value;
+    renderReasoningControl(id, ui.input.value.trim(), provider === 'compatible' ? compatibleReasoningEffort : geminiReasoningEffort,
+      provider === 'compatible' ? compatibleReasoningHelp : geminiReasoningHelp);
+  });
+}
+
+for (const [input, selected] of [
+  [geminiApiKey, () => 'gemini_api'],
+  [compatibleApiKey, () => selectedCompatibleProvider],
+  [openaiOAuthToken, () => 'openai'],
+  [compatibleBaseUrl, () => selectedCompatibleProvider]
+]) {
+  // Retire old requests immediately, but fetch only when an edit is committed.
+  input.addEventListener('input', () => invalidateModelCatalog(selected()));
+  input.addEventListener('change', () => refreshModelCatalog(selected()));
+}
 geminiReasoningEffort.addEventListener('change', () => {
   geminiReasoningEffort.dataset.saved = geminiReasoningEffort.value;
 });
@@ -495,31 +582,40 @@ async function loadCompatibleProvider(provider) {
   const config = PROVIDER_CATALOG[provider];
   if (!config || config.mode !== 'compatible') return;
   selectedCompatibleProvider = provider;
+  const revision = ++compatibleLoadRevision;
+  invalidateModelCatalog(provider);
+  const loadingFields = [compatibleApiKey, compatibleModel, compatibleModelOptions, compatibleBaseUrl, openaiOAuthToken,
+    compatibleReasoningEffort, prefOpenaiPriority];
+  loadingFields.forEach(field => { field.disabled = true; });
+  btnSaveCompatible.disabled = true;
+  btnTestCompatible.disabled = true;
+  btnRefreshCompatibleModels.disabled = true;
+  compatibleApiKey.value = '';
+  openaiOAuthToken.value = '';
+  compatibleBaseUrl.value = config.baseUrl || '';
+  compatibleModel.value = config.defaultModel || '';
+  renderModelOptions(provider, []);
 
-  const [syncData, localData] = await Promise.all([
-    chrome.storage.sync.get([
-      providerSettingKey(provider, 'model'),
-      providerSettingKey(provider, 'reasoningEffort'),
-      providerSettingKey(provider, 'baseUrl'),
-      providerSettingKey(provider, 'apiKey'),
-      'openaiOAuthToken',
-      'openaiPriority'
-    ]),
-    chrome.storage.local.get([
-      providerSettingKey(provider, 'apiKey'),
-      'openaiOAuthToken'
-    ])
-  ]);
+  let syncData;
+  try {
+    syncData = await loadSavedSettings();
+  } catch {
+    if (revision !== compatibleLoadRevision || !catalogProviderCurrent(provider)) return;
+    loadingFields.forEach(field => { field.disabled = false; });
+    renderReasoningControl(provider, compatibleModel.value, compatibleReasoningEffort, compatibleReasoningHelp);
+    btnRefreshCompatibleModels.disabled = false;
+    compatibleModelsStatus.textContent = 'Saved provider settings could not be loaded. Enter your connection settings.';
+    return;
+  }
 
-  if (selectedCompatibleProvider !== provider) return;
+  if (revision !== compatibleLoadRevision || !catalogProviderCurrent(provider)) return;
 
   compatibleProviderTitle.textContent = `${config.name} configuration`;
   compatibleApiKeyLabel.textContent = config.keyOptional ? 'API key (optional)' : `${config.name} API key`;
   compatibleApiKey.placeholder = config.keyOptional ? 'Optional for this local endpoint' : 'Paste provider key';
-  compatibleApiKey.value = localData[providerSettingKey(provider, 'apiKey')]
-    || syncData[providerSettingKey(provider, 'apiKey')]
-    || '';
+  compatibleApiKey.value = syncData[providerSettingKey(provider, 'apiKey')] || '';
   compatibleModel.value = syncData[providerSettingKey(provider, 'model')] || config.defaultModel || '';
+  loadingFields.forEach(field => { field.disabled = false; });
   compatibleReasoningEffort.dataset.saved = syncData[providerSettingKey(provider, 'reasoningEffort')] || 'low';
   renderReasoningControl(provider, compatibleModel.value, compatibleReasoningEffort, compatibleReasoningHelp);
   compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
@@ -527,9 +623,8 @@ async function loadCompatibleProvider(provider) {
   openaiPrioritySection.classList.toggle('hidden', provider !== 'openai');
   prefOpenaiPriority.checked = syncData.openaiPriority !== false;
   if (provider === 'openai') {
-    openaiOAuthToken.value = localData.openaiOAuthToken || syncData.openaiOAuthToken || '';
+    openaiOAuthToken.value = syncData.openaiOAuthToken || '';
   }
-  compatibleModelOptions.textContent = '';
   compatibleModelsStatus.textContent = 'Loading the provider’s model catalog…';
   await refreshModelCatalog(provider);
 }
@@ -537,6 +632,8 @@ async function loadCompatibleProvider(provider) {
 /** Switch the single details area to the selected engine. */
 function updateProviderPanels(provider) {
   const config = PROVIDER_CATALOG[provider];
+  invalidateModelCatalog(panelProvider);
+  compatibleLoadRevision++;
   panelProvider = provider;
   panelNanoDetails.classList.toggle('hidden', provider !== 'gemini_nano');
   panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
@@ -563,6 +660,7 @@ function onDeviceProvider(provider) {
  */
 function renderOnDeviceSettings() {
   const nano = panelProvider === 'gemini_nano';
+  cloudCostSettings.classList.toggle('hidden', panelProvider === 'offline' || onDeviceProvider(panelProvider));
   onDeviceSettings.classList.toggle('hidden', !onDeviceProvider(panelProvider));
   modelUnloadRow.classList.toggle('hidden', !nano);
   modelMemoryRow.classList.toggle('hidden', !nano);
@@ -678,7 +776,7 @@ getProviderRadios().forEach(radio => {
   });
 });
 
-// Setup requirements and the action button only apply until the local model is ready.
+// Setup requirements apply until Chrome has made the model available.
 function setNanoSetupVisible(visible) {
   nanoRequirements.classList.toggle('hidden', !visible);
   btnRecheckNano.classList.toggle('hidden', !visible);
@@ -703,11 +801,11 @@ async function refreshNanoDiagnostics() {
 
     if (status.status === 'ready') {
       nanoBadge.className = 'status-pill ready';
-      nanoBadge.textContent = 'Ready';
+      nanoBadge.textContent = 'Available';
       setNanoSetupVisible(false);
       const strong = document.createElement('strong');
-      strong.textContent = 'Local model ready. ';
-      nanoStatusText.append(strong, 'Cleanups from the popup, toolbar or shortcut can use it.');
+      strong.textContent = 'Local model available. ';
+      nanoStatusText.append(strong, 'Chrome has downloaded it. If it needs loading, cleanup can use temporary local groups while it warms; run cleanup again to use the prepared labels.');
     } else if (status.status === 'downloadable') {
       nanoBadge.className = 'status-pill checking';
       nanoBadge.textContent = 'Download needed';
@@ -748,7 +846,7 @@ btnRecheckNano.addEventListener('click', async () => {
     await prepareChromeNano(percent => {
       nanoStatusText.textContent = `Downloading local model… ${percent}%`;
     });
-    showToast('Chrome Gemini Nano is ready.');
+    showToast('Chrome Gemini Nano is available.');
   } catch (error) {
     showToast(`Local model setup failed: ${error.message}`, 'error');
   } finally {
@@ -757,26 +855,10 @@ btnRecheckNano.addEventListener('click', async () => {
 });
 
 /**
- * Load initial settings (securely loading keys from storage.local with sync fallback)
+ * Load initial settings; the shared loader migrates legacy synced credentials.
  */
 async function loadSettings() {
-  const syncData = await chrome.storage.sync.get([
-    'provider',
-    'geminiModel',
-    'geminiReasoningEffort',
-    'groupingStrategy',
-    'oneClickIconMode',
-    'collapseGroupsOnCreation',
-    'autoGroupNewTabs',
-    'geminiApiKey',
-    'backgroundPrep',
-    'modelUnloadAfter',
-    OLLAMA_BASE_URL_KEY
-  ]);
-
-  const localData = await chrome.storage.local.get([
-    'geminiApiKey'
-  ]);
+  const syncData = await loadSavedSettings();
 
   const currentProvider = syncData.provider || 'gemini_nano';
   const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${currentProvider}"]`);
@@ -785,10 +867,10 @@ async function loadSettings() {
   savedOllamaBaseUrl = syncData[OLLAMA_BASE_URL_KEY] || '';
   autoGroupOn = Boolean(syncData.autoGroupNewTabs);
   prefBackgroundPrep.checked = syncData.backgroundPrep === true;
+  prefCloudEconomy.checked = syncData.cloudEconomyMode === true;
   prefModelUnloadAfter.value = MODEL_UNLOAD_VALUES.includes(syncData.modelUnloadAfter) ? syncData.modelUnloadAfter : '5m';
 
-  // Securely prefer local storage for keys
-  const geminiKey = localData.geminiApiKey || syncData.geminiApiKey || '';
+  const geminiKey = syncData.geminiApiKey || '';
   if (geminiKey) geminiApiKey.value = geminiKey;
   geminiModel.value = syncData.geminiModel || PROVIDER_CATALOG.gemini_api.defaultModel;
   geminiReasoningEffort.dataset.saved = syncData.geminiReasoningEffort || 'low';
@@ -806,6 +888,7 @@ async function loadSettings() {
 
   await loadLearnedRules();
   await loadRunDiagnostics();
+  await loadProviderUsage();
 }
 
 async function loadRunDiagnostics() {
@@ -824,30 +907,73 @@ async function loadRunDiagnostics() {
     ? 'Site categories · local'
     : run.model ? `${providerName} · ${run.model}` : providerName;
   const provisional = Number(run.provisionalTabs) || 0;
-  diagSource.textContent = `${String(run.source || 'unknown').replaceAll('-', ' ')}${provisional > 0 ? ` · ${provisional} provisional` : ''}`;
+  const callKinds = ['label', 'naming', 'consolidation'];
+  const modelCallCount = callKinds.reduce((total, kind) => total + (Number(run.modelCalls?.[kind]) || 0), 0);
+  const recordedCallCount = callKinds.every(kind => Number.isFinite(run.modelCalls?.[kind]) && run.modelCalls[kind] >= 0);
+  // A shared cloud response has no newly dispatched requests. Older records
+  // with absent counters cannot establish a request count from source alone.
+  const sharedCloudResult = run.source === 'cloud' && recordedCallCount && modelCallCount === 0;
+  const hasTokenUsage = ['promptTokens', 'completionTokens', 'cachedTokens', 'cacheWriteTokens', 'reasoningTokens']
+    .some(key => Number(run[key]) > 0);
+  const didModelWork = modelCallCount > 0 || hasTokenUsage || (!sharedCloudResult && ['cloud', 'nano'].includes(run.source));
+  const cloudWork = didModelWork && isCloudProvider(run.provider);
+  const requestSummary = modelCallCount > 0
+    ? ` · ${modelCallCount} ${cloudWork ? 'cloud' : 'model'} request${modelCallCount === 1 ? '' : 's'}`
+    : sharedCloudResult ? ' · shared result · 0 new requests'
+      : cloudWork ? ' · request count not recorded' : '';
+  diagSource.textContent = `${String(run.source || 'unknown').replaceAll('-', ' ')}${requestSummary}${provisional > 0 ? ` · ${provisional} provisional` : ''}`;
   diagOutcome.textContent = `${run.tabsGrouped || 0} tabs · ${run.groupsCreated || 0} groups · ${run.duplicateTabsClosed || 0} duplicates`
-    + (Number.isFinite(run.groupCeiling) ? ` · ceiling ${run.groupCeiling}` : '');
-  diagTokens.textContent = run.promptTokens || run.completionTokens
+    + (Number.isFinite(run.groupCeiling) ? ` · ${run.strategy === 'task' ? 'preferred target' : 'ceiling'} ${run.groupCeiling}` : '');
+  diagTokens.textContent = hasTokenUsage
     ? `${run.promptTokens || 0} in · ${run.completionTokens || 0} out · ${run.cachedTokens || 0} cached`
-    : 'Local or cache result';
+    : sharedCloudResult ? 'No new request tokens · shared result'
+      : didModelWork ? 'Provider usage not reported' : 'Local or cache result';
   diagLatency.textContent = run.latencyMs ? `${run.latencyMs} ms total` : '—';
   diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
   diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
   const inferredOffline = run.strategy === 'site' || ['offline', 'offline-fallback'].includes(run.source);
-  const cachedResult = ['exact-cache', 'label-cache'].includes(run.source);
+  const cachedWithoutModelWork = ['exact-cache', 'label-cache'].includes(run.source) && !didModelWork;
   let reasoningStatus = 'Provider default';
-  if (inferredOffline) reasoningStatus = 'Not used · local grouping';
-  else if (cachedResult) reasoningStatus = 'Not used · cached result';
-  else if (run.source === 'nano') reasoningStatus = 'Managed by Chrome';
+  if (sharedCloudResult) {
+    reasoningStatus = run.reasoningEffort
+      ? `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)} · shared result`
+      : 'Shared result · no new request';
+  } else if (inferredOffline && !didModelWork) reasoningStatus = 'Not used · local grouping';
+  else if (cachedWithoutModelWork) reasoningStatus = 'Not used · cached result';
+  else if (run.provider === 'gemini_nano') reasoningStatus = 'Managed by Chrome';
   else if (run.reasoningEffort) {
     reasoningStatus = `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)}`;
   }
   diagReasoning.textContent = reasoningStatus;
-  diagReasoningTokens.textContent = inferredOffline || cachedResult
+  diagReasoningTokens.textContent = (inferredOffline && !didModelWork) || cachedWithoutModelWork
     ? 'Not used'
     : Number.isFinite(run.reasoningTokens)
       ? String(run.reasoningTokens)
-      : 'Not reported';
+      : sharedCloudResult ? 'No new request tokens' : 'Not reported';
+}
+
+/** Lifetime provider totals, including requests that finish after a cleanup. */
+async function loadProviderUsage() {
+  const fields = [usageRequests, usageTokens, usageCache, usageProviders, usageReasoning, usageCoverage];
+  if (!usageRequests) return;
+  try {
+    const summary = await readProviderUsageSummary();
+    const count = value => Math.max(0, Number(value) || 0).toLocaleString();
+    usageRequests.textContent = count(summary.calls);
+    usageTokens.textContent = `${count(summary.promptTokens)} in · ${count(summary.completionTokens)} out · ${count(summary.totalTokens)} total`;
+    usageCache.textContent = `${count(summary.cachedTokens)} read · ${count(summary.cacheWriteTokens)} written`;
+    usageReasoning.textContent = count(summary.reasoningTokens);
+    usageProviders.textContent = Object.entries(summary.byProvider || {})
+      .filter(([, usage]) => Number(usage.calls) > 0)
+      .map(([provider, usage]) => `${PROVIDER_CATALOG[provider]?.name || 'Other provider'}: ${count(usage.calls)}`)
+      .join(' · ') || 'No requests recorded';
+    const unknown = Number(summary.unknownUsageCalls) || 0;
+    usageCoverage.textContent = unknown > 0
+      ? `${count(unknown)} request${unknown === 1 ? '' : 's'} without token usage`
+      : summary.calls > 0 ? 'Token usage reported for all requests' : 'No requests recorded';
+  } catch {
+    fields.forEach(field => { field.textContent = 'Unavailable'; });
+  }
 }
 
 btnClearDiagnostics.addEventListener('click', async () => {
@@ -855,6 +981,13 @@ btnClearDiagnostics.addEventListener('click', async () => {
   await chrome.storage.local.remove(['foldnex_last_run', 'foldnex_run_history_v1']);
   await loadRunDiagnostics();
   showToast('Run history cleared.');
+});
+
+btnClearProviderUsage.addEventListener('click', async () => {
+  if (!confirm('Clear recorded provider request usage?')) return;
+  await clearProviderUsage();
+  await loadProviderUsage();
+  showToast('Provider request usage cleared.');
 });
 
 /**
@@ -874,26 +1007,27 @@ setupPasswordToggle(btnToggleGeminiKey, geminiApiKey);
 setupPasswordToggle(btnToggleCompatibleKey, compatibleApiKey);
 
 btnRefreshGeminiModels.addEventListener('click', () => {
-  refreshModelCatalog('gemini_api', { force: true });
+  refreshModelCatalog('gemini_api');
 });
 
 btnRefreshCompatibleModels.addEventListener('click', () => {
-  refreshModelCatalog(selectedCompatibleProvider, { force: true });
+  refreshModelCatalog(selectedCompatibleProvider);
 });
 
 /**
- * Keep connection-test errors actionable without displaying provider response
+ * Keep provider errors actionable without displaying provider response
  * bodies, which can echo request content.
  */
-function connectionErrorMessage(error) {
+function connectionErrorMessage(error, operation = 'Grouping test') {
   const message = String(error?.message || '');
+  if (/Enter.*API key/i.test(message)) return 'Enter an API key to load provider models.';
   if (/HTTP 401|API key is not configured/i.test(message)) return 'Invalid API key. Check the saved key.';
   if (/HTTP 429|quota/i.test(message)) return 'Provider quota or rate limit reached.';
   if (/HTTP 403/i.test(message)) return 'This account cannot access the selected model.';
   if (/HTTP 404/i.test(message)) return 'Model not found. Check the model name.';
   if (/timed out|abort/i.test(message)) return 'Provider timed out. Try again later.';
   const status = message.match(/HTTP (\d{3})/i)?.[1];
-  return status ? `Provider returned HTTP ${status}.` : 'Grouping test failed. Check the model and provider status.';
+  return status ? `Provider returned HTTP ${status}.` : `${operation} failed. Check the model and provider status.`;
 }
 
 const CONNECTION_TEST_TABS = [
@@ -917,10 +1051,8 @@ btnSaveGemini.addEventListener('click', async () => {
     ? { geminiReasoningEffort: geminiReasoningEffort.value }
     : {};
 
-  await chrome.storage.local.set({ geminiApiKey: key });
+  await saveProviderSecrets({ geminiApiKey: key });
   await chrome.storage.sync.set({ geminiModel: model, ...reasoning });
-  // Clean up from sync if it was previously stored there
-  await chrome.storage.sync.remove('geminiApiKey');
 
   if (pendingCloudProvider === 'gemini_api' && key) {
     await activatePendingProvider('gemini_api');
@@ -928,7 +1060,7 @@ btnSaveGemini.addEventListener('click', async () => {
   } else {
     showToast('Gemini settings saved successfully!');
   }
-  await refreshModelCatalog('gemini_api', { force: true });
+  await refreshModelCatalog('gemini_api');
 });
 
 /**
@@ -940,24 +1072,34 @@ btnTestGemini.addEventListener('click', async () => {
     showToast('Please enter a Gemini API key first.', 'error');
     return;
   }
+  const selectedModel = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
+  const reasoning = geminiReasoningEffort.value;
+  const context = catalogContext('gemini_api');
+  const revision = ++connectionRevisions.gemini;
+  const isCurrent = () => revision === connectionRevisions.gemini && catalogContextCurrent(context)
+    && (geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel) === selectedModel
+    && geminiReasoningEffort.value === reasoning;
 
   btnTestGemini.textContent = 'Testing...';
   btnTestGemini.disabled = true;
 
   try {
-    const selectedModel = geminiModel.value.trim() || PROVIDER_CATALOG.gemini_api.defaultModel;
     await runConnectionTest({
       provider: 'gemini_api',
       geminiApiKey: key,
       geminiModel: selectedModel,
-      geminiReasoningEffort: geminiReasoningEffort.value
+      geminiReasoningEffort: reasoning
     });
+    if (!isCurrent()) return;
     showToast('Gemini grouping test passed.', 'success');
+    await refreshModelCatalog('gemini_api');
   } catch (e) {
-    showToast(connectionErrorMessage(e), 'error');
+    if (isCurrent()) showToast(connectionErrorMessage(e), 'error');
   } finally {
-    btnTestGemini.textContent = 'Test Connection';
-    btnTestGemini.disabled = false;
+    if (revision === connectionRevisions.gemini && catalogProviderCurrent('gemini_api')) {
+      btnTestGemini.textContent = 'Test connection';
+      btnTestGemini.disabled = false;
+    }
   }
 });
 
@@ -974,25 +1116,27 @@ btnSaveCompatible.addEventListener('click', async () => {
     showToast('Choose an OpenAI Chat Completions model.', 'error');
     return;
   }
-
-  await chrome.storage.local.set({
+  // Freeze the entire selected provider's draft before storage yields; a
+  // provider switch must never pair this key with another provider's URL.
+  const secrets = {
     [apiKeyName]: compatibleApiKey.value.trim(),
     ...(provider === 'openai' ? { openaiOAuthToken: openaiOAuthToken.value.trim() } : {})
-  });
-  await chrome.storage.sync.set({
+  };
+  const preferences = {
     [modelName]: model,
     ...(getReasoningEffortOptions(provider, model).length ? { [reasoningName]: compatibleReasoningEffort.value } : {}),
     [baseUrlName]: compatibleBaseUrl.value.trim() || config.baseUrl
-  });
-  await chrome.storage.sync.remove([apiKeyName, 'openaiOAuthToken']);
-  const hasAuth = Boolean(compatibleApiKey.value.trim() || (provider === 'openai' && openaiOAuthToken.value.trim()));
+  };
+  const hasAuth = Boolean(secrets[apiKeyName] || (provider === 'openai' && secrets.openaiOAuthToken));
+  await saveProviderSecrets(secrets);
+  await chrome.storage.sync.set(preferences);
   if (pendingCloudProvider === provider && hasAuth) {
     await activatePendingProvider(provider);
     showToast(`${config.name} saved and selected.`);
   } else {
     showToast(`${config.name} settings saved.`);
   }
-  await refreshModelCatalog(provider, { force: true });
+  await refreshModelCatalog(provider);
 });
 
 /** Test the actual grouping request with two synthetic tabs. */
@@ -1010,6 +1154,14 @@ btnTestCompatible.addEventListener('click', async () => {
     showToast(`Enter a ${config.name} API key first.`, 'error');
     return;
   }
+  const context = catalogContext(provider);
+  const reasoning = compatibleReasoningEffort.value;
+  const priority = prefOpenaiPriority.checked;
+  const revision = ++connectionRevisions.compatible;
+  const isCurrent = () => revision === connectionRevisions.compatible && catalogContextCurrent(context)
+    && (compatibleModel.value.trim() || config.defaultModel) === selectedModel
+    && compatibleReasoningEffort.value === reasoning
+    && (provider !== 'openai' || prefOpenaiPriority.checked === priority);
 
   btnTestCompatible.textContent = 'Testing…';
   btnTestCompatible.disabled = true;
@@ -1020,16 +1172,21 @@ btnTestCompatible.addEventListener('click', async () => {
       provider,
       [providerSettingKey(provider, 'apiKey')]: keyOrToken,
       [providerSettingKey(provider, 'model')]: selectedModel,
-      [providerSettingKey(provider, 'reasoningEffort')]: compatibleReasoningEffort.value,
-      [providerSettingKey(provider, 'baseUrl')]: base
+      [providerSettingKey(provider, 'reasoningEffort')]: reasoning,
+      [providerSettingKey(provider, 'baseUrl')]: base,
+      ...(provider === 'openai' ? { openaiPriority: priority } : {})
     });
+    if (!isCurrent()) return;
     showToast(`${config.name} grouping test passed.`, 'success');
+    await refreshModelCatalog(provider);
   } catch (e) {
-    showToast(connectionErrorMessage(e), 'error');
+    if (isCurrent()) showToast(connectionErrorMessage(e), 'error');
   } finally {
-    btnTestCompatible.textContent = 'Test connection';
-    btnTestCompatible.disabled = provider === 'openai'
-      && isOpenAIResponsesOnlyModel(compatibleModel.value.trim() || config.defaultModel);
+    if (revision === connectionRevisions.compatible && catalogProviderCurrent(provider)) {
+      btnTestCompatible.textContent = 'Test connection';
+      btnTestCompatible.disabled = provider === 'openai'
+        && isOpenAIResponsesOnlyModel(compatibleModel.value.trim() || config.defaultModel);
+    }
   }
 });
 
@@ -1365,6 +1522,11 @@ prefOpenaiPriority.addEventListener('change', async (e) => {
   showToast(e.target.checked ? 'Priority processing on.' : 'Priority processing off.');
 });
 
+prefCloudEconomy.addEventListener('change', async (e) => {
+  await chrome.storage.sync.set({ cloudEconomyMode: e.target.checked });
+  showToast(e.target.checked ? 'Cloud economy mode on. Fewer requests with simpler group names.' : 'Cloud economy mode off. Optional group refinement restored.');
+});
+
 prefAutoGroup.addEventListener('change', async (e) => {
   await chrome.storage.sync.set({ autoGroupNewTabs: e.target.checked });
   autoGroupOn = e.target.checked;
@@ -1434,6 +1596,12 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
     if (changes.backgroundPrep !== undefined) {
       prefBackgroundPrep.checked = changes.backgroundPrep.newValue === true;
     }
+    if (changes.cloudEconomyMode !== undefined) {
+      prefCloudEconomy.checked = changes.cloudEconomyMode.newValue === true;
+    }
+    if (changes.openaiPriority !== undefined) {
+      prefOpenaiPriority.checked = changes.openaiPriority.newValue !== false;
+    }
     if (changes.modelUnloadAfter !== undefined) {
       const value = changes.modelUnloadAfter.newValue;
       prefModelUnloadAfter.value = MODEL_UNLOAD_VALUES.includes(value) ? value : '5m';
@@ -1457,6 +1625,7 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   if (areaName === 'local') {
     if (changes[LearningCache.STORAGE_KEY]) loadLearnedRules();
     if (changes.foldnex_last_run) loadRunDiagnostics();
+    if (changes[PROVIDER_USAGE_KEY]) loadProviderUsage();
   }
   });
 }

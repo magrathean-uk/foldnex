@@ -11,21 +11,24 @@ import {
   PlanMemory,
   TabLabelCache,
   WindowPlanStore,
-  fingerprintTab
+  fingerprintTab,
+  readResetEpoch
 } from './cache-engine.js';
 import {
   assessGroupingQuality,
   checkChromeNanoStatus,
   CHROME_GROUP_COLORS,
-  cloudLabelBatchSize,
   consolidateWithCloud,
   getEffectiveReasoningEffort,
   getNanoBase,
   groupCeiling,
   isNamingEligible,
+  isLoopbackUrl,
+  labelCacheScope,
   labelBatchWithNano,
   labelTabsWithAI,
   nameGroupsWithNano,
+  MAX_GROUPS,
   NANO_MAX_BATCH,
   NANO_PERF_DEFAULTS,
   PROVIDER_CATALOG,
@@ -51,10 +54,12 @@ import {
 import { clusterTabsBySite, isSocialSite } from './site-clusterer.js';
 import { markProgrammaticGroupUpdate } from './group-state.js';
 import { createTrace, noopTrace } from './debug-trace.js';
+import { loadSettings } from './settings.js';
 
 const RUN_HISTORY_KEY = 'foldnex_run_history_v1';
 const RUN_HISTORY_LIMIT = 20;
-const PROMPT_VERSION = 'labels-v1';
+// Membership planning changed; keep per-tab label identity reusable.
+const PROMPT_VERSION = 'labels-v3-sized-plans';
 const SAFE_INTERNAL_DUPLICATE_PAGES = new Set([
   'extensions', 'downloads', 'history', 'bookmarks'
 ]);
@@ -166,6 +171,7 @@ function combineMeta(metas, parallel) {
       completionTokens: sum('completionTokens'),
       totalTokens: sum('totalTokens'),
       cachedTokens: sum('cachedTokens'),
+      cacheWriteTokens: sum('cacheWriteTokens'),
       reasoningTokens: reasoning.every(Number.isFinite) ? reasoning.reduce((a, b) => a + b, 0) : null
     }
   };
@@ -265,15 +271,13 @@ export function getGroupableTabs(tabs) {
 }
 
 export async function loadGroupingSettings() {
-  const [syncSettings, localSecrets] = await Promise.all([
-    chrome.storage.sync.get(),
-    chrome.storage.local.get([
-      'geminiApiKey', 'openaiApiKey', 'openaiOAuthToken',
-      'xaiApiKey', 'groqApiKey', 'openrouterApiKey',
-      'deepseekApiKey', 'cerebrasApiKey', 'ollamaApiKey'
-    ])
-  ]);
-  return { ...syncSettings, ...localSecrets };
+  return loadSettings();
+}
+
+export function usesCloudEngine(settings = {}) {
+  const provider = settings.provider || 'gemini_nano';
+  if (provider === 'ollama') return !isLoopbackUrl(settings.ollamaBaseUrl || PROVIDER_CATALOG.ollama.baseUrl);
+  return !isLocalEngine(provider);
 }
 
 /** Engine, strategy, and the cache scope that results for them are stored under. */
@@ -292,7 +296,8 @@ export function getRunScope(settings) {
     requestedModel,
     groupingStrategy,
     effectiveReasoningEffort,
-    cacheScope: `${PROMPT_VERSION}:${groupingStrategy}:${provider}:${requestedModel}:${effectiveReasoningEffort || 'none'}`
+    labelScope: labelCacheScope(settings),
+    cacheScope: `${PROMPT_VERSION}:${groupingStrategy}:${labelCacheScope(settings)}:${settings.cloudEconomyMode === true && usesCloudEngine(settings) ? 'economy' : 'refined'}`
   };
 }
 
@@ -302,17 +307,12 @@ export function isLocalEngine(provider) {
   return id === 'gemini_nano' || id === 'offline' || PROVIDER_CATALOG[id]?.local === true;
 }
 
-const CLOUD_ENGINE_IDS = Object.freeze(Object.keys(PROVIDER_CATALOG).filter(id => (
-  !isLocalEngine(id) && (id === 'gemini_api' || PROVIDER_CATALOG[id].mode === 'compatible')
-)));
-
 /**
- * Which cached labels an engine may reuse: every label for local engines, only
- * cloud-written labels for a cloud engine, so a cloud user never silently gets
- * Nano-quality labels.
+ * Labels stay with the engine that produced them. Runtime callers also pass
+ * the model, effort and endpoint scope, so changing engines reassesses tabs.
  */
 export function acceptEnginesFor(provider) {
-  return isLocalEngine(provider) ? null : CLOUD_ENGINE_IDS;
+  return [provider || 'gemini_nano'];
 }
 
 /**
@@ -470,32 +470,46 @@ async function labelWithNanoOnClick(missing, { budget, trace, incognito }) {
   return finish({ deadlineHit, fallback });
 }
 
-async function labelWithProviderOnClick(missing, settings, { budget, trace, incognito, fingerprintById }) {
+async function labelWithProviderOnClick(missing, settings, { budget, trace, incognito, fingerprintById, epoch }) {
   const startedAt = performance.now();
   const provider = settings?.provider;
+  const scope = labelCacheScope(settings);
   const landed = new Map();
   const landedMeta = [];
   let waiting = true;
+  let dispatchedCalls = 0;
+  const privateAbort = incognito ? new AbortController() : null;
+  const deadlineSignal = incognito ? budget.abortAt(APPLY_RESERVE_MS) : null;
+  const abortPrivate = () => privateAbort.abort(deadlineSignal.reason);
+  if (deadlineSignal?.aborted) abortPrivate();
+  else deadlineSignal?.addEventListener('abort', abortPrivate, { once: true });
   // One request up to 40 tabs, otherwise parallel batches of 25. At the
   // deadline the click stops waiting but does not abort them: the provider's
   // own timeout bounds each request, and a batch that lands late is stored in
   // the label cache for the next click. Incognito never stores a late label,
   // so its requests stop at the deadline (or are not sent without time left).
   const request = labelTabsWithAI(missing, settings, {
-    signal: incognito ? budget.abortAt(APPLY_RESERVE_MS) : null,
+    signal: privateAbort?.signal || null,
     trace,
+    epoch,
+    recordUsage: !incognito,
+    onDispatch: () => { dispatchedCalls++; },
     onBatch: (labels, info) => {
       if (waiting) {
         for (const [id, key] of labels) landed.set(id, key);
-        landedMeta.push({ usage: info?.usage || null, latencyMs: info?.ms, calls: 1 });
+        landedMeta.push({ usage: info?.usage || null, latencyMs: info?.ms, calls: info?.calls ?? 1 });
         return null;
       }
       if (incognito || !(fingerprintById instanceof Map) || labels.size === 0) return null;
-      return TabLabelCache.store(labels, fingerprintById, provider);
+      return TabLabelCache.store(labels, fingerprintById, provider, { epoch, scope });
     }
   });
   const outcome = await settleWithin(request, budget.remaining() - APPLY_RESERVE_MS);
   waiting = false;
+  // A deadline waiter can win the timer race by a fraction of a millisecond.
+  // Private work must already be aborted when the cleanup returns.
+  if (incognito && outcome.state === 'timeout') privateAbort.abort(new Error('Cleanup deadline reached'));
+  deadlineSignal?.removeEventListener('abort', abortPrivate);
 
   if (outcome.state === 'fulfilled') {
     const result = outcome.value;
@@ -507,7 +521,20 @@ async function labelWithProviderOnClick(missing, settings, { budget, trace, inco
     };
   }
   if (outcome.state === 'rejected') {
-    return { ...emptyLabelling(), fallback: { ...classifyProviderFailure(outcome.reason), used: true } };
+    const { requestedModel, effectiveReasoningEffort } = getRunScope(settings);
+    return {
+      ...emptyLabelling(),
+      labels: new Map(landed),
+      meta: {
+        provider,
+        model: requestedModel,
+        reasoningEffort: dispatchedCalls > 0 ? effectiveReasoningEffort : null,
+        usage: combineMeta(landedMeta.filter(meta => meta.usage), true)?.usage || null,
+        latencyMs: Math.round(performance.now() - startedAt),
+        calls: dispatchedCalls
+      },
+      fallback: { ...classifyProviderFailure(outcome.reason), used: true }
+    };
   }
 
   // settleWithin already handles a later rejection of `request`.
@@ -524,7 +551,7 @@ async function labelWithProviderOnClick(missing, settings, { budget, trace, inco
       reasoningEffort: null,
       ...combineMeta(landedMeta, true),
       latencyMs: Math.round(performance.now() - startedAt),
-      calls: Math.ceil(missing.length / cloudLabelBatchSize(missing.length))
+      calls: dispatchedCalls
     },
     deadlineHit: true,
     fallback: null
@@ -544,13 +571,15 @@ export async function labelOnClick(missing, settings, {
   budget,
   trace = noopTrace,
   incognito = false,
-  fingerprintById = null
+  fingerprintById = null,
+  epoch = null
 } = {}) {
   const provider = settings?.provider || 'gemini_nano';
   if (!missing?.length || provider === 'offline') return emptyLabelling();
   const clickBudget = budget || createClickBudget(CLICK_BUDGET_MS);
   if (provider === 'gemini_nano') return labelWithNanoOnClick(missing, { budget: clickBudget, trace, incognito });
-  return labelWithProviderOnClick(missing, settings, { budget: clickBudget, trace, incognito, fingerprintById });
+  const origin = epoch ?? await readResetEpoch();
+  return labelWithProviderOnClick(missing, settings, { budget: clickBudget, trace, incognito, fingerprintById, epoch: origin });
 }
 
 function isLockedPlanGroup(group) {
@@ -620,6 +649,7 @@ export function applyFolders(groups, plan, folders, k, { tabsById = null, memory
   const review = (groups || []).filter(group => !isLockedPlanGroup(group) && isReviewPlanGroup(group));
   const { groups: folderGroups, advice } = enforceFolders(folders, plan.candidates, k, {
     n: plan.n,
+    hardLimit: Math.max(1, MAX_GROUPS - locked.length - review.length),
     tabsById,
     takenNames: [...locked.map(group => group.name), REVIEW_GROUP_NAME]
   });
@@ -653,8 +683,11 @@ export async function groupByLabels(groupableTabs, locked, settings, {
   trace = noopTrace,
   windowId = null,
   incognito = false,
-  provider = settings?.provider || 'gemini_nano'
+  provider = settings?.provider || 'gemini_nano',
+  epoch = null
 } = {}) {
+  const origin = epoch ?? await readResetEpoch();
+  const scope = labelCacheScope(settings);
   const clickBudget = budget || createClickBudget(CLICK_BUDGET_MS);
   const lockedIds = new Set((locked || []).flatMap(group => group.tabIds || []));
   const pool = groupableTabs.filter(tab => !lockedIds.has(tab.id));
@@ -669,7 +702,7 @@ export async function groupByLabels(groupableTabs, locked, settings, {
   // C5: cached labels. Incognito and the offline engine never read them.
   let lookup = { labels: new Map(), missing: pool, fingerprintById: new Map() };
   if (!incognito && !offline) {
-    lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider) });
+    lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope });
   } else if (!incognito) {
     // Offline runs still need fingerprints so user renames stick.
     const fingerprints = await Promise.all(pool.map(fingerprintTab));
@@ -687,7 +720,7 @@ export async function groupByLabels(groupableTabs, locked, settings, {
   let labelled = emptyLabelling();
   if (!offline && lookup.missing.length > 0) {
     const missing = sortByLabelPriority(lookup.missing, buildLocalContext(pool, labelsById));
-    labelled = await labelOnClick(missing, settings, { budget: clickBudget, trace, incognito, fingerprintById });
+    labelled = await labelOnClick(missing, settings, { budget: clickBudget, trace, incognito, fingerprintById, epoch: origin });
     trace.mark('labels_done', { labelled: labelled.labels.size, deadlineHit: labelled.deadlineHit });
   }
   for (const [id, key] of labelled.labels) labelsById.set(id, { c: key, src: 'model' });
@@ -716,8 +749,8 @@ export async function groupByLabels(groupableTabs, locked, settings, {
     else labelSources.lexicon++;
   }
 
-  // C8: plan within the ceiling, then remembered names.
-  const memory = incognito ? null : await PlanMemory.read();
+  // C8: prefer fewer groups while preserving distinct topics, then remembered names.
+  const memory = incognito ? null : await PlanMemory.read({ scope });
   const plan = planGroups(pool, labelsById, { locked, advice: memory?.advice?.cloud || null });
   for (const flag of plan.flags) qualityFlags.push(flag);
   let groups = transferNames(plan.groups, memory, { tabsById, tokensById: plan.tokensById, fingerprintById });
@@ -736,7 +769,8 @@ export async function groupByLabels(groupableTabs, locked, settings, {
   // C9: model names only when memory named fewer than half of the groups.
   let meta = labelled.meta;
   const need = namingNeed(groups);
-  const canName = !offline && !fallback && need.needed;
+  const economy = settings.cloudEconomyMode === true && usesCloudEngine(settings);
+  const canName = !offline && !economy && !fallback && need.needed;
   // Consolidation needs two candidates; with fewer, no click would ever name them.
   const namingPossible = provider === 'gemini_nano' || plan.candidates.length >= 2;
   let namesApplied = false;
@@ -766,16 +800,20 @@ export async function groupByLabels(groupableTabs, locked, settings, {
         if (!incognito) {
           request.then(raw => {
             const records = applyModelNames(lateTargets, raw, snapshot, { tabsById, tokensById: plan.tokensById });
-            return records.length ? PlanMemory.putNames(records) : null;
+            return records.length ? PlanMemory.putNames(records, { epoch: origin, scope }) : null;
           }).catch(() => {});
         }
       }
     }
   } else if (canName && clickBudget.remaining() >= CONSOLIDATION_MIN_REMAINING_MS && plan.candidates.length >= 2) {
     const k = consolidationLimit(plan, groups);
-    modelCalls.consolidation = 1;
-    const request = consolidateWithCloud(plan.candidates, k, settings, { trace, tabsById });
+    const request = consolidateWithCloud(plan.candidates, k, settings, {
+      trace, tabsById, epoch: origin, recordUsage: !incognito,
+      onDispatch: () => { modelCalls.consolidation++; },
+      signal: incognito ? clickBudget.abortAt(APPLY_RESERVE_MS) : null
+    });
     const outcome = await settleWithin(request, namingWait());
+    if (outcome.state === 'fulfilled') modelCalls.consolidation = Number(outcome.value?.meta?.calls ?? 1);
     if (outcome.state === 'fulfilled' && hasFolders(outcome.value)) {
       const applied = applyFolders(groups, plan, outcome.value.folders, k, { tabsById, memory, fingerprintById });
       groups = applied.groups;
@@ -794,8 +832,8 @@ export async function groupByLabels(groupableTabs, locked, settings, {
           if (!hasFolders(result)) return null;
           const late = applyFolders(baseGroups, plan, result.folders, k, { tabsById, memory, fingerprintById });
           return Promise.all([
-            late.records.length ? PlanMemory.putNames(late.records) : null,
-            PlanMemory.putAdvice(late.advice)
+            late.records.length ? PlanMemory.putNames(late.records, { epoch: origin, scope }) : null,
+            PlanMemory.putAdvice(late.advice, { epoch: origin, scope })
           ]);
         }).catch(() => {});
       }
@@ -840,15 +878,15 @@ function membershipKey(tabIds) {
  * exactly match a planned group that memory named takes that name, unless
  * another group already holds it.
  */
-async function overlayRememberedNames(groups, tabs, locked, provider, context = null) {
-  const memory = await PlanMemory.read();
+async function overlayRememberedNames(groups, tabs, locked, provider, context = null, scope = null) {
+  const memory = await PlanMemory.read({ scope });
   if (memory.names.length === 0) return groups;
 
   const lockedIds = new Set((locked || []).flatMap(group => group.tabIds || []));
   const pool = tabs.filter(tab => !lockedIds.has(tab.id));
   const labelsById = new Map();
   if (provider !== 'offline') {
-    const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider) });
+    const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope });
     for (const [id, entry] of lookup.labels) labelsById.set(id, { c: entry.c, src: 'cache' });
   }
   const ctx = buildLocalContext(pool, labelsById);
@@ -908,6 +946,7 @@ export async function executeTabGrouping(windowId, settings, { budgetMs = CLICK_
 }
 
 async function groupWindow(windowId, settings, budget, budgetMs) {
+  const epoch = await readResetEpoch();
   const runStartedAt = performance.now();
   // 1. Resolve and lock explicit target window
   let targetWindowId = windowId;
@@ -972,7 +1011,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
   let exactCacheToWrite = null;
 
   if (!isIncognitoWindow) await LearningCache.ensureSchema();
-  const { provider, requestedModel, groupingStrategy, effectiveReasoningEffort, cacheScope } = getRunScope(effectiveSettings);
+  const { provider, requestedModel, groupingStrategy, effectiveReasoningEffort, cacheScope, labelScope } = getRunScope(effectiveSettings);
   const n = groupableTabs.length;
   const ceiling = groupCeiling(n);
 
@@ -1011,7 +1050,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
       const cached = await ExactResultCache.get(groupableTabs, cacheScope);
       exactCacheContext = cached.context;
       if (cached.groups?.length) {
-        finalGroups = await overlayRememberedNames(cached.groups, groupableTabs, locked, provider, cached.context);
+        finalGroups = await overlayRememberedNames(cached.groups, groupableTabs, locked, provider, cached.context, labelScope);
         resultSource = 'exact-cache';
         console.log(`[Foldnex] Reused an exact result for ${n} unchanged tabs.`);
       }
@@ -1024,7 +1063,8 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
         trace,
         windowId: resolvedWindowId,
         incognito: isIncognitoWindow,
-        provider
+        provider,
+        epoch
       });
       finalGroups = outcome.groups;
       resultSource = outcome.source;
@@ -1126,7 +1166,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
 
       // Register in shared session state before the title event reaches the
       // background worker's rename listener.
-      await markProgrammaticGroupUpdate(groupId, grp.name);
+      await markProgrammaticGroupUpdate(groupId, grp.name, { incognito: isIncognitoWindow });
 
       await chrome.tabGroups.update(groupId, {
         title: grp.name,
@@ -1150,7 +1190,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
             tabIds: survivingIds,
             createProperties: { windowId: resolvedWindowId }
           });
-          await markProgrammaticGroupUpdate(groupId, grp.name);
+          await markProgrammaticGroupUpdate(groupId, grp.name, { incognito: isIncognitoWindow });
           await chrome.tabGroups.update(groupId, {
             title: grp.name,
             color: assignedColor,
@@ -1169,11 +1209,11 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
   // C12: persist after the strip is regrouped. Model labels and names only;
   // provisional placements and deterministic names are never stored.
   if (!isIncognitoWindow && groupingStrategy === 'task') {
-    if (persist?.labels.size > 0) await TabLabelCache.store(persist.labels, persist.fingerprintById, provider);
-    if (persist?.names.length > 0) await PlanMemory.putNames(persist.names);
-    if (persist?.advice && Object.keys(persist.advice).length > 0) await PlanMemory.putAdvice(persist.advice);
-    if (planForStore) await WindowPlanStore.put(resolvedWindowId, planForStore);
-    if (exactCacheToWrite) await ExactResultCache.put(exactCacheToWrite, finalGroups);
+    if (persist?.labels.size > 0) await TabLabelCache.store(persist.labels, persist.fingerprintById, provider, { epoch, scope: labelScope });
+    if (persist?.names.length > 0) await PlanMemory.putNames(persist.names, { epoch, scope: labelScope });
+    if (persist?.advice && Object.keys(persist.advice).length > 0) await PlanMemory.putAdvice(persist.advice, { epoch, scope: labelScope });
+    if (planForStore) await WindowPlanStore.put(resolvedWindowId, planForStore, { epoch });
+    if (exactCacheToWrite) await ExactResultCache.put(exactCacheToWrite, finalGroups, { epoch });
   }
 
   const nameSources = countNameSources(finalGroups);
@@ -1184,7 +1224,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
     const now = Date.now();
     const usage = aiMeta?.usage || {};
     const reportedReasoningTokens = Number.isFinite(usage.reasoningTokens) ? usage.reasoningTokens : null;
-    const recordedReasoningEffort = resultSource === 'cloud'
+    const recordedReasoningEffort = usesCloudEngine(effectiveSettings) && Object.values(modelCalls).some(count => count > 0)
       ? aiMeta?.reasoningEffort || effectiveReasoningEffort
       : null;
     await recordRun({
@@ -1194,6 +1234,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
       duplicateTabsClosed,
       strategy: groupingStrategy,
       provider,
+      providerMode: usesCloudEngine(effectiveSettings) ? 'cloud' : 'local',
       model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
       reasoningEffort: recordedReasoningEffort,
       source: resultSource,
@@ -1201,6 +1242,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
       promptTokens: Number(usage.promptTokens || 0),
       completionTokens: Number(usage.completionTokens || 0),
       cachedTokens: Number(usage.cachedTokens || 0),
+      cacheWriteTokens: Number(usage.cacheWriteTokens || 0),
       reasoningTokens: reportedReasoningTokens,
       latencyMs: Math.round(performance.now() - runStartedAt),
       providerLatencyMs: Number(aiMeta?.latencyMs || 0),
@@ -1232,6 +1274,7 @@ async function groupWindow(windowId, settings, budget, budgetMs) {
     totalTabs: n,
     duplicateTabsClosed,
     strategy: groupingStrategy,
+    provider,
     source: resultSource,
     model: groupingStrategy === 'task' ? aiMeta?.model || requestedModel : null,
     reasoningEffort: resultSource === 'cloud' ? aiMeta?.reasoningEffort || effectiveReasoningEffort : null,

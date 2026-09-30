@@ -99,7 +99,7 @@ function categoryTabs(spec, { startId = 1 } = {}) {
 // Ceiling
 // ---------------------------------------------------------------------------
 
-test('planner: groupCeiling follows the documented table and stays a ceiling', () => {
+test('planner: groupCeiling follows the preferred-count table', () => {
   const table = [
     [0, 0], [1, 0], [2, 1], [3, 1], [4, 2], [5, 2], [6, 3], [8, 4], [12, 4], [13, 5],
     [18, 6], [24, 6], [25, 7], [31, 7], [32, 8], [40, 8], [41, 9], [49, 9], [50, 10], [300, 10]
@@ -166,7 +166,7 @@ function randomWindow(rand) {
   return { tabs, labels, locked };
 }
 
-test('planner property: seeded windows never exceed the ceiling and cover every tab', () => {
+test('planner property: seeded windows obey the hard maximum and cover every tab', () => {
   const rand = mulberry32(42);
   for (let run = 0; run < 3000; run++) {
     const { tabs, labels, locked } = randomWindow(rand);
@@ -178,8 +178,8 @@ test('planner property: seeded windows never exceed the ceiling and cover every 
 
     assert.equal(plan.n, n, context);
     assert.equal(plan.K, K, context);
-    assert.ok(plan.groups.length <= Math.max(K, F + 1), `${context}: ${plan.groups.length} groups`);
-    if (F < K) assert.ok(plan.groups.length <= K, `${context}: ${plan.groups.length} groups`);
+    assert.equal(plan.hardLimit, 10);
+    assert.ok(plan.groups.length <= Math.max(10, F + 1), `${context}: ${plan.groups.length} groups`);
     assertCoverage(plan.groups, tabs.map(tab => tab.id));
     for (const group of plan.groups) {
       assert.notEqual(group.name.toLowerCase(), 'other', context);
@@ -320,9 +320,9 @@ test('planner, owner-window fixture: 100 real URLs plan exactly 10 honest groups
   // urls100.txt holds 100 URLs; the spec's list (from a 98-entry prototype)
   // gives Learning 25, and the two extra learning sites land there too.
   assert.deepEqual(nameSizes(plan), [
-    ['Learning', 27], ['News', 16], ['Coding', 10], ['Media & Sports', 10],
-    ['Docs & Planning', 7], ['Shopping', 7], ['Travel', 7], ['Food & Recipes', 6],
-    ['Accounts & Admin', 5], ['Socials', 5]
+    ['Learning', 27], ['News', 16], ['Coding', 10], ['Docs & Email & Admin', 10],
+    ['Media & Sports', 10], ['Shopping & Money', 7], ['Travel', 7], ['Food & Home', 6],
+    ['Socials', 5], ['Design', 2]
   ]);
   assert.deepEqual(plan.flags, []);
   assert.deepEqual(plan.reviewTabIds, []);
@@ -393,7 +393,164 @@ test('planner, small coherent groups survive under the ceiling', () => {
   assert.equal(small.K, 4);
   assert.equal(small.groups.length, 4);
   const shopTab = twelve.tabs[11].id;
-  assert.equal(groupOf(small, shopTab).name, 'News', 'the shop singleton folds into News');
+  assert.equal(groupOf(small, shopTab).name, 'Shopping', 'the shop singleton keeps its subject');
+  assert.notEqual(groupOf(small, shopTab), groupOf(small, 10));
+});
+
+test('planner, screenshot cohort: correct labels and cold local fallback keep unrelated tabs apart', () => {
+  const rows = [
+    ['https://x.com/home', 'Home / X', 'admin'],
+    ['https://appstoreconnect.apple.com/apps', 'App Store Connect', 'dev'],
+    ['https://login.example/login', 'Login', 'admin'],
+    ['https://github.com/owner?tab=repositories', 'Your Repositories', 'dev'],
+    ['http://192.168.1.15/admin', 'Pi-hole dashboard', 'infra'],
+    ['https://www.bbc.co.uk/news', 'UK | Latest News & Updates | BBC News', 'news'],
+    ['https://chatgpt.com/c/one', 'Create Visual Technical Site', 'ai'],
+    ['https://chatgpt.com/c/two', 'Apple Review Explained', 'ai'],
+    ['https://unknown-downloads.example/', 'Mac downloads', null],
+    ['https://grok.com/imagine', 'Grok Imagine', 'ai'],
+    ['https://chatgpt.com/', 'ChatGPT', 'ai'],
+    ['https://unknown-media.example/', 'Downloads', null],
+    ['https://platform.openai.com/settings/organization/general', 'Organization settings - OpenAI', 'ai'],
+    ['https://ambassadors.openai.com/welcome', 'Welcome | Codex Ambassador', 'ai'],
+    ['https://www.ebay.co.uk/', 'eBay UK | Electronics, Cars, Fashion', 'shop'],
+    ['https://maps.google.com/', 'Google Maps', 'travel'],
+    ['https://analytics.google.com/', 'analytics.google.com', 'biz'],
+    ['https://app.envato.com/', 'Envato App', 'design']
+  ];
+  const { tabs, labels } = windowFrom(rows);
+  const localLabels = new Map(tabs.map(tab => [tab.id, inferLocalLabel(tab)]));
+  for (const source of [labels, localLabels]) {
+    const plan = planGroups(tabs, source, { locked: socialsOf(tabs) });
+    assert.ok(plan.groups.length > plan.K, 'coherence takes precedence over the preferred count');
+    assert.ok(plan.groups.length <= 10);
+    assertCoverage(plan.groups, tabs.map(tab => tab.id));
+    for (const id of [6, 15, 16]) {
+      assert.notEqual(groupOf(plan, id), groupOf(plan, 2), `${tabs[id - 1].title} never joins coding`);
+      assert.notEqual(groupOf(plan, id), groupOf(plan, 11), `${tabs[id - 1].title} never joins AI`);
+    }
+    assert.equal(groupOf(plan, 9).kind, 'review');
+    assert.equal(groupOf(plan, 12).kind, 'review');
+    assert.equal(groupOf(plan, 6).categories.includes('news'), true);
+    assert.equal(groupOf(plan, 15).categories.includes('shop'), true);
+    assert.equal(groupOf(plan, 16).categories.includes('travel'), true);
+  }
+});
+
+test('planner, measured 23-tab window: late folders and cached advice cannot create a 13-tab technical bucket', () => {
+  const socialRows = [
+    ['https://x.com/home', 'Home / X', 'news'],
+    ['https://www.reddit.com/', 'Reddit', 'read'],
+    ['https://www.linkedin.com/feed/', 'LinkedIn', 'biz'],
+    ['https://discord.com/channels/@me', 'Discord', 'mail']
+  ];
+  const { tabs, labels } = windowFrom([
+    ...categoryTabs([['dev', 4], ['ai', 2], ['infra', 7], ['design', 1], ['biz', 2], ['shop', 1], ['jobs', 1], ['learn', 1]]),
+    ...socialRows
+  ]);
+  const locked = socialsOf(tabs);
+  const check = groups => {
+    assertCoverage(groups, tabs.map(tab => tab.id));
+    assert.ok(groups.length <= 10);
+    const coding = groupOf({ groups }, 1);
+    const infrastructure = groupOf({ groups }, 7);
+    assert.notEqual(coding, infrastructure, 'related technical categories still keep distinct focused groups');
+    assert.deepEqual(coding.tabIds, [1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(infrastructure.tabIds, [7, 8, 9, 10, 11, 12, 13]);
+    assert.ok(groups.filter(group => !group.locked).every(group => group.tabIds.length <= 8));
+    assert.deepEqual(groups.find(group => group.kind === 'social').tabIds, [20, 21, 22, 23]);
+  };
+  const plan = planGroups(tabs, labels, { locked });
+  assert.equal(plan.K, 6);
+  check(plan.groups);
+  const oldAdvice = { 'cat:dev': 'cat:infra', 'cat:ai': 'cat:infra' };
+  check(planGroups(tabs, labels, { locked, advice: oldAdvice }).groups);
+  const technologyIds = plan.candidates.flatMap((candidate, index) =>
+    candidate.categories.some(key => ['dev', 'ai', 'infra'].includes(key)) ? [index] : []);
+  const folders = [{ name: 'Technology', ids: technologyIds }, ...plan.candidates.flatMap((candidate, index) =>
+    technologyIds.includes(index) ? [] : [{ name: candidate.name, ids: [index] }])];
+  const late = enforceFolders(folders, plan.candidates, 5, { n: 23, hardLimit: 9 });
+  check([...locked, ...late.groups]);
+  assert.ok(!('cat:dev' in late.advice) || late.advice['cat:dev'] !== 'cat:infra');
+  check(planGroups(tabs, labels, { locked, advice: late.advice }).groups);
+  check(enforceGroupCeiling([...locked, ...late.groups], { ceiling: 5 }));
+});
+
+test('planner, size repair: spare hard-limit slots split a broad category before provider candidates are captured', () => {
+  const coding = Array.from({ length: 13 }, (_, i) => [
+    `https://zq-shared.${i < 7 ? 'com' : 'org'}/page-${i}`, `${i < 7 ? 'Compiler' : 'Runtime'} Zq${i}x`, 'dev'
+  ]);
+  const { tabs, labels } = windowFrom([
+    ...coding,
+    ...categoryTabs([['design', 1], ['biz', 2], ['shop', 1], ['jobs', 1], ['learn', 1]], { startId: 14 }),
+    ...Array.from({ length: 4 }, (_, i) => [`https://x.com/profile-${i}`, `Post ${i}`, 'news'])
+  ]);
+  const locked = socialsOf(tabs);
+  const plan = planGroups(tabs, labels, { locked });
+  assert.equal(plan.K, 6);
+  const codingGroups = plan.groups.filter(group => group.categories?.includes('dev'));
+  assert.deepEqual(codingGroups.map(group => group.tabIds.length).sort(), [6, 7]);
+  assert.equal(plan.candidates.filter(group => group.categories.includes('dev')).length, 2,
+    'the provider receives the split rows rather than the 13-tab parent');
+  const ids = plan.candidates.flatMap((candidate, index) => candidate.categories.includes('dev') ? [index] : []);
+  const late = enforceFolders([{ name: 'Technology', ids }], plan.candidates, 5, { n: 23, hardLimit: 9 });
+  assert.deepEqual(late.groups.filter(group => group.categories.includes('dev')).map(group => group.tabIds.length).sort(), [6, 7]);
+  assertCoverage([...locked, ...late.groups], tabs.map(tab => tab.id));
+});
+
+test('planner, size guard: shared tasks, atomic sites and explicit user groups keep their membership', () => {
+  const taskRows = Array.from({ length: 13 }, (_, i) => [
+    `https://project-${i}.example/`, `Atlas ${i < 7 ? 'Compiler' : 'Runtime'} Zq${i}x`, i % 2 ? 'dev' : 'ai'
+  ]);
+  const task = windowFrom([...taskRows, ...categoryTabs([['food', 8], ['news', 8]], { startId: 14 })]);
+  const taskPlan = planGroups(task.tabs, task.labels);
+  assert.equal(groupOf(taskPlan, 1).kind, 'task');
+  assert.deepEqual(groupOf(taskPlan, 1).tabIds, Array.from({ length: 13 }, (_, i) => i + 1));
+  const atomic = windowFrom([
+    ...Array.from({ length: 13 }, (_, i) => [
+      i < 7 ? `https://www.youtube.com/watch?v=${i}` : `https://youtu.be/${i}`,
+      `${i < 7 ? 'Compiler' : 'Runtime'} Zq${i}x`, 'video'
+    ]),
+    ...categoryTabs([['dev', 2], ['infra', 2], ['shop', 2]], { startId: 14 })
+  ]);
+  const atomicPlan = planGroups(atomic.tabs, atomic.labels);
+  assert.deepEqual(groupOf(atomicPlan, 1).tabIds, Array.from({ length: 13 }, (_, i) => i + 1));
+  const userGroup = { name: 'Technology', nameSource: 'user', key: 'cat:dev', dominant: 'dev', tabIds: [1, 2, 3] };
+  const enforced = enforceGroupCeiling([userGroup,
+    { name: 'AI Tools', key: 'cat:ai', dominant: 'ai', tabIds: [4] }], { ceiling: 1 });
+  assert.deepEqual(enforced.find(group => group.nameSource === 'user'), userGroup);
+  const rows = [
+    { name: 'Coding', key: 'cat:dev', dominant: 'dev', tabIds: Array.from({ length: 10 }, (_, i) => i + 1) },
+    { name: 'AI Tools', key: 'cat:ai', dominant: 'ai', tabIds: Array.from({ length: 9 }, (_, i) => i + 11) }
+  ];
+  const fullWindow = enforceFolders([], rows, 1, { n: 100 });
+  assert.equal(fullWindow.groups.length, 1, 'size admission uses the full window rather than only unprotected rows');
+  assertCoverage(fullWindow.groups, Array.from({ length: 19 }, (_, i) => i + 1));
+});
+
+test('planner, preferred count: unrelated categories survive and affinity cannot bridge unrelated constituents', () => {
+  const separate = windowFrom(categoryTabs([['dev', 2], ['news', 2], ['shop', 2], ['games', 2], ['health', 2]]));
+  const plan = planGroups(separate.tabs, separate.labels);
+  assert.equal(plan.K, 4);
+  assert.equal(plan.groups.length, 5);
+  const bridge = windowFrom(categoryTabs([['dev', 1], ['design', 1], ['biz', 1]]));
+  const bridged = planGroups(bridge.tabs, bridge.labels);
+  assert.equal(bridged.K, 1);
+  assert.equal(bridged.groups.length, 2, 'Design cannot bridge unrelated Code and Business');
+  assert.notEqual(groupOf(bridged, 1), groupOf(bridged, 3));
+  assert.ok(bridged.groups.every(group => group.categories.length <= 2));
+});
+
+test('planner, hard maximum: unrelated overflow uses Review Later without duplicating cloud candidates', () => {
+  const { tabs, labels } = windowFrom(Array.from({ length: 12 }, (_, site) =>
+    Array.from({ length: 3 }, (_, tab) => [`https://unknown-${site}.example/p/${tab}`, `Zq${site}x Vb${tab}y`, null])).flat());
+  const plan = planGroups(tabs, labels);
+  assert.equal(plan.groups.length, 10);
+  assert.equal(plan.reviewTabIds.length, 9);
+  assertCoverage(plan.groups, tabs.map(tab => tab.id));
+  const reviewIds = new Set(plan.reviewTabIds);
+  assert.ok(plan.candidates.every(candidate => candidate.tabIds.every(id => !reviewIds.has(id))));
+  assertCoverage([...plan.candidates, { tabIds: plan.reviewTabIds }], tabs.map(tab => tab.id));
 });
 
 test('planner, task promotion: a token across categories and sites becomes a task', () => {
@@ -556,7 +713,7 @@ test('planner, locked: split and fallback names never fold into a rule after can
   assert.deepEqual(renamed.map(group => [group.name, group.tabIds]), [['News', [1]], ['news 2', [2, 3]]]);
 });
 
-test('planner, loose tabs: Review Later only when there is room, site buckets otherwise', () => {
+test('planner, loose tabs: unknown tabs keep a neutral review queue, repeated sites keep their names', () => {
   const labelled = categoryTabs([
     ['dev', 3], ['food', 3], ['travel', 3], ['news', 3], ['shop', 3],
     ['health', 3], ['cars', 3], ['jobs', 3], ['home', 3], ['design', 3]
@@ -576,7 +733,7 @@ test('planner, loose tabs: Review Later only when there is room, site buckets ot
 
   const few = windowFrom([...categoryTabs([['dev', 10], ['food', 10], ['travel', 10]]), ...loose.slice(0, 2)]);
   const fewPlan = planGroups(few.tabs, few.labels);
-  assert.ok(fewPlan.groups.every(group => group.kind !== 'review'));
+  assert.deepEqual(fewPlan.reviewTabIds, [31, 32], 'even two unknowns are never scattered into known topics');
   assertCoverage(fewPlan.groups, few.tabs.map(tab => tab.id));
 
   const offline = windowFrom([
@@ -609,8 +766,9 @@ test('planner, loose tabs attach to a candidate whose titles they share', () => 
 
 test('planner, naming: merged names, regional fallback, uniqueness and validation', () => {
   assert.equal(mergedName({ name: 'Docs & Planning', size: 7 }, { name: 'Accounts & Admin', size: 5 }), 'Docs & Admin');
-  assert.equal(mergedName({ name: 'Coding', size: 8 }, { name: 'AI Tools', size: 2 }), 'Coding');
-  assert.equal(mergedName({ name: 'AI Tools', tabIds: [1, 2] }, { name: 'Coding', tabIds: [3, 4, 5, 6, 7] }), 'Coding');
+  assert.equal(mergedName({ name: 'Coding', size: 8 }, { name: 'AI Tools', size: 2 }), 'Code & AI');
+  assert.equal(mergedName({ name: 'AI Tools', tabIds: [1, 2] }, { name: 'Coding', tabIds: [3, 4, 5, 6, 7] }), 'Code & AI');
+  assert.equal(mergedName({ name: 'Code & AI', size: 10 }, { name: 'Cloud & Servers', size: 1 }), 'Code & AI & Cloud');
   assert.equal(mergedName({ name: 'Travel', size: 3 }, { name: 'Travel', size: 3 }), 'Travel');
   assert.equal(shortOf('Watch & Listen'), 'Media');
   assert.equal(shortOf('Japan & Food'), 'Japan');
@@ -688,7 +846,7 @@ test('planner, naming: merged names, regional fallback, uniqueness and validatio
 });
 
 test('planner, validateGroupName: vague and decorative model names keep the category name', () => {
-  for (const vague of ['Online Stores', 'Online Services', 'Web Tools', 'Sites & Links', 'Culinary Delights', 'Travel Adventures']) {
+  for (const vague of ['Technology', 'Tech', 'Online Stores', 'Online Services', 'Web Tools', 'Sites & Links', 'Culinary Delights', 'Travel Adventures']) {
     assert.equal(validateGroupName(vague), null, vague);
   }
   for (const plain of ['Productivity Tools', 'AI Tools', 'World News', 'Sports Highlights', 'Space Exploration', 'Food & Recipes']) {
@@ -818,7 +976,7 @@ test('planner, enforceFolders: repairs a messy consolidation answer', () => {
   assertCoverage(groups, candidates.flatMap(candidate => candidate.tabIds));
 
   const holder = key => groups.find(group => group.keys.includes(key));
-  assert.equal(holder('cat:admin'), holder('cat:money'), 'the missing row joins its merge partner');
+  assert.notEqual(holder('cat:admin'), holder('cat:money'), 'omission cannot force Admin into a Shopping/Money folder');
   assert.ok(holder('cat:dev').keys.includes('cat:dev') && !holder('cat:read').keys.includes('cat:dev'), 'a duplicate keeps its first folder');
   assert.ok(groups.every(group => group.name !== 'Misc'));
   assert.equal(holder('cat:travel').name, 'Travel & Events');
@@ -835,6 +993,56 @@ test('planner, enforceFolders: repairs a messy consolidation answer', () => {
       else assert.equal(advice[key], anchor);
     }
   }
+});
+
+test('planner, enforceFolders: hostile folders cannot mix unrelated topics or hide a minority name', () => {
+  const candidates = [
+    { key: 'cat:dev', keys: ['cat:dev'], name: 'Coding', dominant: 'dev', tabIds: [1, 2, 3] },
+    { key: 'cat:ai', keys: ['cat:ai'], name: 'AI Tools', dominant: 'ai', tabIds: [4] },
+    { key: 'cat:shop', keys: ['cat:shop'], name: 'Shopping', dominant: 'shop', tabIds: [5] },
+    { key: 'cat:travel', keys: ['cat:travel'], name: 'Travel', dominant: 'travel', tabIds: [6] }
+  ];
+  const { groups, advice } = enforceFolders([{ name: 'Coding', ids: [0, 1, 2, 3] }], candidates, 1);
+  assert.equal(groups.length, 3, 'the preferred count cannot require unrelated consolidation');
+  const coding = groups.find(group => group.tabIds.includes(1));
+  assert.deepEqual(coding.tabIds, [1, 2, 3, 4]);
+  assert.equal(coding.name, 'Code & AI');
+  assert.deepEqual(coding.categories, ['dev', 'ai']);
+  assert.notEqual(groups.find(group => group.tabIds.includes(5)), coding);
+  assert.notEqual(groups.find(group => group.tabIds.includes(6)), coding);
+  assert.equal(advice['cat:ai'], 'cat:dev');
+  assert.ok(!('cat:shop' in advice));
+  assertCoverage(groups, [1, 2, 3, 4, 5, 6]);
+  const concealed = enforceFolders([{ name: 'Coding', ids: [0, 1] }], candidates.slice(0, 2), 2);
+  assert.equal(concealed.groups[0].name, 'Code & AI', 'a coherent mixed folder still needs an honest name');
+});
+
+test('planner, final safety: a dominant category cannot bridge unrelated members or overwrite a user name', () => {
+  const groups = [
+    { name: 'Design & Business', key: 'cat:design', keys: ['cat:design', 'cat:biz'], dominant: 'design', tabIds: [1, 2] },
+    { name: 'Coding', key: 'cat:dev', keys: ['cat:dev'], dominant: 'dev', tabIds: [3, 4] },
+    { name: 'My workspace', key: 'user', dominant: 'dev', tabIds: [5], nameSource: 'memory-user' }
+  ];
+  const result = enforceGroupCeiling(groups, { ceiling: 1 });
+  assert.equal(result.length, 3);
+  assert.deepEqual(result.find(group => group.nameSource === 'memory-user').tabIds, [5]);
+  assert.equal(result.find(group => group.nameSource === 'memory-user').name, 'My workspace');
+  const overflow = enforceGroupCeiling(Array.from({ length: 12 }, (_, i) => ({
+    name: `Site ${i}`, key: `site:${i}`, tabIds: [i + 1]
+  })), { ceiling: 4 });
+  assert.equal(overflow.length, 10);
+  assert.equal(overflow.find(group => group.kind === 'review').tabIds.length, 3);
+  assertCoverage(overflow, Array.from({ length: 12 }, (_, i) => i + 1));
+});
+
+test('planner, names: model and remembered fixed-category names cannot hide mixed subjects', () => {
+  const mixed = { name: 'Code & AI', kind: 'folder', keys: ['cat:dev', 'cat:ai'], dominant: 'dev', tabIds: [1, 2] };
+  assert.equal(validateGroupName('Coding', mixed), null);
+  assert.equal(validateGroupName('AI Tools', mixed), null);
+  assert.equal(validateGroupName('Project Atlas', mixed), 'Project Atlas');
+  assert.equal(validateGroupName('Coding', { ...mixed, kind: 'task' }), 'Coding', 'shared-task evidence permits its task name');
+  const [remembered] = transferNames([mixed], { names: [{ n: 'Coding', k: mixed.keys, w: [], s: 'cloud' }] });
+  assert.equal(remembered.name, 'Code & AI');
 });
 
 test('planner, enforceGroupCeiling: 25 groups over 120 tabs become at most 10', () => {
@@ -879,10 +1087,10 @@ test('planner, enforceGroupCeiling: 25 groups over 120 tabs become at most 10', 
     { name: 'B', tabIds: [4] },
     { name: 'C', tabIds: [5, 6] }
   ], { ceiling: 2, dominantOf: group => ({ A: 'dev', B: 'ai', C: 'food' })[group.name] });
-  assert.deepEqual(custom.map(group => [group.name, group.tabIds]), [['A', [1, 2, 3, 4]], ['C', [5, 6]]]);
+  assert.deepEqual(custom.map(group => [group.name, group.tabIds]), [['Code & AI', [1, 2, 3, 4]], ['C', [5, 6]]]);
 });
 
-test('planner, advice: cached consolidation pairs merge first above the ceiling', () => {
+test('planner, advice: unrelated cached consolidation pairs are rejected', () => {
   // 7 categories of 3 tabs: n = 21, K = 6, so exactly one merge is needed.
   const { tabs, labels } = windowFrom(categoryTabs([
     ['dev', 3], ['food', 3], ['travel', 3], ['news', 3], ['cars', 3], ['health', 3], ['jobs', 3]
@@ -897,8 +1105,9 @@ test('planner, advice: cached consolidation pairs merge first above the ceiling'
 
   const withAdvice = planGroups(tabs, labels, { advice: { 'cat:cars': 'cat:news' } });
   assert.equal(withAdvice.groups.length, 6);
-  assert.equal(groupOf(withAdvice, carsTab), groupOf(withAdvice, newsTab), 'cars follow the cached advice into news');
-  assert.notEqual(planSignature(withAdvice.groups), planSignature(withoutAdvice.groups));
+  assert.notEqual(groupOf(withAdvice, carsTab), groupOf(withAdvice, newsTab), 'unrelated advice cannot mix Cars into News');
+  assert.equal(groupOf(withAdvice, carsTab), groupOf(withAdvice, travelTab));
+  assert.equal(planSignature(withAdvice.groups), planSignature(withoutAdvice.groups));
 
   // Advice never forces a merge below the ceiling.
   const roomy = planGroups(tabs.slice(0, 18), labels, { advice: { 'cat:cars': 'cat:news' } });

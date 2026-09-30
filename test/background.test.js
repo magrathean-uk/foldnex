@@ -5,10 +5,11 @@ import {
   configureOnDeviceMemory,
   getOnDeviceModelState,
   IMMEDIATE_UNLOAD_GRACE_MS,
+  labelCacheScope,
   NAME_SYSTEM,
   resetNanoBases
 } from '../src/ai-engine.js';
-import { TabLabelCache } from '../src/cache-engine.js';
+import { LearningCache, PlanMemory, TabLabelCache, WindowPlanStore } from '../src/cache-engine.js';
 import {
   autoGroupWindow,
   classifyTabs,
@@ -154,7 +155,7 @@ function installBrowser(tabs, { sync = {}, chromeGroups = [], liveGroups = false
  * with whether Foldnex still held a base (the model) when each load began;
  * setting `calls.createDelayMs` makes later loads that slow.
  */
-function installNanoMock({ labelFor = keyForTitle, nameFor = name => name } = {}) {
+function installNanoMock({ labelFor = keyForTitle, nameFor = name => name, nameDelayMs = 0 } = {}) {
   const calls = { labelPrompts: [], namePrompts: [], creates: 0, heldAtCreate: [], createDelayMs: 0 };
   const makeSession = createOptions => ({
     inputUsage: 300,
@@ -164,6 +165,7 @@ function installNanoMock({ labelFor = keyForTitle, nameFor = name => name } = {}
     async prompt(text) {
       const naming = createOptions?.initialPrompts?.[0]?.content === NAME_SYSTEM;
       (naming ? calls.namePrompts : calls.labelPrompts).push(text);
+      if (naming && nameDelayMs > 0) await sleep(nameDelayMs);
       const answer = {};
       for (const line of text.split('\n')) {
         const match = line.match(/^(\d+) \| (.*) \| (.*)$/);
@@ -197,7 +199,7 @@ function removeNanoMock() {
 }
 
 /** An OpenAI-compatible endpoint that labels every row and tracks concurrency. */
-function installCloudFetch({ delayMs = 0 } = {}) {
+function installCloudFetch({ delayMs = 0, failFirst = false } = {}) {
   const original = globalThis.fetch;
   const requests = [];
   let inFlight = 0;
@@ -208,7 +210,8 @@ function installCloudFetch({ delayMs = 0 } = {}) {
     const rows = content.includes('{"tabs":')
       ? JSON.parse(content.slice(content.lastIndexOf('{"tabs":'))).tabs
       : [];
-    requests.push({ url, rows });
+    requests.push({ url, rows, signal: options.signal });
+    if (failFirst && requests.length === 1) return { ok: false, status: 503, async text() { return 'temporarily unavailable'; } };
     inFlight++;
     peak = Math.max(peak, inFlight);
     try {
@@ -234,7 +237,15 @@ function installCloudFetch({ delayMs = 0 } = {}) {
 
 async function cacheLabels(tabs, engine = 'gemini_nano') {
   const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, engine);
+  const settings = await chrome.storage.sync.get(null);
+  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, engine, {
+    scope: labelCacheScope({ ...settings, provider: engine })
+  });
+}
+
+async function lookupSelectedLabels(tabs) {
+  const settings = await chrome.storage.sync.get(null);
+  return TabLabelCache.lookup(tabs, { scope: labelCacheScope(settings) });
 }
 
 const ON_DEVICE = async () => ({ allowed: true, onDevice: true, autoGroup: true });
@@ -714,7 +725,7 @@ test('a given-up tab gets one more attempt when the popup opens or a cleanup pla
     resetNanoBases();
     await classifier.prioritize(W);
     assert.deepEqual(classifier.pendingTabIds(), ids);
-    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(tabs)).missing.length === 0, 2000));
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 2000));
     assert.ok(nano.labelPrompts.length > 0);
   } finally {
     classifier.pause();
@@ -770,7 +781,7 @@ test('a Nano batch that fails mid-run is retried until every tab is labelled', a
   const classifier = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 5, retryDelaysMs: [30, 30, 30] });
   try {
     classifier.enqueue(tabs.map(tab => tab.id));
-    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(tabs)).missing.length === 0, 3000));
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 3000));
     assert.ok(failed);
     assert.ok(nano.labelPrompts.length > 3, `${nano.labelPrompts.length} prompts`);
   } finally {
@@ -809,12 +820,101 @@ test('background cloud labelling sends one batch at a time', async () => {
   installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
   const cloud = installCloudFetch({ delayMs: 20 });
   try {
-    const result = await classifyTabs(tabs.map(tab => tab.id));
+    const ids = tabs.map(tab => tab.id);
+    const result = await classifyTabs(ids, null, { admission: { freshIds: ids, reasons: ids.map(id => [id, 'load']) } });
     assert.equal(cloud.requests.length, 3);
     assert.equal(cloud.peak(), 1);
     assert.equal(result.labelledIds.length, 60);
   } finally {
     cloud.restore();
+  }
+});
+
+test('the shared cloud dispatch requires explicit fresh-page admission and excludes title-only work', async () => {
+  const tabs = makeTopicTabs(228, 22800, { dev: 3 });
+  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
+  const cloud = installCloudFetch();
+  const ids = tabs.map(tab => tab.id);
+  try {
+    assert.deepEqual((await classifyTabs(ids)).labelledIds, []);
+    assert.equal(cloud.requests.length, 0);
+    const result = await classifyTabs(ids, null, {
+      admission: { freshIds: ids.slice(1), reasons: [[ids[0], 'load'], [ids[1], 'title'], [ids[2], 'load']] }
+    });
+    assert.deepEqual(result.labelledIds, [ids[2]]);
+    assert.deepEqual(cloud.titles(), [tabs[2].title]);
+  } finally {
+    cloud.restore();
+  }
+});
+
+test('background dispatch uses the local settings admitted before tabs are read', async () => {
+  for (const transition of ['endpoint', 'provider']) {
+    const tabs = makeTopicTabs(229, 22900, { dev: 2 });
+    const { sync } = installBrowser(tabs, { sync: { provider: 'ollama', backgroundPrep: true, autoGroupNewTabs: true } });
+    const cloud = installCloudFetch();
+    const get = chrome.tabs.get;
+    let changed = false;
+    chrome.tabs.get = async id => {
+      if (!changed) {
+        changed = true;
+        if (transition === 'endpoint') sync.ollamaBaseUrl = 'https://remote.example/v1';
+        else Object.assign(sync, { provider: 'openai', openaiApiKey: 'test-only' });
+      }
+      return get(id);
+    };
+    const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000 });
+    try {
+      classifier.enqueue(tabs.map(tab => tab.id));
+      assert.ok(await waitFor(() => cloud.requests.length === 1), transition);
+      await classifier.whenIdle();
+      assert.ok(cloud.requests.every(request => request.url.startsWith('http://localhost:11434/')), transition);
+      assert.equal(cloud.titles().length, 2);
+    } finally {
+      classifier.pause();
+      cloud.restore();
+    }
+  }
+});
+
+test('a reset during background provider labelling discards its old labels and allows a fresh request', async () => {
+  const tabs = makeTopicTabs(230, 23000, { dev: 2 });
+  const { local } = installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
+  const cloud = installCloudFetch({ delayMs: 60 });
+  const ids = tabs.map(tab => tab.id);
+  const context = { admission: { freshIds: ids, reasons: ids.map(id => [id, 'load']) } };
+  try {
+    const pending = classifyTabs(ids, null, context);
+    assert.ok(await waitFor(() => cloud.requests.length === 1));
+    await LearningCache.resetRules();
+    assert.equal((await pending).aborted, true);
+    assert.ok(!(TabLabelCache.STORAGE_KEY in local));
+    const fresh = await classifyTabs(ids, null, context);
+    assert.deepEqual(fresh.labelledIds, ids);
+    assert.equal(cloud.requests.length, 2);
+  } finally {
+    cloud.restore();
+  }
+});
+
+test('a reset during background Nano naming discards names and the window plan', async () => {
+  const W = 231;
+  const tabs = makeTopicTabs(W, 23100, { food: 3, travel: 3 });
+  const { local } = installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
+  await cacheLabels(tabs);
+  const nano = installNanoMock({ nameDelayMs: 60 });
+  try {
+    const pending = refreshAndAutoGroup(W, null, { autoGroup: false });
+    assert.ok(await waitFor(() => nano.namePrompts.length > 0));
+    await LearningCache.resetRules();
+    assert.equal(await pending, null);
+    assert.ok(!(PlanMemory.STORAGE_KEY in local));
+    assert.equal(await WindowPlanStore.get(W), null);
+    await cacheLabels(tabs);
+    assert.ok(await refreshAndAutoGroup(W, null, { autoGroup: false }));
+    assert.equal(nano.namePrompts.length, 2, 'a reset also retires the old naming-attempt fence');
+  } finally {
+    removeNanoMock();
   }
 });
 
@@ -873,7 +973,7 @@ test('an on-device engine labels and names in the background only with backgroun
     // Background preparation on: the same work labels every tab and refreshes the plan.
     settings.backgroundPrep = true;
     classifier.enqueue(tabs.map(tab => tab.id));
-    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(tabs)).missing.length === 0, 2000));
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 2000));
     assert.ok(await waitFor(() => refreshed.length === 1));
   } finally {
     classifier.pause();
@@ -887,7 +987,7 @@ test('an on-device engine labels and names in the background only with backgroun
   const queue = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 5 });
   try {
     await queue.prioritize(W + 1);
-    assert.ok(await waitFor(async () => (await TabLabelCache.lookup(others)).missing.length === 0, 2000));
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(others)).missing.length === 0, 2000));
     assert.ok(again.labelPrompts.length > 0);
   } finally {
     queue.pause();
@@ -1010,6 +1110,135 @@ test('a cloud engine only receives pages opened after Auto-group was on, never t
   } finally {
     classifier.pause();
     cloud.restore();
+  }
+});
+
+test('nonzero navigation settling coalesces cloud counters and preserves one final useful title per page', async () => {
+  const W = 232;
+  const tabs = makeTopicTabs(W, 23200, { dev: 1 });
+  const tab = tabs[0];
+  tab.title = 'BTC 61,000';
+  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
+  const cloud = installCloudFetch();
+  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000, navigationSettleMs: 160 });
+  const on = { autoGroup: true };
+  const title = async text => {
+    tab.title = text;
+    await classifier.noteTabUpdated(tab.id, { title: text }, { ...tab }, on);
+  };
+  try {
+    await classifier.noteTabCreated({ ...tab, status: 'loading' }, on);
+    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
+    assert.ok(await waitFor(async () => cloud.requests.length === 1 && (await lookupSelectedLabels(tabs)).missing.length === 0));
+    for (let i = 1; i <= 5; i++) await title(`BTC 61,00${i}`);
+    await sleep(220);
+    assert.equal(cloud.requests.length, 1, 'numeric title churn does not spend a second request');
+
+    tab.url += '/next';
+    tab.title = 'Loading';
+    await classifier.noteTabUpdated(tab.id, { url: tab.url, status: 'loading' }, { ...tab, status: 'loading' }, on);
+    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
+    assert.ok(await waitFor(async () => cloud.requests.length === 2 && (await lookupSelectedLabels(tabs)).missing.length === 0));
+    await title('Cheap flights');
+    await title('Cheap flights to Tokyo');
+    await title('Cheap flights to Tokyo 27');
+    assert.ok(await waitFor(() => cloud.requests.length === 3));
+    assert.equal(cloud.requests[2].rows[0][1], 'Cheap flights to Tokyo 27');
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).labels.get(tab.id)?.c === 'travel'));
+    await title('Cheap flights to Osaka 28');
+    await sleep(220);
+    assert.equal(cloud.requests.length, 3, 'settling is bounded to one useful follow-up');
+  } finally {
+    classifier.pause();
+    cloud.restore();
+  }
+});
+
+test('title settling retains failed-page retries and uses the final title on the successful retry', async () => {
+  const tabs = makeTopicTabs(233, 23300, { dev: 1 });
+  const tab = tabs[0];
+  tab.title = 'Loading';
+  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
+  const cloud = installCloudFetch({ failFirst: true });
+  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000, navigationSettleMs: 140, retryDelaysMs: [60, 100] });
+  const on = { autoGroup: true };
+  try {
+    await classifier.noteTabCreated({ ...tab, status: 'loading' }, on);
+    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
+    assert.ok(await waitFor(() => cloud.requests.length === 1));
+    tab.title = 'React hooks reference';
+    await classifier.noteTabUpdated(tab.id, { title: tab.title }, tab, on);
+    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).labels.get(tab.id)?.c === 'dev'));
+    await sleep(180);
+    assert.equal(cloud.requests.length, 2);
+    assert.equal(cloud.requests[1].rows[0][1], tab.title);
+  } finally {
+    classifier.pause();
+    cloud.restore();
+  }
+});
+
+test('configuration invalidation aborts immediately, drops old admissions and preserves cleanup pause holds', async () => {
+  const tabs = makeTopicTabs(234, 23400, { dev: 2 });
+  installBrowser(tabs);
+  const signals = [];
+  const classifier = createBackgroundClassifier({
+    classify: async (ids, signal) => {
+      signals.push(signal);
+      if (signals.length === 1) return new Promise(resolve => signal.addEventListener('abort', () => resolve({ aborted: true }), { once: true }));
+      return { labelledIds: ids, unlabelledIds: [] };
+    },
+    refresh: async () => null,
+    scope: ON_DEVICE,
+    flushDelayMs: 5
+  });
+  try {
+    classifier.enqueue([tabs[0].id]);
+    assert.ok(await waitFor(() => signals.length === 1));
+    classifier.pause();
+    classifier.invalidate();
+    assert.equal(signals[0].aborted, true);
+    await classifier.whenIdle();
+    classifier.enqueue([tabs[1].id]);
+    await sleep(40);
+    assert.equal(signals.length, 1, 'an existing cleanup hold remains in force');
+    classifier.resume();
+    assert.ok(await waitFor(() => signals.length === 2));
+    assert.deepEqual(classifier.pendingTabIds(), []);
+  } finally {
+    classifier.pause();
+  }
+});
+
+test('clear discards a provider that settles after its bounded idle wait', async () => {
+  const tabs = makeTopicTabs(236, 23600, { dev: 2 });
+  installBrowser(tabs);
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let attempts = 0;
+  const classifier = createBackgroundClassifier({
+    classify: async ids => {
+      attempts++;
+      if (attempts === 1) await gate;
+      return { labelledIds: [], unlabelledIds: ids };
+    },
+    refresh: async () => null,
+    scope: ON_DEVICE,
+    flushDelayMs: 5,
+    retryDelaysMs: [10]
+  });
+  try {
+    classifier.enqueue([tabs[0].id]);
+    assert.ok(await waitFor(() => attempts === 1));
+    await classifier.clear({ waitMs: 10 });
+    release();
+    await classifier.whenIdle();
+    await sleep(60);
+    assert.equal(attempts, 1);
+    assert.deepEqual(classifier.pendingTabIds(), []);
+  } finally {
+    release();
+    classifier.pause();
   }
 });
 
@@ -1149,6 +1378,124 @@ function installWorkerEvents() {
   return listeners;
 }
 
+test('the worker aborts allowed endpoint and provider changes before rereading settings and drops existing tabs', async () => {
+  const W = 235;
+  const tabs = makeTopicTabs(W, 23500, { dev: 60 });
+  const { sync, session } = installBrowser(tabs, { sync: { provider: 'ollama', backgroundPrep: true, autoGroupNewTabs: true } });
+  session.foldnex_session_started_v1 = true;
+  const listeners = installWorkerEvents();
+  const cloud = installCloudFetch({ delayMs: 120 });
+  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
+  const change = (key, newValue) => {
+    const oldValue = sync[key];
+    sync[key] = newValue;
+    listeners.storageChanged({ [key]: { oldValue, newValue } }, 'sync');
+  };
+  try {
+    await import('../background.js?allowed-configuration-invalidation');
+    await message({ type: 'PREPARE_GROUPING', windowId: W });
+    assert.ok(await waitFor(() => cloud.requests.length === 1));
+    change('ollamaBaseUrl', 'https://remote.example/v1');
+    assert.equal(cloud.requests[0].signal.aborted, true, 'endpoint changes abort in the event callback');
+    await sleep(180);
+    assert.equal(cloud.requests.length, 1, 'later local batches and existing-page admissions are dropped');
+
+    const fresh = { ...makeTopicTabs(W, 23590, { food: 1 })[0], index: tabs.length };
+    tabs.push(fresh);
+    await listeners.tabCreated({ ...fresh, status: 'loading' });
+    await listeners.tabUpdated(fresh.id, { status: 'complete' }, fresh);
+    assert.ok(await waitFor(() => cloud.requests.length === 2));
+    assert.ok(cloud.requests[1].url.startsWith('https://remote.example/'));
+    change('provider', 'openai');
+    assert.equal(cloud.requests[1].signal.aborted, true, 'allowed-to-allowed provider changes also abort immediately');
+    await sleep(180);
+    assert.equal(cloud.requests.length, 2);
+  } finally {
+    change('groupingStrategy', 'site');
+    await sleep(140);
+    cloud.restore();
+  }
+});
+
+test('retiring configuration admissions preserves explicit ungroup choices and accepts later fresh pages', async () => {
+  installBrowser([]);
+  const tracker = createNewTabTracker();
+  await tracker.markNew(23801);
+  await tracker.markTakenOut([[23801, 'synthetic-page-key']]);
+  await tracker.markNew(23802);
+  await tracker.retireAdmissions();
+  assert.deepEqual(await tracker.freshIds(), []);
+  assert.deepEqual(await tracker.candidateIds(), []);
+  assert.equal(await tracker.outKey(23801), 'synthetic-page-key');
+  await tracker.markNew(23803);
+  assert.deepEqual(await tracker.freshIds(), [23803]);
+  assert.deepEqual(await tracker.candidateIds(), [23803]);
+  await tracker.markNew(23804, { isCurrent: () => false });
+  assert.deepEqual(await tracker.freshIds(), [23803], 'delayed stale admissions are rejected inside the tracker');
+});
+
+test('a pending local window priority read cannot re-admit old fresh tabs after switching to cloud', async () => {
+  const W = 238;
+  const tabs = makeTopicTabs(W, 23800, { dev: 1 });
+  const { sync } = installBrowser(tabs, { sync: { provider: 'ollama', autoGroupNewTabs: true, backgroundPrep: true } });
+  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 10000 });
+  const cloud = installCloudFetch();
+  let release, reached;
+  const gate = new Promise(resolve => { release = resolve; });
+  const queried = new Promise(resolve => { reached = resolve; });
+  const originalQuery = chrome.tabs.query;
+  try {
+    await classifier.noteTabCreated({ ...tabs[0], status: 'loading' }, { autoGroup: true });
+    chrome.tabs.query = async query => {
+      if (query.windowId === W) { reached(); await gate; }
+      return originalQuery(query);
+    };
+    const prioritizing = classifier.prioritize(W);
+    await queried;
+    sync.provider = 'openai';
+    sync.openaiApiKey = 'synthetic-boundary-key';
+    classifier.invalidate();
+    release();
+    await prioritizing;
+    chrome.tabs.query = originalQuery;
+    await sleep(30);
+    await classifier.whenIdle();
+    assert.equal(cloud.requests.length, 0, 'old local reads cannot refill the cloud queue');
+    await classifier.noteTabUpdated(tabs[0].id, { status: 'complete' }, tabs[0], { autoGroup: true });
+    await sleep(30);
+    await classifier.whenIdle();
+    assert.equal(cloud.requests.length, 0, 'the old fresh-page admission is retired');
+    const fresh = { ...makeTopicTabs(W, 23810, { food: 1 })[0], index: 1 };
+    tabs.push(fresh);
+    await classifier.noteTabCreated({ ...fresh, status: 'loading' }, { autoGroup: true });
+    await classifier.noteTabUpdated(fresh.id, { status: 'complete' }, fresh, { autoGroup: true });
+    assert.ok(await waitFor(() => cloud.requests.length === 1));
+    await classifier.whenIdle();
+    assert.equal(cloud.requests.length, 1, 'a newly admitted cloud page still works');
+    assert.equal(cloud.requests[0].rows.length, 1);
+    assert.equal(cloud.requests[0].rows[0][1], fresh.title);
+  } finally {
+    release();
+    chrome.tabs.query = originalQuery;
+    classifier.pause();
+    cloud.restore();
+  }
+});
+
+test('the worker resolves private group members before reading or writing group-title state', async () => {
+  const W = 237;
+  const group = { id: 237, windowId: W, title: 'Private research', color: 'blue' };
+  const tabs = makeTopicTabs(W, 23700, { dev: 2 }).map(tab => ({ ...tab, incognito: true, groupId: group.id }));
+  const { local, session } = installBrowser(tabs, { chromeGroups: [group] });
+  const listeners = installWorkerEvents();
+  await import('../background.js?private-group-event-boundary');
+  await listeners.groupUpdated(group);
+  await listeners.groupUpdated({ ...group, title: 'Private changed name' });
+  assert.deepEqual(Object.keys(session).filter(key => /^foldnex_(expected_group_update|group_title_baseline)_/.test(key)), []);
+  assert.ok(!(PlanMemory.STORAGE_KEY in local));
+  assert.deepEqual(local[LearningCache.STORAGE_KEY] || [], []);
+});
+
 test('the first worker run of a browser session treats early tab events as restored tabs', async () => {
   const W = 221;
   const tabs = makeTopicTabs(W, 22100, { food: 2 });
@@ -1239,7 +1586,7 @@ test('the service worker prepares an on-device engine only when asked and lets g
     }
     listeners.storageChanged(changes, 'sync');
   };
-  const missing = async list => (await TabLabelCache.lookup(list)).missing.length;
+  const missing = async list => (await lookupSelectedLabels(list)).missing.length;
   try {
     await import('../background.js?on-device-preparation');
 

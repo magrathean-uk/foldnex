@@ -12,6 +12,7 @@ import {
   providerSettingKey
 } from './src/ai-engine.js';
 import { isOnDeviceEngine } from './src/background-classifier.js';
+import { loadSettings } from './src/settings.js';
 
 // DOM elements
 const tabCountLabel = document.getElementById('tabCountLabel');
@@ -40,7 +41,7 @@ const setupKeepChoice = document.getElementById('setupKeepChoice');
 const setupKeepCopy = document.getElementById('setupKeepCopy');
 const providerPreferenceKeys = Object.entries(PROVIDER_CATALOG).flatMap(([id, config]) => {
   if (id === 'gemini_api') return ['geminiModel', 'geminiReasoningEffort'];
-  if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort')];
+  if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort'), providerSettingKey(id, 'baseUrl')];
   return [];
 });
 const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
@@ -62,6 +63,8 @@ const NANO_UNLOAD_COPY = Object.freeze({
 let statusHideTimer = null;
 let setupNanoCheck = null;
 let setupBusy = false;
+let latestPopupRun = null;
+let engineStatusRevision = 0;
 
 /**
  * Show status box with type
@@ -127,16 +130,35 @@ function renderProviderSelect() {
   });
 }
 
+// A saved credential means configured, not authenticated. Only show a past
+// failure for the selected provider/model; never echo provider error bodies.
+function renderConfiguredProvider(config, lastRun, provider, model) {
+  engineBadge.className = 'badge';
+  engineBadge.textContent = `${provider === 'gemini_api' ? 'Gemini' : config.name} configured`;
+  nanoHint.textContent += ' Connection not verified.';
+  if (lastRun?.provider !== provider || lastRun.strategy !== 'task' || lastRun.model !== model) return;
+  const failures = {
+    auth: ['danger', 'Last run: auth failed', 'Last cleanup ran offline because authentication failed. Check the API key in Settings and try again.'],
+    quota: ['warning', 'Last run: quota', 'Last cleanup ran offline because the provider reported a quota or rate limit. Check your provider account before retrying.'],
+    timeout: ['warning', 'Last run: timed out', 'Last cleanup ran offline because the provider timed out. Try again or choose another engine.'],
+    provider_error: ['danger', 'Last run: failed', 'Last cleanup ran offline because the provider request failed. Check the connection in Settings.']
+  };
+  const failure = failures[lastRun.fallbackCode];
+  if (!failure) return;
+  engineBadge.className = `badge ${failure[0]}`;
+  engineBadge.textContent = failure[1];
+  nanoHint.textContent += ` ${failure[2]}`;
+}
+
 async function refreshEngineStatus() {
-  const localKeyNames = Object.keys(PROVIDER_CATALOG)
-    .filter(id => PROVIDER_CATALOG[id].mode === 'compatible')
-    .map(id => providerSettingKey(id, 'apiKey'));
-  const secretNames = ['geminiApiKey', 'openaiOAuthToken', ...localKeyNames];
-  const [syncSettings, localSettings] = await Promise.all([
-    chrome.storage.sync.get(['provider', 'groupingStrategy', ...secretNames, ...providerPreferenceKeys]),
-    chrome.storage.local.get(secretNames)
+  const revision = ++engineStatusRevision;
+  const [syncSettings, runData] = await Promise.all([
+    loadSettings(),
+    chrome.storage.local.get('foldnex_last_run').catch(() => ({}))
   ]);
-  const secrets = { ...syncSettings, ...localSettings };
+  if (revision !== engineStatusRevision) return;
+  const secrets = syncSettings;
+  const lastRun = latestPopupRun || runData.foldnex_last_run;
 
   const provider = syncSettings.provider || 'gemini_nano';
   const groupingStrategy = syncSettings.groupingStrategy === 'site' ? 'site' : 'task';
@@ -182,9 +204,11 @@ async function refreshEngineStatus() {
   if (provider === 'gemini_nano') {
     nanoHint.classList.remove('hidden');
     const nanoStatus = await checkChromeNanoStatus();
+    if (revision !== engineStatusRevision) return;
     if (nanoStatus.status === 'ready') {
       engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'Nano ready';
+      engineBadge.textContent = 'Nano available';
+      nanoHint.textContent += ' If the model needs loading, cleanup can use temporary local groups while it warms. Run cleanup again to use the prepared labels.';
     } else if (nanoStatus.status === 'downloadable' || nanoStatus.status === 'downloading') {
       engineBadge.className = 'badge warning';
       engineBadge.textContent = 'Downloading';
@@ -196,15 +220,14 @@ async function refreshEngineStatus() {
     nanoHint.classList.remove('hidden');
     nanoHint.textContent = 'Cloud mode sends complete tab titles and host/path hints to Google Gemini when you group.';
     if (hasGeminiKey) {
-      engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'Gemini ready';
+      renderConfiguredProvider(config, lastRun, provider, syncSettings.geminiModel || config.defaultModel);
     } else {
       engineBadge.className = 'badge danger';
       engineBadge.textContent = 'Key missing';
     }
   } else if (config.mode === 'compatible') {
     nanoHint.classList.remove('hidden');
-    nanoHint.textContent = config.local
+    nanoHint.textContent = isOnDeviceEngine(syncSettings)
       ? 'Runs through the Ollama server on this device. No tab data is sent to a cloud provider.'
       : `Cloud mode sends complete tab titles and host/path hints to ${config.name} when you group.`;
     const apiKey = secrets[providerSettingKey(provider, 'apiKey')];
@@ -214,8 +237,7 @@ async function refreshEngineStatus() {
       engineBadge.textContent = 'Model unavailable';
       nanoHint.textContent = 'Choose an OpenAI Chat Completions model in settings.';
     } else if (hasAuth || config.keyOptional) {
-      engineBadge.className = 'badge ready';
-      engineBadge.textContent = `${config.name} ready`;
+      renderConfiguredProvider(config, lastRun, provider, syncSettings[providerSettingKey(provider, 'model')] || config.defaultModel);
     } else {
       engineBadge.className = 'badge danger';
       engineBadge.textContent = 'Key missing';
@@ -342,10 +364,8 @@ function finishSetup(message) {
  * unchanged and open Settings so the user can add a key.
  */
 async function chooseCloudSetup() {
-  const [{ provider }, secrets] = await Promise.all([
-    chrome.storage.sync.get('provider'),
-    chrome.storage.local.get([...CLOUD_PROVIDERS.map(apiKeyStorageKey), 'openaiOAuthToken'])
-  ]);
+  const secrets = await loadSettings();
+  const { provider } = secrets;
   const hasKey = id => Boolean(secrets[apiKeyStorageKey(id)] || (id === 'openai' && secrets.openaiOAuthToken));
   const keyed = [provider, 'openai', ...CLOUD_PROVIDERS]
     .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
@@ -426,8 +446,8 @@ function resultNotes(res, inBackground = false) {
       notes += ` ${placed}.`;
     } else {
       notes += inBackground
-        ? ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted in the background.`
-        : ` ${placed}; ${provisional === 1 ? 'it' : 'they'} will be sorted on the next cleanup.`;
+        ? ` ${placed}; background labelling prepares a later cleanup.`
+        : ` ${placed}; run another cleanup to try labelling ${provisional === 1 ? 'it' : 'them'} again.`;
     }
   }
   if (res.fallbackCode === 'nano_loading') notes += ' The on-device model is still loading.';
@@ -449,6 +469,8 @@ btnGroupTabs.addEventListener('click', async () => {
     });
     if (!response?.success) throw new Error(response?.error || 'Grouping failed');
     const res = response.result;
+    if (res.provider) latestPopupRun = res;
+    await refreshEngineStatus();
     const duplicates = res.duplicateTabsClosed || 0;
     const duplicateSummary = duplicates === 1
       ? ' Removed 1 duplicate tab.'
@@ -553,7 +575,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
   }
   if (areaName === 'local') {
-    if (Object.keys(changes).some(key => key === 'geminiApiKey' || key === 'openaiOAuthToken' || key.endsWith('ApiKey'))) {
+    if (changes.foldnex_last_run) latestPopupRun = null;
+    if (changes.foldnex_last_run || Object.keys(changes).some(key => key === 'geminiApiKey' || key === 'openaiOAuthToken' || key.endsWith('ApiKey'))) {
       refreshEngineStatus();
     }
     if (changes[LearningCache.STORAGE_KEY] || changes.foldnex_last_run) {

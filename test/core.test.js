@@ -10,6 +10,8 @@ import {
   getAdaptiveGroupRange,
   groupCeiling,
   labelTabsWithAI,
+  labelCacheScope,
+  MAX_GROUPS,
   NAME_SYSTEM,
   PROMPT_TITLE_LIMIT,
   PROVIDER_CATALOG,
@@ -148,7 +150,10 @@ function installBrowser(tabs, { sync = {}, chromeGroups = [] } = {}) {
       const list = Array.isArray(keys) ? keys : [keys];
       return Object.fromEntries(list.filter(key => key in sync).map(key => [key, sync[key]]));
     },
-    async set(values) { Object.assign(sync, values); }
+    async set(values) { Object.assign(sync, values); },
+    async remove(keys) {
+      for (const key of Array.isArray(keys) ? keys : [keys]) delete sync[key];
+    }
   };
   chrome.tabs = {
     async query(query = {}) {
@@ -561,7 +566,7 @@ test('a regional consolidation name is rejected locally without a retry', async 
     assert.equal(cloud.consolidations().length, 1);
     assert.equal(cloud.requests.length, 2, 'no retry after the rejected name');
     assert.ok(!result.groups.some(group => group.name === 'Southern Europe'));
-    assert.deepEqual(result.groups.map(group => group.name), ['Admin & Learning']);
+    assert.deepEqual(result.groups.map(group => group.name), ['Accounts & Admin', 'Learning']);
     assert.ok(!result.qualityCodes.includes('regional'));
   } finally {
     cloud.restore();
@@ -620,8 +625,8 @@ test('Socials and explicit rules are locked whatever the labels say', async () =
     cloud.restore();
   }
 
-  // A manual rule wins over the label; with 2 locked groups at K = 2 the
-  // remaining tab forms one more group and the run is flagged.
+  // A manual rule wins over the label. The compactness target does not
+  // flag three distinct groups as a rules overflow under the hard cap.
   const { local } = installBrowser(makeTabs());
   local.foldnex_learning_schema_version = 2;
   local.foldnex_learned_rules = [{
@@ -634,7 +639,7 @@ test('Socials and explicit rules are locked whatever the labels say', async () =
     assert.deepEqual(result.groups.find(group => group.name === 'Socials')?.tabIds, [1, 2]);
     assert.deepEqual(result.groups.find(group => group.name === 'Network')?.tabIds, [3]);
     assert.equal(result.groups.length, 3);
-    assert.ok(result.qualityFlags.includes('rules_exceed_ceiling'));
+    assert.ok(!result.qualityFlags.includes('rules_exceed_ceiling'));
     assert.deepEqual(cloud.labelRequests()[0].rows.map(row => row[1]), ['Billing']);
   } finally {
     cloud.restore();
@@ -674,7 +679,7 @@ test('label requests keep ordinals local and follow provider request shapes', as
     assert.equal('temperature' in nano, false);
     assert.equal(nano.reasoning_effort, 'low');
     assert.equal(nano.messages[0].role, 'developer');
-    assert.equal('service_tier' in nano, false);
+    assert.equal(nano.service_tier, 'default');
     assert.equal(priority.service_tier, 'priority');
     assert.equal(priority.prompt_cache_key, 'foldnex-labels');
     assert.equal(deepseek.reasoning_effort, 'max');
@@ -965,12 +970,17 @@ test('orchestrator scopes exact cache and diagnostics by effective reasoning eff
     assert.equal(local.foldnex_last_run.reasoningEffort, null);
     assert.equal(local.foldnex_last_run.reasoningTokens, null);
 
-    // A new effort is a new exact-cache scope, but labels and names carry over.
+    // A new effort must reassess labels and model names rather than silently
+    // reusing a lower-effort result. Returning to medium still costs no call.
     const highEffort = await executeTabGrouping(5, { ...settings, groqReasoningEffort: 'high' });
-    assert.equal(highEffort.source, 'label-cache');
-    assert.equal(cloud.requests.length, 2);
+    assert.equal(highEffort.source, 'cloud');
+    assert.equal(cloud.requests.length, 4);
+    assert.equal(cloud.labelRequests().at(-1).payload.reasoning_effort, 'high');
     assert.deepEqual(membership(highEffort.groups), membership(first.groups));
     assert.equal(calls.update.length, 6);
+    const mediumAgain = await executeTabGrouping(5, settings);
+    assert.equal(mediumAgain.source, 'exact-cache');
+    assert.equal(cloud.requests.length, 4);
   } finally {
     cloud.restore();
   }
@@ -1331,12 +1341,16 @@ test('the label cache sends only new tabs and respects which engine wrote a labe
     assert.equal(cloud.labelRequests().length, 2);
     assert.equal(third.source, 'exact-cache');
 
-    // Labels a cloud engine wrote are good enough for Nano.
+    // Choosing Nano asks Nano rather than silently reusing cloud labels.
     const nano = installNanoMock();
     try {
       const local = await executeTabGrouping(21, { provider: 'gemini_nano' });
-      assert.equal(nano.labelPrompts.length, 0);
-      assert.equal(local.source, 'label-cache');
+      assert.ok(nano.labelPrompts.length > 0);
+      assert.equal(local.source, 'nano');
+      const before = cloud.requests.length;
+      const cloudAgain = await executeTabGrouping(21, settings);
+      assert.equal(cloudAgain.source, 'exact-cache');
+      assert.equal(cloud.requests.length, before, 'switching back reuses the earlier cloud work');
     } finally {
       removeNanoMock();
     }
@@ -1430,6 +1444,78 @@ test('offline smart mode plans locally within the ceiling and never calls a mode
     cloud.restore();
     removeNanoMock();
   }
+});
+
+test('screenshot regression: ordinary cleanup preserves unrelated topics even after hostile consolidation or auth fallback', async () => {
+  // Public/synthetic addresses only: reconstruct the semantic mix visible in
+  // the screenshot without accessing browser history or provider credentials.
+  const rows = [
+    ['https://x.com/home', 'Home / X', 'admin'],
+    ['https://appstoreconnect.apple.com/', 'App Store Connect', 'dev'],
+    ['https://github.com/example?tab=repositories', 'Your Repositories', 'dev'],
+    ['http://192.168.1.2/admin/', 'Pi-hole dashboard', 'infra'],
+    ['https://bbc.co.uk/news', 'UK Latest News & Updates', 'news'],
+    ['https://chatgpt.com/c/synthetic-one', 'Create Visual Technical Site', 'ai'],
+    ['https://chatgpt.com/c/synthetic-two', 'Apple Review Explained', 'ai'],
+    ['https://grok.com/imagine', 'Grok Imagine', 'ai'],
+    ['https://chatgpt.com/', 'ChatGPT', 'ai'],
+    ['https://platform.openai.com/settings/organization', 'Organization settings - OpenAI', 'ai'],
+    ['https://ebay.co.uk/', 'eBay UK', 'shop'],
+    ['https://maps.google.com/', 'Google Maps', 'travel'],
+    ['https://analytics.google.com/', 'analytics.google.com', 'biz'],
+    ['https://app.envato.com/', 'Envato App', 'design'],
+    ['https://login.example/', 'Login', 'admin'],
+    ['https://downloads.example/', 'Mac downloads', 'read'],
+    ['https://media.example/', 'nCore', 'video'],
+    ['https://community.example/', 'Welcome | Codex Ambassador', 'read']
+  ];
+  const labelFor = title => rows.find(row => row[1] === title)?.[2] || 'admin';
+  for (const mode of ['offline', 'cloud', 'auth-fallback']) {
+    const tabs = rows.map(([url, title], index) => ({
+      id: 9000 + index, windowId: 90, index, title, url,
+      pinned: false, incognito: false, active: index === 0
+    }));
+    const { local } = installBrowser(tabs);
+    const settings = mode === 'offline' ? { provider: 'offline' } : { provider: 'openai', openaiApiKey: 'synthetic-only' };
+    const cloud = installCloudFetch({
+      labelFor,
+      folders: candidates => [{ name: 'Coding', ids: candidates.map(row => row[0]) }]
+    });
+    if (mode === 'auth-fallback') {
+      globalThis.fetch = async () => ({ ok: false, status: 401, async text() { return 'Incorrect API key: synthetic-only'; } });
+    }
+    try {
+      const result = await executeTabGrouping(90, settings);
+      const groupOf = index => result.groups.find(group => group.tabIds.includes(9000 + index));
+      for (const index of [4, 10, 11]) {
+        assert.ok(!groupOf(index).tabIds.some(id => [9001, 9002, 9005, 9006, 9007, 9008, 9009].includes(id)),
+          `${mode}: News, Shopping and Maps must not join Coding or AI`);
+      }
+      assert.ok(result.groups.length <= MAX_GROUPS, `${mode}: absolute group cap`);
+      assert.deepEqual(result.groups.flatMap(group => group.tabIds).sort((a, b) => a - b), tabs.map(tab => tab.id));
+      assert.equal(result.provider, settings.provider);
+      if (mode !== 'cloud') {
+        assert.equal(groupOf(14).name, 'Review Later', `${mode}: unknown login remains uncertain`);
+        assert.equal(groupOf(16).name, 'Review Later', `${mode}: unknown media remains uncertain`);
+      }
+      if (mode === 'auth-fallback') {
+        assert.equal(result.fallbackCode, 'auth');
+        assert.equal(result.source, 'offline-fallback');
+        assert.ok(!JSON.stringify(local.foldnex_last_run).includes('synthetic-only'));
+      }
+    } finally {
+      cloud.restore();
+    }
+  }
+});
+
+test('private network dashboards are infrastructure while loopback development remains Coding', () => {
+  assert.equal(getSiteCategory('http://192.168.1.2/admin/').name, 'Network & Devices');
+  assert.equal(getSiteCategory('http://10.0.0.2/').name, 'Network & Devices');
+  assert.equal(getSiteCategory('http://172.16.0.2/').name, 'Network & Devices');
+  assert.equal(getSiteCategory('http://nas.local/').name, 'Network & Devices');
+  assert.equal(getSiteCategory('http://localhost:3000/').name, 'Local Development');
+  assert.equal(getSiteCategory('http://[::1]:3000/').name, 'Local Development');
 });
 
 test('provider error details are not persisted in run diagnostics', async () => {
@@ -1532,6 +1618,10 @@ test('background classifier never sends tabs to a cloud engine unless auto-group
   cloud = installCloudFetch();
   try {
     await classifyTabs(tabs.map(tab => tab.id));
+    assert.equal(cloud.requests.length, 0, 'auto-group consent alone cannot upload an existing tab sweep');
+    await classifyTabs(tabs.map(tab => tab.id), null, {
+      admission: { freshIds: new Set(tabs.map(tab => tab.id)), reasons: new Map(tabs.map(tab => [tab.id, 'created'])) }
+    });
     assert.equal(cloud.labelRequests().length, 1);
     await refreshAndAutoGroup(51);
     assert.equal(cloud.consolidations().length, 0, 'the background never pays for consolidation');
@@ -1556,21 +1646,23 @@ test('auto-group joins matching groups, respects the ceiling and skips Review La
     chromeGroups
   });
   const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, 'openai');
+  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, 'openai', {
+    scope: labelCacheScope({ provider: 'openai' })
+  });
 
   const plan = await refreshAndAutoGroup(52);
   assert.ok(plan.groups.some(group => group.name === 'Food & Recipes' && group.tabIds.includes(3299)));
   assert.equal((await WindowPlanStore.get(52)).groups.find(group => group.name === 'Food & Recipes').tabIds.length, 5);
   assert.deepEqual(calls.group, [{ groupId: 77, tabIds: [3299] }]);
 
-  // At the ceiling, two new games tabs never create a group.
+  // At the absolute limit, two new games tabs never create a group.
   const crowded = [
     ...Array.from({ length: 6 }, (_, index) => ({ id: 3400 + index, windowId: 53, index, groupId: 90 + index, title: `Tab ${index}`, url: `https://www.site-${index}.com/` })),
     { id: 3410, windowId: 53, index: 6, groupId: -1, title: 'Strategy game guide 1', url: 'https://www.games-1.com/' },
     { id: 3411, windowId: 53, index: 7, groupId: -1, title: 'Strategy game guide 2', url: 'https://www.games-2.com/' }
   ];
   const full = installBrowser(crowded, {
-    chromeGroups: Array.from({ length: groupCeiling(8) }, (_, index) => ({ id: 90 + index, windowId: 53, title: `Group ${index}` }))
+    chromeGroups: Array.from({ length: MAX_GROUPS }, (_, index) => ({ id: 90 + index, windowId: 53, title: `Group ${index}` }))
   });
   await autoGroupWindow(53, { groups: [{ name: 'Gaming', kind: 'category', tabIds: [3410, 3411] }] });
   assert.ok(!full.calls.group.some(call => call.createProperties));
@@ -1809,6 +1901,54 @@ test('a cloud label failure within the deadline still falls back at once', async
   } finally {
     globalThis.fetch = original;
   }
+});
+
+test('clearing memory after a click deadline rejects its late cloud labels and permits a fresh cleanup', async () => {
+  const tabs = makeTopicTabs(75, 7500, { food: 3, travel: 3 });
+  installBrowser(tabs);
+  const cloud = installCloudFetch({ delayMs: () => 700 });
+  const settings = { provider: 'openai', openaiApiKey: 'synthetic-reset-key', cloudEconomyMode: true };
+  try {
+    const first = await executeTabGrouping(75, settings, { budgetMs: 1000 });
+    assert.equal(first.deadlineHit, true);
+    assert.equal(first.provisionalTabs, 6);
+    await LearningCache.resetRules();
+    assert.ok(await waitFor(() => cloud.completed() === 1));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.deepEqual(await TabLabelCache.read(), {});
+    assert.equal(await WindowPlanStore.get(75), null);
+    const fresh = await executeTabGrouping(75, settings);
+    assert.equal(fresh.provisionalTabs, 0);
+    assert.equal(cloud.labelRequests().length, 2, 'post-reset work makes a fresh provider request');
+    assert.equal(Object.keys(await TabLabelCache.read()).length, 6);
+  } finally {
+    cloud.restore();
+  }
+});
+
+test('clearing memory during Chrome application rejects the old cleanup result and session plan', async () => {
+  const tabs = makeTopicTabs(76, 7600, { food: 3, travel: 3 });
+  const { local } = installBrowser(tabs);
+  const originalGroup = chrome.tabs.group;
+  let release, reached;
+  const gate = new Promise(resolve => { release = resolve; });
+  const applying = new Promise(resolve => { reached = resolve; });
+  let first = true;
+  chrome.tabs.group = async details => {
+    if (first) { first = false; reached(); await gate; }
+    return originalGroup(details);
+  };
+  const run = executeTabGrouping(76, { provider: 'offline' });
+  await applying;
+  await LearningCache.resetRules();
+  release();
+  assert.equal((await run).success, true, 'the requested Chrome operation still completes');
+  assert.equal(local.foldnex_exact_results_v1, undefined);
+  assert.equal(await WindowPlanStore.get(76), null);
+  const fresh = await executeTabGrouping(76, { provider: 'offline' });
+  assert.equal(fresh.success, true);
+  assert.equal(local.foldnex_exact_results_v1.length, 1, 'new work can save an exact result');
+  assert.ok(await WindowPlanStore.get(76));
 });
 
 test('a Nano click with no time left to name its groups is not reused by the exact cache', async () => {
