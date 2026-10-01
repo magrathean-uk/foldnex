@@ -44,3 +44,7 @@ This project follows [Clean Development](https://github.com/magrathean-uk/clean-
 - Legal files (`LICENSE`, `NOTICE`, `docs/legal/`, contributor terms, copyright and
   attribution strings) are owner-controlled: change them only on the owner's explicit
   instruction.
+
+## Pending URL migration
+
+The next release must apply [NEXT-RELEASE-URLS.md](NEXT-RELEASE-URLS.md): product sites moved to `https://magrathean.uk/solutions/<slug>/` and support addresses to `contact+<slug>@magrathean.uk`. Remove this section with that file once released.
