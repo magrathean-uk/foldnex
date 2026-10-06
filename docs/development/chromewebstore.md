@@ -11,7 +11,7 @@ This file contains proposed store metadata, privacy answers, permission justific
 - **Visibility:** Public
 - **Homepage:** https://magrathean.uk/apps/foldnex/
 - **Support:** contact+foldnex@magrathean.uk / https://github.com/magrathean-uk/foldnex/issues
-- **Privacy policy:** https://magrathean.uk/apps/foldnex/privacy/
+- **Privacy policy:** https://github.com/magrathean-uk/foldnex/blob/main/docs/legal/privacy.md
 - **Terms of service:** https://magrathean.uk/apps/foldnex/terms/
 
 ### Summary
@@ -179,6 +179,6 @@ Use `Authorization: Bearer ACCESS_TOKEN` for these requests, replacing the place
 4. **Submit for review:** `POST https://chromewebstore.googleapis.com/v2/publishers/PUBLISHER_ID/items/EXTENSION_ID:publish`, with `Content-Type: application/json` and body `{"publishType":"DEFAULT_PUBLISH","skipReview":false,"blockOnWarnings":true}`. Resolve reported warnings or dashboard blockers. See the [publish reference](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish).
 5. **Record the returned state:** `PENDING_REVIEW` means submitted for review; it does not mean approved or live. Use `fetchStatus` and the dashboard to verify review and publication later. Preserve a redacted submission receipt outside the packaged runtime.
 
-Keep the working `/apps/foldnex/` listing links above until the replacement `/solutions/foldnex/` pages are available. Apply [NEXT-RELEASE-URLS.md](../../NEXT-RELEASE-URLS.md) once those destinations are deployed; changing source links alone does not make the destinations available.
+The dashboard privacy URL points to the maintained repository policy, matching the link in Settings. Keep the working `/apps/foldnex/` homepage and terms links until the replacement `/solutions/foldnex/` pages are available. Update the public website policy before directing the dashboard back to it. Apply [NEXT-RELEASE-URLS.md](../../NEXT-RELEASE-URLS.md) once those destinations are deployed; changing source links alone does not make the destinations available.
 
 The existing [Terms](../legal/terms.md) contain legal and distribution statements. Keep their factual descriptions aligned with the submitted package and preserve the licence grants and other legal provisions. See [Licensing](../legal/licensing.md) and [Privacy](../legal/privacy.md).
