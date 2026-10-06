@@ -9,34 +9,49 @@
       "method": "Lanczos downscale of the selected full-resolution concept; byte-for-byte copy of icons/icon128.png"
     },
     {
-      "file": "screenshots/01-clean-and-group.png",
+      "file": "screenshots/01-grouping-engines.png",
       "dimensions": "1280x800",
-      "source": "real popup.html rendering plus icons/icon128.png",
-      "method": "Playwright browser capture composed in a deterministic store frame"
+      "source": "source-captures/01-grouping-engines.png",
+      "sourceDimensions": "2004x1816",
+      "suppliedAt": "2026-10-06",
+      "subject": "Expanded grouping-engine chooser",
+      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
     },
     {
-      "file": "screenshots/02-engine-choice.png",
+      "file": "screenshots/02-provider-usage.png",
       "dimensions": "1280x800",
-      "source": "real options/options.html grouping-engine selector",
-      "method": "Playwright browser capture composed in a deterministic store frame"
+      "source": "source-captures/02-provider-usage.png",
+      "sourceDimensions": "1956x1704",
+      "suppliedAt": "2026-10-06",
+      "subject": "Provider inference usage report",
+      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
     },
     {
-      "file": "screenshots/03-provider-configuration.png",
+      "file": "screenshots/03-behaviour.png",
       "dimensions": "1280x800",
-      "source": "real options/options.html provider configuration with representative non-secret data",
-      "method": "Playwright browser capture composed in a deterministic store frame"
+      "source": "source-captures/03-behaviour.png",
+      "sourceDimensions": "2532x1904",
+      "suppliedAt": "2026-10-06",
+      "subject": "Behaviour settings and last-cleanup section",
+      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
     },
     {
       "file": "screenshots/04-rules-and-memory.png",
       "dimensions": "1280x800",
-      "source": "real options/options.html rules view with representative sample rules",
-      "method": "Playwright browser capture composed in a deterministic store frame"
+      "source": "source-captures/04-rules-and-memory.png",
+      "sourceDimensions": "2724x1902",
+      "suppliedAt": "2026-10-06",
+      "subject": "Rules and memory controls",
+      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
     },
     {
-      "file": "screenshots/05-behaviour-and-report.png",
+      "file": "screenshots/05-on-device-memory.png",
       "dimensions": "1280x800",
-      "source": "real options/options.html behaviour and diagnostics view with representative run data",
-      "method": "Playwright browser capture composed in a deterministic store frame"
+      "source": "source-captures/05-on-device-memory.png",
+      "sourceDimensions": "2704x1896",
+      "suppliedAt": "2026-10-06",
+      "subject": "Gemini Nano background preparation and memory controls",
+      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
     },
     {
       "file": "small-promo-440x280.png",
@@ -51,5 +66,6 @@
       "method": "Playwright browser capture composed in a deterministic store frame"
     }
   ],
-  "notes": "Artwork uses the selected Foldnex tab-tray icon, established colours, actual extension UI, and representative non-sensitive sample data. The icon was generated specifically for Foldnex and contains no third-party stock imagery."
+  "notes": "Screenshots refreshed from owner-supplied v2.0.0 UI captures. Original captures are retained in source-captures; upload only the derived 1280x800 screenshots. Earlier icon and promotional assets retain their original provenance and were not regenerated. Captured model availability and usage are example states, not performance or billing guarantees. No provider credentials appear in the captures.",
+  "screenshotsUpdatedAt": "2026-10-06"
 }

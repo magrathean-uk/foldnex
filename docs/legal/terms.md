@@ -1,6 +1,6 @@
 # Foldnex Terms of Service
 
-**Effective date:** 27 September 2026
+**Effective date:** 6 October 2026
 
 **Provider:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
@@ -26,7 +26,7 @@ By installing, copying, accessing, or using the published Extension, you confirm
 
 ## 2. Google Platform & Chrome Web Store Terms
 
-2.1. Foldnex can be installed from its extension files using Chrome's Load unpacked feature. Your installation and execution of the Extension are subject to Google's applicable platform terms, policies, and developer program requirements.
+2.1. Foldnex can be installed from its extension files using Chrome's Load unpacked feature, or from the Chrome Web Store when a reviewed release is available there. Source availability or submission for review does not establish store approval or public availability. Your installation and execution of the Extension are subject to Google's applicable platform terms, policies, and developer program requirements.
 
 2.2. You acknowledge that these Terms are entered into solely between you and Magrathean, not with Google LLC ("Google"). Google is not responsible for the Extension, its maintenance, or user support. In the event of a conflict between these Terms and mandatory Chrome Web Store distribution policies, Google's platform policies shall control with respect to platform distribution matters.
 
@@ -36,7 +36,9 @@ By installing, copying, accessing, or using the published Extension, you confirm
 
 3.1. Foldnex is designed to operate primarily on-device within your browser. Magrathean operates no backend cloud relay, proxy server, or intermediary for tab processing.
 
-3.2. Deduplication, deterministic category classification ("By site category"), Offline smart mode, Chrome built-in Gemini Nano, and local Ollama (`localhost:11434`) process tab data on your machine.
+3.2. Deduplication, deterministic category classification ("By site category"), Offline smart mode, Chrome built-in Gemini Nano, and Ollama configured at a loopback address such as `localhost:11434` process tab data on your machine. In "By task" mode, models supply category labels and optional group names or merge suggestions; Foldnex validates those outputs and plans tab membership locally. A non-loopback Ollama endpoint receives tab inputs as remote processing, subject to Chrome permissions and network rules.
+
+3.3. "Prepare groups in the background" is an opt-in for Gemini Nano and loopback Ollama. Choosing Gemini Nano in the first-run setup also enables that preparation. "Auto-group new tabs" is a separate opt-in that allows background labelling and grouping of new pages in non-Incognito windows, including direct requests to a selected cloud provider. Without those options, an on-device engine can finish labels for tabs placed provisionally by a cleanup you requested. Incognito tabs are excluded from background preparation and auto-grouping.
 
 ---
 
@@ -45,10 +47,12 @@ By installing, copying, accessing, or using the published Extension, you confirm
 4.1. If you enable optional cloud AI providers (including OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), you do so by supplying your own API credentials ("Bring Your Own Key").
 
 4.2. When you configure and run a cloud AI provider:
-- Your browser communicates directly with that third-party provider's API endpoint via HTTPS;
+- Your browser communicates directly with that third-party provider's configured API endpoint; the packaged cloud-provider defaults use HTTPS, while a configured remote Ollama server uses its configured transport;
 - You enter into a direct contractual relationship with that provider;
 - You are solely responsible for compliance with that provider's terms of service, acceptable use policies, rate limits, data usage policies, and payment for any API tokens consumed;
 - Magrathean does not sell API access and is not liable for service outages, inaccuracies, rate limits, token billing, or policy enforcement actions imposed by any third-party AI provider.
+
+4.3. Cloud labelling sends tab titles and a compact host/path hint. URL credentials, query values and fragments are excluded from the hint, but titles and retained paths can still contain sensitive information. Optional group consolidation sends short example titles, categories and counts. Cloud economy mode skips optional cloud naming and consolidation while retaining required labelling requests. Connection tests use synthetic example tabs; model discovery sends no tab data. A cleanup deadline does not necessarily cancel a cloud request, and a late response may contribute to locally retained labels and provider-usage totals. These data paths and the local retention controls are described in the Privacy Policy.
 
 ---
 
@@ -62,7 +66,7 @@ source), you agree that you will not:
 - (d) Use the Extension to inspect, monitor, or manage tab data that you do not have lawful authority to access;
 - (e) Remove, obscure, or alter the Foldnex name, icons, or any proprietary notice from the published Extension or its store listing, in a way that misrepresents its origin.
 
-5.2. Foldnex performs automated duplicate tab closures and tab grouping based on heuristic and algorithmic classification. Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy; a redundant pinned copy may be closed when the surviving copy is still pinned. Exact duplicate URLs for `chrome://extensions`, `chrome://downloads`, `chrome://history`, and `chrome://bookmarks` may also be closed. Other browser-internal pages are excluded from duplicate cleanup. Pinned tabs and browser-internal pages are excluded from grouping. You remain responsible for maintaining backups, bookmarks, and session history for critical work. Magrathean is not responsible for inadvertent tab closures or lost browsing context.
+5.2. Foldnex performs automated duplicate tab closures and tab grouping based on heuristic and algorithmic classification. HTTP(S) duplicate comparisons ignore ordinary document anchors while preserving query values and route-like fragments. Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy; a redundant pinned copy may be closed when the surviving copy is still pinned. Exact duplicate URLs for `chrome://extensions`, `chrome://downloads`, `chrome://history`, and `chrome://bookmarks` may also be closed. Other browser-internal pages are excluded from duplicate cleanup. Pinned tabs and browser-internal pages are excluded from grouping. You remain responsible for maintaining backups, bookmarks, and session history for critical work. Magrathean is not responsible for inadvertent tab closures or lost browsing context.
 
 ---
 

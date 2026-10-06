@@ -21,9 +21,11 @@ List the steps and a small synthetic set of tabs. Identify whether you used the 
 - Foldnex version:
 - Grouping strategy and engine:
 - Model, if relevant:
+- Background preparation and Auto-group settings, if relevant:
+- Cloud economy mode and OpenAI Priority settings, if relevant:
 
 ## Checks
 
 Did the problem also occur with By site category or Offline smart mode? Include a fallback class if available.
 
-Do not post API keys, tokens, private titles or URLs, real tab exports, or provider response bodies. Use SECURITY.md for sensitive findings.
+Do not post API keys, tokens, private titles or URLs, private group names, exported private rules, real tab exports, or provider response bodies. Use [Security](https://github.com/magrathean-uk/foldnex/blob/main/.github/SECURITY.md) for sensitive findings.

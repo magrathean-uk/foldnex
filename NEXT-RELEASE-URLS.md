@@ -23,6 +23,17 @@ their original URLs when the value is part of the record.
 
 ## References found in this repository
 
+### Foldnex deployment status — 6 October 2026
+
+The proposed `https://magrathean.uk/solutions/foldnex/`, `/privacy/` and
+`/terms/` destinations returned HTTP 404 when checked on this date. Existing
+`https://magrathean.uk/apps/foldnex/` and its legal pages returned HTTP 200.
+The 2.0.0 package has been submitted for review, but the website migration is
+not complete. Keep the working links until all replacement pages are deployed;
+then update the README, legal pages and Web Store listing links together and
+remove this file and the corresponding AGENTS.md section. The Foldnex support
+address already uses `contact+foldnex@magrathean.uk`.
+
 - `README.md:6` — `<a href="https://magrathean.uk/apps/foldnex/">Website</a> ·`
 - `README.md:8` — `<a href="https://magrathean.uk/apps/foldnex/privacy/">Privacy</a>`
 - `docs/development/chromewebstore.md:12` — `- **Homepage:** https://magrathean.uk/apps/foldnex/`

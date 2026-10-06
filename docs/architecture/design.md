@@ -74,22 +74,22 @@ Use the local system sans-serif stack, without a remote font dependency. Heading
 
 ## Layout
 
-The settings page is a centred two-column instrument panel: a compact sticky navigation surface and a flexible content column. Related information sits in shallow bordered panels. Provider choices remain one vertical list; configuration appears in one shared panel below it.
+The settings page is a centred two-column instrument panel, at most `1180px` wide: a `216px` sticky navigation surface and a flexible content column, separated by `20px`. Its three sections are **Grouping engines**, **Rules & memory**, and **Behaviour**. Related information sits in shallow bordered panels. The compact selected-engine button expands one vertical provider list; the chosen configuration appears below it. Model memory and cloud request cost appear only for applicable engines.
 
-At `920px`, navigation becomes a horizontal strip. At `620px`, forms and controls stack without horizontal page scrolling. The popup is a compact single column with the current-window task first, followed by strategy, memory, toolbar behaviour, and quiet footer links.
+At `920px`, navigation becomes a horizontal strip. At `620px`, it becomes three equal-width section buttons and forms and controls stack; navigation icons are hidden. The rules table retains its own overflow surface. The popup is a `400px` single column with `16px` outer padding and `12px` gaps. Current-window count and cleanup actions lead, followed by live status, an unanswered setup card, strategy and engine, memory summary, toolbar behaviour, and quiet footer links.
 
 ## Components
 
 ### Buttons
 
 - Primary: blue fill, white label, `10px` radius.
-- Secondary: transparent or warm-white fill, grey border, ink label.
+- Secondary: transparent or pale blue fill, blue-grey border, ink label.
 - Destructive: pale red surface with red border and label.
 - Focus: visible `2px` violet outline with `2px` offset.
 
 ### Fields
 
-Inputs and selects use a warm muted fill, visible border, `43px` minimum height, and `10px` radius. Focus changes the border and surface without glow. API keys keep explicit Show/Hide controls.
+Settings inputs and selects use the pale blue `surface-muted` fill, visible border, `43px` minimum height, and `10px` radius; the popup engine select is at least `42px`. Focus changes the border and surface without glow. API keys keep explicit Show/Hide controls. Model choices use native selects with a Custom model field, adjacent **Refresh models**, and an inline status message. **Test connection** stays beside the credential field and becomes a stacked action at narrow widths.
 
 In engine settings, reasoning effort sits immediately below the model field. Show the effective value in the popup; disable the control with a clear explanation when the selected model has no adjustable level.
 
@@ -99,11 +99,17 @@ Inactive items are blue-grey on white. The active item is deep navy with white t
 
 ### Provider list
 
-Providers stay in one vertical radio list with name, one-line description, and a right-aligned Local, Cloud, or status label. Status labels use `10px` corners, never full pills.
+Providers stay in one vertical radio list with name, one-line description, and a right-aligned Local, Cloud, or status label. The selected-engine button exposes its expanded state; the collapsed list is hidden from focus and accessibility traversal. Status labels use `10px` corners, never full pills. A pending cloud setup shows an inline note when configuration is only being previewed and the saved engine remains active.
 
 ### Grouping strategy
 
-Expose **By task** and **By site category** as one compact segmented control. The selected segment is ink black. In the popup, strategy precedes the engine selector and disables the engine while site-category mode is active.
+Expose **By task** and **By site category** as one compact segmented control. The selected segment uses deep navy `#102536` with white labels and muted inverse explanatory text. In the popup, strategy precedes the engine selector and disables the engine while site-category mode is active. The radio inputs retain keyboard focus with a violet outline on the visible segment.
+
+### Setup and diagnostics
+
+The first-run choices use a bordered vertical list beneath the main action. Keep **Current**, the cloud data disclosure, Nano availability and memory guidance visible within each applicable choice. The main cleanup action remains usable before setup is complete.
+
+Status and toast surfaces announce changes politely. Diagnostics use labelled rows with counts, timing and safe fallback classes; separate **Last cleanup** from **Provider request usage** so cached-label runs can still reveal optional cloud work. Destructive clears have explicit labels and confirmation prompts in Settings.
 
 ### Toggles
 
@@ -117,7 +123,7 @@ Use direct, sentence-case copy. Lead with the result: groups created, duplicates
 
 - Interactive controls must expose a visible `:focus-visible` treatment.
 - Important controls should meet a `42–44px` target height where the compact popup allows it.
-- Motion is functional and brief: `160ms` state transitions and `220ms` panel reveals.
+- Motion is functional and brief: ordinary colour transitions are `160ms`, toggles `180ms`, panel reveals `220ms`, and the provider chooser's collapse uses `360ms` with a `180ms` opacity transition.
 - Engine selection uses one authored compression: provider rows converge into the compact selected-engine control while the chosen configuration surface takes focus. The chooser must remain reversible and keyboard accessible.
 - Respect `prefers-reduced-motion`.
 

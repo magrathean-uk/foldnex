@@ -40,7 +40,7 @@ This project follows [Clean Development](https://github.com/magrathean-uk/clean-
 
 ## Documentation and legal material
 
-- Keep `README.md`, `docs/architecture/product.md`, `docs/legal/privacy.md`, `docs/legal/terms.md`, and `docs/development/chromewebstore.md` consistent with actual permissions and provider behaviour.
+- Keep `README.md`, `CHANGELOG.md`, `docs/user-guide.md`, `docs/architecture/product.md`, `docs/legal/privacy.md`, `docs/legal/terms.md`, and `docs/development/chromewebstore.md` consistent with actual permissions and provider behaviour. Screenshot provenance belongs in `store-assets/manifest.json`; original captures and promotional assets are separate from the runtime archive.
 - Legal files (`LICENSE`, `NOTICE`, `docs/legal/`, contributor terms, copyright and
   attribution strings) are owner-controlled: change them only on the owner's explicit
   instruction.
