@@ -5,3 +5,7 @@
 /dist/
 /output/
 __pycache__/
+# --- secrets (clean-development) ---
+.env
+.env.*
+!.env.example
