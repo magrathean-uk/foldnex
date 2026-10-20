@@ -22,7 +22,7 @@ git diff --check
 
 `npm test` maps to `node --test`. Tests in `test/` cover URL identity, site grouping, label prompts and schemas, the local planner and group ceiling, provider request construction, the label cache and group-name memory, background labelling and Auto-group, cache scope, fallback behaviour, and incognito persistence using fixtures and mocked browser APIs. They do not establish that a live provider or Chrome feature works on a particular device.
 
-Preserve the routed tool homes and caches from `~/dev/env.zsh`. Run commands that write caches or build output through Clean Development and keep its receipts. Before finishing, run `dev-env-check` and `dev-audit`; fix any new tool-state entries caused by the work.
+Preserve the routed tool homes and caches from `~/dev/machine/env.zsh`. Run commands that write caches or build output through Clean Development and keep its receipts. Before finishing, run `dev-env-check` and `dev-audit`; fix any new tool-state entries caused by the work.
 
 ## Validate the changed behaviour
 
