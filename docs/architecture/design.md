@@ -74,7 +74,7 @@ Use the local system sans-serif stack, without a remote font dependency. Heading
 
 ## Layout
 
-The settings page is a centred two-column instrument panel, at most `1180px` wide: a `216px` sticky navigation surface and a flexible content column, separated by `20px`. Its three sections are **Grouping engines**, **Rules & memory**, and **Behaviour**. Related information sits in shallow bordered panels. The compact selected-engine button expands one vertical provider list; the chosen configuration appears below it. Model memory and cloud request cost appear only for applicable engines.
+The settings page is a centred two-column instrument panel, at most `1180px` wide: a `216px` sticky navigation surface and a flexible content column, separated by `20px`. Its three sections are **Grouping engines**, **Rules & memory**, and **Behaviour**. Related information sits in shallow bordered panels. The compact selected-engine button expands one vertical provider list; the chosen configuration appears below it. Model memory appears only for Ollama on a loopback address, and Priority processing only for OpenAI.
 
 At `920px`, navigation becomes a horizontal strip. At `620px`, it becomes three equal-width section buttons and forms and controls stack; navigation icons are hidden. The rules table retains its own overflow surface. The popup is a `400px` single column with `16px` outer padding and `12px` gaps. Current-window count and cleanup actions lead, followed by live status, an unanswered setup card, strategy and engine, memory summary, toolbar behaviour, and quiet footer links.
 
@@ -107,9 +107,9 @@ Expose **By task** and **By site category** as one compact segmented control. Th
 
 ### Setup and diagnostics
 
-The first-run choices use a bordered vertical list beneath the main action. Keep **Current**, the cloud data disclosure, Nano availability and memory guidance visible within each applicable choice. The main cleanup action remains usable before setup is complete.
+The first-run choices use a bordered vertical list beneath the main action. Keep **Current** and the cloud data disclosure visible within each applicable choice. The main cleanup action remains usable before setup is complete.
 
-Status and toast surfaces announce changes politely. Diagnostics use labelled rows with counts, timing and safe fallback classes; separate **Last cleanup** from **Provider request usage** so cached-label runs can still reveal optional cloud work. Destructive clears have explicit labels and confirmation prompts in Settings.
+Status and toast surfaces announce changes politely. Diagnostics use labelled rows with counts, timing and safe fallback classes; separate **Last cleanup** from **Provider request usage**, which also counts late replies and connection tests. A late plan appears in the popup as a status line with an **Apply** button. Destructive clears have explicit labels and confirmation prompts in Settings.
 
 ### Toggles
 

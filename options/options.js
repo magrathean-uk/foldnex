@@ -4,19 +4,21 @@
 
 import { ExactResultCache, LearningCache, safeGlobToRegExp } from '../src/cache-engine.js';
 import {
-  checkChromeNanoStatus,
-  prepareChromeNano,
   CHROME_GROUP_COLORS,
+  DEFAULT_PROVIDER,
   PROVIDER_CATALOG,
-  labelTabsWithAI,
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   isOpenAIResponsesOnlyModel,
   listProviderModels,
-  providerSettingKey
+  planWindowWithCloud,
+  providerSettingKey,
+  resolveProvider,
+  resolveProviderEndpoint
 } from '../src/ai-engine.js';
-import { isOnDeviceEngine } from '../src/background-classifier.js';
-import { loadSettings as loadSavedSettings, saveProviderSecrets } from '../src/settings.js';
+import { isLocalOllama } from '../src/background-classifier.js';
+import { enforcePlan } from '../src/planner.js';
+import { loadSettings as loadSavedSettings, saveEngineChoice, saveProviderSecrets } from '../src/settings.js';
 import { PROVIDER_USAGE_KEY, readProviderUsageSummary, clearProviderUsage } from '../src/provider-usage.js';
 
 // DOM elements - Navigation
@@ -32,14 +34,9 @@ const providerSelectorDescription = document.getElementById('providerSelectorDes
 const providerSelectorMode = document.getElementById('providerSelectorMode');
 const providerSelectorAction = document.getElementById('providerSelectorAction');
 const providerList = document.getElementById('providerList');
-const panelNanoDetails = document.getElementById('panel-nano-details');
 const panelGeminiDetails = document.getElementById('panel-gemini-details');
 const panelCompatibleDetails = document.getElementById('panel-compatible-details');
 const panelOfflineDetails = document.getElementById('panel-offline-details');
-
-const nanoStatusText = document.getElementById('nanoStatusText');
-const btnRecheckNano = document.getElementById('btnRecheckNano');
-const nanoRequirements = document.getElementById('nanoRequirements');
 
 // Gemini fields
 const geminiApiKey = document.getElementById('geminiApiKey');
@@ -62,8 +59,6 @@ const compatibleModel = document.getElementById('compatibleModel');
 const compatibleReasoningEffort = document.getElementById('compatibleReasoningEffort');
 const openaiPrioritySection = document.getElementById('openaiPrioritySection');
 const prefOpenaiPriority = document.getElementById('prefOpenaiPriority');
-const cloudCostSettings = document.getElementById('cloudCostSettings');
-const prefCloudEconomy = document.getElementById('prefCloudEconomy');
 const prefAutoGroup = document.getElementById('prefAutoGroup');
 const compatibleReasoningHelp = document.getElementById('compatibleReasoningHelp');
 const compatibleModelOptions = document.getElementById('compatibleModelOptions');
@@ -71,6 +66,7 @@ const compatibleCustomModel = document.getElementById('compatibleCustomModel');
 const compatibleModelsStatus = document.getElementById('compatibleModelsStatus');
 const btnRefreshCompatibleModels = document.getElementById('btnRefreshCompatibleModels');
 const compatibleBaseUrl = document.getElementById('compatibleBaseUrl');
+const compatibleBaseUrlNote = document.getElementById('compatibleBaseUrlNote');
 const openaiOAuthToken = document.getElementById('openaiOAuthToken');
 const oauthSection = document.getElementById('oauthSection');
 const btnToggleCompatibleKey = document.getElementById('btnToggleCompatibleKey');
@@ -111,41 +107,26 @@ const usageProviders = document.getElementById('usageProviders');
 const usageReasoning = document.getElementById('usageReasoning');
 const usageCoverage = document.getElementById('usageCoverage');
 const btnClearProviderUsage = document.getElementById('btnClearProviderUsage');
-const autoGroupPrepNote = document.getElementById('autoGroupPrepNote');
 
-// On-device background preparation and model memory
+// Ollama on this device: how long the model stays loaded (keep_alive)
 const pendingEngineNote = document.getElementById('pendingEngineNote');
 const onDeviceSettings = document.getElementById('onDeviceSettings');
-const prefBackgroundPrep = document.getElementById('prefBackgroundPrep');
-const backgroundPrepHelp = document.getElementById('backgroundPrepHelp');
-const backgroundPrepAutoNote = document.getElementById('backgroundPrepAutoNote');
-const modelUnloadRow = document.getElementById('modelUnloadRow');
 const prefModelUnloadAfter = document.getElementById('prefModelUnloadAfter');
-const modelMemoryRow = document.getElementById('modelMemoryRow');
-const modelStateLine = document.getElementById('modelStateLine');
-const btnFreeModelMemory = document.getElementById('btnFreeModelMemory');
 
 let cachedRules = [];
 let selectedCompatibleProvider = 'openai';
-let selectedProvider = 'gemini_nano';
+let selectedProvider = DEFAULT_PROVIDER;
 let providerTransitionId = 0;
-let lastNanoStatus = 'checking';
 // Engine whose settings are shown; differs from the saved one only while Cloud setup waits for a key.
-let panelProvider = 'gemini_nano';
-let savedProvider = 'gemini_nano';
+let panelProvider = DEFAULT_PROVIDER;
+let savedProvider = DEFAULT_PROVIDER;
 let pendingCloudProvider = null;
 let savedOllamaBaseUrl = '';
-let autoGroupOn = false;
-let modelStateTimer = null;
-let modelStateBusy = false;
 const catalogRevisions = { gemini: 0, compatible: 0 };
 const connectionRevisions = { gemini: 0, compatible: 0 };
 let compatibleLoadRevision = 0;
-const MODEL_STATE_POLL_MS = 5000;
 const MODEL_UNLOAD_VALUES = ['immediately', '2m', '5m', '15m', '60m', 'never'];
 const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
-const NANO_PREP_HELP = 'Labels tabs as they load, so a later cleanup can use saved labels. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.';
-const OLLAMA_PREP_HELP = 'Labels tabs as they load, so a later cleanup can use saved labels. Keeps the Ollama model in memory and uses some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
@@ -177,7 +158,6 @@ function activateSettingsTab(item) {
   requestAnimationFrame(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   });
-  syncModelStatePolling();
 }
 
 navItems.forEach((item, index) => {
@@ -216,8 +196,7 @@ function renderProviderList() {
 
     const mode = document.createElement('span');
     mode.className = 'status-pill';
-    mode.textContent = provider.mode === 'local' || provider.local ? 'Local' : 'Cloud';
-    if (id === 'gemini_nano') mode.id = 'nanoBadge';
+    mode.textContent = provider.mode === 'local' ? 'Local' : provider.local ? 'Your server' : 'Cloud';
 
     label.append(radio, copy, mode);
     providerList.append(label);
@@ -230,7 +209,6 @@ function getProviderRadios() {
 
 function providerPanel(provider) {
   const config = PROVIDER_CATALOG[provider];
-  if (provider === 'gemini_nano') return panelNanoDetails;
   if (provider === 'gemini_api') return panelGeminiDetails;
   if (provider === 'offline') return panelOfflineDetails;
   if (config?.mode === 'compatible') return panelCompatibleDetails;
@@ -243,7 +221,7 @@ function syncProviderSelector(provider) {
   selectedProvider = provider;
   providerSelectorName.textContent = config.name;
   providerSelectorDescription.textContent = config.description;
-  providerSelectorMode.textContent = config.mode === 'local' || config.local ? 'Local' : 'Cloud';
+  providerSelectorMode.textContent = config.mode === 'local' ? 'Local' : config.local ? 'Your server' : 'Cloud';
 }
 
 function setProviderPickerA11y(collapsed) {
@@ -326,7 +304,6 @@ function focusProviderDetails(provider) {
     if (PROVIDER_CATALOG[provider]?.mode === 'compatible') {
       target = PROVIDER_CATALOG[provider].keyOptional ? compatibleModel : compatibleApiKey;
     }
-    if (provider === 'gemini_nano' && !btnRecheckNano.disabled && !btnRecheckNano.classList.contains('hidden')) target = btnRecheckNano;
     target.focus({ preventScroll: true });
     panel.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'nearest' });
     setTimeout(() => panel.classList.remove('is-provider-entering'), 420);
@@ -409,6 +386,30 @@ function catalogProviderCurrent(provider) {
   return panelProvider === provider && (provider === 'gemini_api' || selectedCompatibleProvider === provider);
 }
 
+/**
+ * The endpoint shown and used for a provider. Only Ollama keeps a saved URL
+ * (checked by resolveProviderEndpoint before any request); every other engine
+ * always uses its own endpoint, whatever Sync holds.
+ */
+function providerEndpoint(provider, saved) {
+  const config = PROVIDER_CATALOG[provider];
+  return provider === 'ollama' ? String(saved || '').trim() || config.baseUrl : config.baseUrl || '';
+}
+
+/** A saved Ollama address the resolver refuses is shown as not used. */
+function renderEndpointNote(provider) {
+  let refused = false;
+  try {
+    resolveProviderEndpoint(provider, compatibleBaseUrl.value);
+  } catch {
+    refused = true;
+  }
+  compatibleBaseUrlNote.textContent = refused
+    ? 'This saved address is not used: Ollama needs HTTPS, or HTTP on this device, with no credentials, query or fragment. Cleanup runs locally with Offline smart mode.'
+    : '';
+  compatibleBaseUrlNote.classList.toggle('hidden', !refused);
+}
+
 // These request snapshots stay in this page's memory. Credentials never enter
 // model catalog storage, diagnostics, or UI messages.
 function catalogContext(provider) {
@@ -418,7 +419,7 @@ function catalogContext(provider) {
     apiKey: provider === 'gemini_api'
       ? geminiApiKey.value.trim()
       : compatibleApiKey.value.trim() || (provider === 'openai' ? openaiOAuthToken.value.trim() : ''),
-    baseUrl: provider === 'gemini_api' ? '' : compatibleBaseUrl.value.trim() || config.baseUrl
+    baseUrl: provider === 'gemini_api' ? '' : providerEndpoint(provider, compatibleBaseUrl.value)
   };
 }
 
@@ -448,7 +449,7 @@ function renderModelOptions(provider, models, fetchedAt = 0) {
   ui.custom.classList.toggle('hidden', listed);
   if (!models.length) return;
   const age = fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString()}` : '';
-  ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}. Choose one or enter a custom ID; your model changes only when you save.`;
+  ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}. Choose one or enter a custom ID; your model changes only when you save. A listed model can still fail a cleanup.`;
 }
 
 function invalidateModelCatalog(provider) {
@@ -536,7 +537,7 @@ function renderReasoningControl(provider, model, select, help) {
   }
   select.disabled = false;
   select.value = effective;
-  help.textContent = 'Higher effort may take longer and use more tokens. Private reasoning text is not shown.';
+  help.textContent = 'Cleanups and connection tests request the lowest effort Foldnex offers for this model, whatever is chosen here, to keep a cleanup fast.';
 }
 
 geminiModel.addEventListener('input', () => {
@@ -593,6 +594,7 @@ async function loadCompatibleProvider(provider) {
   compatibleApiKey.value = '';
   openaiOAuthToken.value = '';
   compatibleBaseUrl.value = config.baseUrl || '';
+  renderEndpointNote(provider);
   compatibleModel.value = config.defaultModel || '';
   renderModelOptions(provider, []);
 
@@ -612,13 +614,14 @@ async function loadCompatibleProvider(provider) {
 
   compatibleProviderTitle.textContent = `${config.name} configuration`;
   compatibleApiKeyLabel.textContent = config.keyOptional ? 'API key (optional)' : `${config.name} API key`;
-  compatibleApiKey.placeholder = config.keyOptional ? 'Optional for this local endpoint' : 'Paste provider key';
+  compatibleApiKey.placeholder = config.keyOptional ? 'Optional' : 'Paste provider key';
   compatibleApiKey.value = syncData[providerSettingKey(provider, 'apiKey')] || '';
   compatibleModel.value = syncData[providerSettingKey(provider, 'model')] || config.defaultModel || '';
   loadingFields.forEach(field => { field.disabled = false; });
   compatibleReasoningEffort.dataset.saved = syncData[providerSettingKey(provider, 'reasoningEffort')] || 'low';
   renderReasoningControl(provider, compatibleModel.value, compatibleReasoningEffort, compatibleReasoningHelp);
-  compatibleBaseUrl.value = syncData[providerSettingKey(provider, 'baseUrl')] || config.baseUrl || '';
+  compatibleBaseUrl.value = providerEndpoint(provider, syncData[providerSettingKey(provider, 'baseUrl')]);
+  renderEndpointNote(provider);
   oauthSection.classList.toggle('hidden', provider !== 'openai');
   openaiPrioritySection.classList.toggle('hidden', provider !== 'openai');
   prefOpenaiPriority.checked = syncData.openaiPriority !== false;
@@ -635,12 +638,10 @@ function updateProviderPanels(provider) {
   invalidateModelCatalog(panelProvider);
   compatibleLoadRevision++;
   panelProvider = provider;
-  panelNanoDetails.classList.toggle('hidden', provider !== 'gemini_nano');
   panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
   panelCompatibleDetails.classList.toggle('hidden', config?.mode !== 'compatible');
   panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
   renderOnDeviceSettings();
-  if (provider === 'gemini_nano') refreshNanoDiagnostics();
   if (config?.mode === 'compatible') loadCompatibleProvider(provider);
   if (provider === 'gemini_api') refreshModelCatalog(provider);
 }
@@ -651,85 +652,29 @@ function isCloudProvider(provider) {
 }
 
 function onDeviceProvider(provider) {
-  return isOnDeviceEngine({ provider, [OLLAMA_BASE_URL_KEY]: savedOllamaBaseUrl });
+  return isLocalOllama({ provider, [OLLAMA_BASE_URL_KEY]: savedOllamaBaseUrl });
 }
 
-/**
- * Background preparation applies to on-device engines; the unload controls
- * only to Gemini Nano, whose sessions Foldnex holds.
- */
+/** Ollama on this device shows its model memory setting. */
 function renderOnDeviceSettings() {
-  const nano = panelProvider === 'gemini_nano';
-  cloudCostSettings.classList.toggle('hidden', panelProvider === 'offline' || onDeviceProvider(panelProvider));
   onDeviceSettings.classList.toggle('hidden', !onDeviceProvider(panelProvider));
-  modelUnloadRow.classList.toggle('hidden', !nano);
-  modelMemoryRow.classList.toggle('hidden', !nano);
-  backgroundPrepHelp.textContent = nano ? NANO_PREP_HELP : OLLAMA_PREP_HELP;
-  backgroundPrepAutoNote.classList.toggle('hidden', !autoGroupOn);
-  prefBackgroundPrep.setAttribute('aria-describedby', autoGroupOn ? 'backgroundPrepHelp backgroundPrepAutoNote' : 'backgroundPrepHelp');
-  autoGroupPrepNote.classList.toggle('hidden', !(autoGroupOn && onDeviceProvider(savedProvider)));
-  syncModelStatePolling();
 }
 
 function renderPendingNote() {
   pendingEngineNote.classList.toggle('hidden', !pendingCloudProvider);
   if (!pendingCloudProvider) return;
-  const current = PROVIDER_CATALOG[savedProvider]?.name || PROVIDER_CATALOG.gemini_nano.name;
+  const current = PROVIDER_CATALOG[resolveProvider(savedProvider)].name;
   pendingEngineNote.textContent = `Foldnex keeps using ${current} until you save a key for ${PROVIDER_CATALOG[pendingCloudProvider].name}.`;
 }
 
 /** Finish Cloud setup: the engine becomes active once a key for it is saved. */
 async function activatePendingProvider(provider) {
-  await chrome.storage.sync.set({ provider });
+  await saveEngineChoice({ provider });
   savedProvider = provider;
   pendingCloudProvider = null;
   renderPendingNote();
   renderOnDeviceSettings();
 }
-
-function modelStateText(state) {
-  if (!state?.ok) return 'Model state unavailable';
-  if (!state.loaded) return 'Model not loaded';
-  if (!Number.isFinite(state.idleMs)) return 'Model loaded';
-  const minutes = Math.floor(state.idleMs / 60000);
-  if (minutes < 1) return 'Model loaded · idle under 1 min';
-  if (minutes < 60) return `Model loaded · idle ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return `Model loaded · idle ${hours} h ${minutes % 60} min`;
-}
-
-async function refreshModelState() {
-  if (modelStateBusy) return;
-  modelStateBusy = true;
-  try {
-    let state = null;
-    try {
-      state = await chrome.runtime.sendMessage({ type: 'GET_ON_DEVICE_MODEL_STATE' });
-    } catch {
-      state = null;
-    }
-    modelStateLine.textContent = modelStateText(state);
-    btnFreeModelMemory.disabled = Boolean(state?.ok && !state.loaded);
-  } finally {
-    modelStateBusy = false;
-  }
-}
-
-/** Poll the model state at most every 5 s, only while this page shows Nano's settings. */
-function syncModelStatePolling() {
-  const wanted = document.visibilityState === 'visible'
-    && panelProvider === 'gemini_nano'
-    && document.getElementById('tab-providers')?.classList.contains('active');
-  if (!wanted) {
-    clearInterval(modelStateTimer);
-    modelStateTimer = null;
-    return;
-  }
-  if (modelStateTimer) return;
-  refreshModelState();
-  modelStateTimer = setInterval(refreshModelState, MODEL_STATE_POLL_MS);
-}
-document.addEventListener('visibilitychange', syncModelStatePolling);
 
 renderProviderList();
 providerSelector.addEventListener('click', () => {
@@ -759,7 +704,7 @@ getProviderRadios().forEach(radio => {
     let saveError = null;
     let savePromise;
     try {
-      savePromise = chrome.storage.sync.set({ provider }).catch(error => {
+      savePromise = saveEngineChoice({ provider }).catch(error => {
         saveError = error;
       });
     } catch (error) {
@@ -776,98 +721,17 @@ getProviderRadios().forEach(radio => {
   });
 });
 
-// Setup requirements apply until Chrome has made the model available.
-function setNanoSetupVisible(visible) {
-  nanoRequirements.classList.toggle('hidden', !visible);
-  btnRecheckNano.classList.toggle('hidden', !visible);
-}
-
-/**
- * Check and refresh Gemini Nano diagnostic status (safe DOM updates, no innerHTML)
- */
-async function refreshNanoDiagnostics() {
-  const nanoBadge = document.getElementById('nanoBadge');
-  nanoStatusText.textContent = 'Checking Chrome’s local model…';
-  nanoBadge.className = 'status-pill checking';
-  nanoBadge.textContent = 'Checking…';
-  btnRecheckNano.disabled = true;
-  btnRecheckNano.textContent = 'Checking…';
-  setNanoSetupVisible(true);
-
-  try {
-    const status = await checkChromeNanoStatus();
-    lastNanoStatus = status.status;
-    nanoStatusText.textContent = '';
-
-    if (status.status === 'ready') {
-      nanoBadge.className = 'status-pill ready';
-      nanoBadge.textContent = 'Available';
-      setNanoSetupVisible(false);
-      const strong = document.createElement('strong');
-      strong.textContent = 'Local model available. ';
-      nanoStatusText.append(strong, 'Chrome has downloaded it. If it needs loading, cleanup can use temporary local groups while it warms; run cleanup again to use the prepared labels.');
-    } else if (status.status === 'downloadable') {
-      nanoBadge.className = 'status-pill checking';
-      nanoBadge.textContent = 'Download needed';
-      btnRecheckNano.textContent = 'Download local model';
-      const strong = document.createElement('strong');
-      strong.textContent = 'One-time download required. ';
-      nanoStatusText.append(strong, 'Start it below; Chrome keeps tab data on this device.');
-    } else if (status.status === 'downloading') {
-      nanoBadge.className = 'status-pill checking';
-      nanoBadge.textContent = 'Downloading';
-      btnRecheckNano.textContent = 'Resume model download';
-      const strong = document.createElement('strong');
-      strong.textContent = 'Chrome is downloading the local model. ';
-      nanoStatusText.append(strong, 'You can keep this page open to follow progress.');
-    } else {
-      nanoBadge.className = 'status-pill checking';
-      nanoBadge.textContent = 'Unavailable';
-      btnRecheckNano.textContent = 'Check again';
-      const strong = document.createElement('strong');
-      strong.textContent = `${String(status.detail || 'Prompt API unavailable')}. `;
-      nanoStatusText.append(strong, 'Check the requirements below or select another engine.');
-    }
-  } finally {
-    btnRecheckNano.disabled = false;
-  }
-}
-
-btnRecheckNano.addEventListener('click', async () => {
-  if (!['downloadable', 'downloading'].includes(lastNanoStatus)) {
-    await refreshNanoDiagnostics();
-    return;
-  }
-
-  btnRecheckNano.disabled = true;
-  btnRecheckNano.textContent = 'Preparing…';
-  nanoStatusText.textContent = 'Starting Chrome’s local model download…';
-  try {
-    await prepareChromeNano(percent => {
-      nanoStatusText.textContent = `Downloading local model… ${percent}%`;
-    });
-    showToast('Chrome Gemini Nano is available.');
-  } catch (error) {
-    showToast(`Local model setup failed: ${error.message}`, 'error');
-  } finally {
-    await refreshNanoDiagnostics();
-  }
-});
-
 /**
  * Load initial settings; the shared loader migrates legacy synced credentials.
  */
 async function loadSettings() {
   const syncData = await loadSavedSettings();
 
-  const currentProvider = syncData.provider || 'gemini_nano';
+  const currentProvider = resolveProvider(syncData.provider);
   const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${currentProvider}"]`);
   if (matchingRadio) matchingRadio.checked = true;
   savedProvider = currentProvider;
   savedOllamaBaseUrl = syncData[OLLAMA_BASE_URL_KEY] || '';
-  autoGroupOn = Boolean(syncData.autoGroupNewTabs);
-  prefBackgroundPrep.checked = syncData.backgroundPrep === true;
-  prefCloudEconomy.checked = syncData.cloudEconomyMode === true;
   prefModelUnloadAfter.value = MODEL_UNLOAD_VALUES.includes(syncData.modelUnloadAfter) ? syncData.modelUnloadAfter : '5m';
 
   const geminiKey = syncData.geminiApiKey || '';
@@ -907,15 +771,19 @@ async function loadRunDiagnostics() {
     ? 'Site categories · local'
     : run.model ? `${providerName} · ${run.model}` : providerName;
   const provisional = Number(run.provisionalTabs) || 0;
-  const callKinds = ['label', 'naming', 'consolidation'];
+  // Plan engines send one plan request per cleanup; older records have no plan
+  // counter, and only records from before the label pipeline left count the others.
+  const callKinds = ['label', 'naming', 'consolidation', 'plan'];
   const modelCallCount = callKinds.reduce((total, kind) => total + (Number(run.modelCalls?.[kind]) || 0), 0);
-  const recordedCallCount = callKinds.every(kind => Number.isFinite(run.modelCalls?.[kind]) && run.modelCalls[kind] >= 0);
+  const recordedCallCount = callKinds.filter(kind => kind !== 'plan')
+    .every(kind => Number.isFinite(run.modelCalls?.[kind]) && run.modelCalls[kind] >= 0);
   // A shared cloud response has no newly dispatched requests. Older records
   // with absent counters cannot establish a request count from source alone.
   const sharedCloudResult = run.source === 'cloud' && recordedCallCount && modelCallCount === 0;
   const hasTokenUsage = ['promptTokens', 'completionTokens', 'cachedTokens', 'cacheWriteTokens', 'reasoningTokens']
     .some(key => Number(run[key]) > 0);
-  const didModelWork = modelCallCount > 0 || hasTokenUsage || (!sharedCloudResult && ['cloud', 'nano'].includes(run.source));
+  const didModelWork = modelCallCount > 0 || hasTokenUsage
+    || (!sharedCloudResult && ['cloud', 'nano', 'cloud-plan', 'plan-pending'].includes(run.source));
   const cloudWork = didModelWork && isCloudProvider(run.provider);
   const requestSummary = modelCallCount > 0
     ? ` · ${modelCallCount} ${cloudWork ? 'cloud' : 'model'} request${modelCallCount === 1 ? '' : 's'}`
@@ -932,15 +800,17 @@ async function loadRunDiagnostics() {
   diagQuality.textContent = run.qualityFlags?.length ? run.qualityFlags.join(' · ') : 'Passed';
   diagFallback.textContent = run.fallbackDetail || run.fallbackCode || 'None';
   const inferredOffline = run.strategy === 'site' || ['offline', 'offline-fallback'].includes(run.source);
-  const cachedWithoutModelWork = ['exact-cache', 'label-cache'].includes(run.source) && !didModelWork;
+  // Reuse, upkeep and Apply send no new request.
+  const cachedWithoutModelWork = ['exact-cache', 'label-cache', 'stored-plan', 'plan-upkeep', 'plan-offer'].includes(run.source) && !didModelWork;
   let reasoningStatus = 'Provider default';
   if (sharedCloudResult) {
     reasoningStatus = run.reasoningEffort
       ? `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)} · shared result`
       : 'Shared result · no new request';
   } else if (inferredOffline && !didModelWork) reasoningStatus = 'Not used · local grouping';
-  else if (cachedWithoutModelWork) reasoningStatus = 'Not used · cached result';
-  else if (run.provider === 'gemini_nano') reasoningStatus = 'Managed by Chrome';
+  else if (cachedWithoutModelWork) {
+    reasoningStatus = ['exact-cache', 'label-cache'].includes(run.source) ? 'Not used · cached result' : 'Not used · no new request';
+  }
   else if (run.reasoningEffort) {
     reasoningStatus = `${run.reasoningEffort[0].toUpperCase()}${run.reasoningEffort.slice(1)}`;
   }
@@ -1021,10 +891,10 @@ btnRefreshCompatibleModels.addEventListener('click', () => {
 function connectionErrorMessage(error, operation = 'Grouping test') {
   const message = String(error?.message || '');
   if (/Enter.*API key/i.test(message)) return 'Enter an API key to load provider models.';
-  if (/HTTP 401|API key is not configured/i.test(message)) return 'Invalid API key. Check the saved key.';
+  if (/HTTP 401|API key is not configured/i.test(message)) return 'API key missing or rejected. Check the key.';
   if (/HTTP 429|quota/i.test(message)) return 'Provider quota or rate limit reached.';
   if (/HTTP 403/i.test(message)) return 'This account cannot access the selected model.';
-  if (/HTTP 404/i.test(message)) return 'Model not found. Check the model name.';
+  if (/HTTP 404/i.test(message)) return 'Model or endpoint not found. Check the model name and address.';
   if (/timed out|abort/i.test(message)) return 'Provider timed out. Try again later.';
   const status = message.match(/HTTP (\d{3})/i)?.[1];
   return status ? `Provider returned HTTP ${status}.` : `${operation} failed. Check the model and provider status.`;
@@ -1035,10 +905,13 @@ const CONNECTION_TEST_TABS = [
   { id: 2, title: 'Project notes', url: 'https://example.com/notes' }
 ];
 
-/** Label the two synthetic tabs; the test passes when at least one label comes back. */
+/**
+ * One plan request for the two synthetic tabs, as a cleanup sends; it passes
+ * when the cleanup's own validator keeps at least one of the model's folders.
+ */
 async function runConnectionTest(settings) {
-  const { labels } = await labelTabsWithAI(CONNECTION_TEST_TABS, settings);
-  if (!labels || labels.size === 0) throw new Error('The provider returned no usable labels');
+  const { json } = await planWindowWithCloud(CONNECTION_TEST_TABS, 2, settings);
+  if (enforcePlan(json, CONNECTION_TEST_TABS).folders === 0) throw new Error('The provider returned no usable folders');
 }
 
 /**
@@ -1125,11 +998,13 @@ btnSaveCompatible.addEventListener('click', async () => {
   const preferences = {
     [modelName]: model,
     ...(getReasoningEffortOptions(provider, model).length ? { [reasoningName]: compatibleReasoningEffort.value } : {}),
-    [baseUrlName]: compatibleBaseUrl.value.trim() || config.baseUrl
+    ...(provider === 'ollama' ? { [baseUrlName]: providerEndpoint(provider, compatibleBaseUrl.value) } : {})
   };
   const hasAuth = Boolean(secrets[apiKeyName] || (provider === 'openai' && secrets.openaiOAuthToken));
   await saveProviderSecrets(secrets);
   await chrome.storage.sync.set(preferences);
+  // A fixed provider's endpoint is never stored; a stale synced override goes.
+  if (provider !== 'ollama') await chrome.storage.sync.remove(baseUrlName);
   if (pendingCloudProvider === provider && hasAuth) {
     await activatePendingProvider(provider);
     showToast(`${config.name} saved and selected.`);
@@ -1167,7 +1042,7 @@ btnTestCompatible.addEventListener('click', async () => {
   btnTestCompatible.disabled = true;
 
   try {
-    const base = compatibleBaseUrl.value.trim() || config.baseUrl;
+    const base = providerEndpoint(provider, compatibleBaseUrl.value);
     await runConnectionTest({
       provider,
       [providerSettingKey(provider, 'apiKey')]: keyOrToken,
@@ -1378,7 +1253,7 @@ btnAddRule.addEventListener('click', async () => {
 btnClearRules.addEventListener('click', async () => {
   if (confirm('Are you sure you want to clear all learned rules & memory cache?')) {
     await LearningCache.resetRules();
-    showToast('All learned rules cleared.');
+    showToast('Rules and grouping memory cleared.');
     await loadLearnedRules();
   }
 });
@@ -1522,47 +1397,15 @@ prefOpenaiPriority.addEventListener('change', async (e) => {
   showToast(e.target.checked ? 'Priority processing on.' : 'Priority processing off.');
 });
 
-prefCloudEconomy.addEventListener('change', async (e) => {
-  await chrome.storage.sync.set({ cloudEconomyMode: e.target.checked });
-  showToast(e.target.checked ? 'Cloud economy mode on. Fewer requests with simpler group names.' : 'Cloud economy mode off. Optional group refinement restored.');
-});
-
 prefAutoGroup.addEventListener('change', async (e) => {
   await chrome.storage.sync.set({ autoGroupNewTabs: e.target.checked });
-  autoGroupOn = e.target.checked;
-  renderOnDeviceSettings();
-  if (!e.target.checked) showToast('Auto-grouping off.');
-  else if (onDeviceProvider(savedProvider)) showToast('New tabs will join matching groups. Background preparation stays active.');
-  else showToast('New tabs will join matching groups.');
-});
-
-prefBackgroundPrep.addEventListener('change', async (e) => {
-  await chrome.storage.sync.set({ backgroundPrep: e.target.checked });
-  if (e.target.checked) showToast('Background preparation on.');
-  else if (autoGroupOn) showToast('Background preparation off. Auto-group keeps it active while it is on.');
-  else showToast('Background preparation off. Tabs are labelled when you clean up.');
+  showToast(e.target.checked ? 'New tabs will join matching groups.' : 'Auto-grouping off.');
 });
 
 prefModelUnloadAfter.addEventListener('change', async (e) => {
   const value = MODEL_UNLOAD_VALUES.includes(e.target.value) ? e.target.value : '5m';
   await chrome.storage.sync.set({ modelUnloadAfter: value });
   showToast('Unload setting saved.');
-});
-
-btnFreeModelMemory.addEventListener('click', async () => {
-  btnFreeModelMemory.disabled = true;
-  try {
-    const response = await chrome.runtime.sendMessage({ type: 'UNLOAD_ON_DEVICE_MODEL' });
-    if (!response?.ok) throw new Error('The service worker did not release the model');
-    showToast(response.released
-      ? 'Model released. Chrome frees its memory within about 5 minutes of last use.'
-      : 'The model was not loaded.');
-  } catch {
-    showToast('Could not release the model. Try again.', 'error');
-  } finally {
-    btnFreeModelMemory.disabled = false;
-    await refreshModelState();
-  }
 });
 
 prefCollapseGroups.addEventListener('change', async (e) => {
@@ -1575,8 +1418,8 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'sync') {
     if (changes.provider) {
-      const newProv = changes.provider.newValue;
-      savedProvider = newProv || 'gemini_nano';
+      const newProv = resolveProvider(changes.provider.newValue);
+      savedProvider = newProv;
       pendingCloudProvider = null;
       renderPendingNote();
       const matchingRadio = document.querySelector(`input[name="providerSelect"][value="${newProv}"]`);
@@ -1589,15 +1432,7 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
       }
     }
     if (changes.autoGroupNewTabs !== undefined) {
-      autoGroupOn = Boolean(changes.autoGroupNewTabs.newValue);
-      prefAutoGroup.checked = autoGroupOn;
-      renderOnDeviceSettings();
-    }
-    if (changes.backgroundPrep !== undefined) {
-      prefBackgroundPrep.checked = changes.backgroundPrep.newValue === true;
-    }
-    if (changes.cloudEconomyMode !== undefined) {
-      prefCloudEconomy.checked = changes.cloudEconomyMode.newValue === true;
+      prefAutoGroup.checked = Boolean(changes.autoGroupNewTabs.newValue);
     }
     if (changes.openaiPriority !== undefined) {
       prefOpenaiPriority.checked = changes.openaiPriority.newValue !== false;
@@ -1640,7 +1475,7 @@ async function openEngineSection() {
   history.replaceState(null, '', `${location.pathname}${location.search}`);
   activateSettingsTab(document.getElementById('nav-providers'));
   const { provider, setupChoice } = await chrome.storage.sync.get(['provider', 'setupChoice']);
-  const current = provider || 'gemini_nano';
+  const current = resolveProvider(provider);
   if (setupChoice === 'cloud' && !isCloudProvider(current)) {
     pendingCloudProvider = 'openai';
     const radio = document.querySelector('input[name="providerSelect"][value="openai"]');
@@ -1664,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[Foldnex] Settings could not be loaded; keeping the engine chooser available.', error);
     const firstRadio = getProviderRadios()[0];
     if (firstRadio) firstRadio.checked = true;
-    syncProviderSelector(firstRadio?.value || 'gemini_nano');
+    syncProviderSelector(firstRadio?.value || DEFAULT_PROVIDER);
     providerPicker.classList.add('is-ready');
     await expandProviderPicker();
     return;

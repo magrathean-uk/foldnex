@@ -1,0 +1,828 @@
+{
+ "bar": {
+  "f1": 0.75,
+  "p90Ms": 6000,
+  "maxTabs": 66
+ },
+ "planExampleName": "Wedding Plans",
+ "windows": [
+  {
+   "name": "a-designer",
+   "tabs": 66,
+   "band": "middle"
+  },
+  {
+   "name": "a-hoarder",
+   "tabs": 200,
+   "band": "large"
+  },
+  {
+   "name": "a-household",
+   "tabs": 63,
+   "band": "middle"
+  },
+  {
+   "name": "a-oncall",
+   "tabs": 82,
+   "band": "large"
+  },
+  {
+   "name": "a-student",
+   "tabs": 64,
+   "band": "middle"
+  },
+  {
+   "name": "b-academic",
+   "tabs": 69,
+   "band": "large"
+  },
+  {
+   "name": "b-expat",
+   "tabs": 54,
+   "band": "small"
+  },
+  {
+   "name": "b-messy",
+   "tabs": 74,
+   "band": "large"
+  },
+  {
+   "name": "b-move",
+   "tabs": 54,
+   "band": "small"
+  },
+  {
+   "name": "b-shop",
+   "tabs": 55,
+   "band": "small"
+  },
+  {
+   "name": "dev",
+   "tabs": 63,
+   "band": "middle"
+  },
+  {
+   "name": "life",
+   "tabs": 62,
+   "band": "small"
+  }
+ ],
+ "bands": [
+  {
+   "name": "small",
+   "min": 54,
+   "max": 62,
+   "windows": [
+    "b-expat",
+    "b-move",
+    "b-shop",
+    "life"
+   ]
+  },
+  {
+   "name": "middle",
+   "min": 63,
+   "max": 66,
+   "windows": [
+    "a-household",
+    "dev",
+    "a-student",
+    "a-designer"
+   ]
+  },
+  {
+   "name": "large",
+   "min": 69,
+   "max": 200,
+   "windows": [
+    "b-academic",
+    "b-messy",
+    "a-oncall",
+    "a-hoarder"
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "id": "openai|gpt-6-luna|plan|default-none|priority-off",
+   "label": "openai gpt-6-luna, effort none, priority off",
+   "files": [
+    "openai_gpt-6-luna_plan_priority-off_2026-11-22T20-12-22.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.7938,
+    "appliedAll": 0.7695,
+    "unassigned": 12.6667
+   },
+   "ten": {
+    "appliedTasked": 0.7678,
+    "appliedAll": 0.7387,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.7715,
+     "appliedAll": 0.7483,
+     "unassigned": 6
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.6809,
+     "appliedAll": 0.6762,
+     "unassigned": 81
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.7723,
+     "appliedAll": 0.7514,
+     "unassigned": 3
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.6122,
+     "appliedAll": 0.6001,
+     "unassigned": 15.5
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.8968,
+     "appliedAll": 0.8878,
+     "unassigned": 5
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9368,
+     "appliedAll": 0.8845,
+     "unassigned": 5
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8202,
+     "appliedAll": 0.7497,
+     "unassigned": 3
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.818,
+     "appliedAll": 0.7763,
+     "unassigned": 8.5
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.5785,
+     "appliedAll": 0.5546,
+     "unassigned": 6
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.7913,
+     "appliedAll": 0.7584,
+     "unassigned": 6
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.9154,
+     "appliedAll": 0.9154,
+     "unassigned": 6.5
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.9316,
+     "appliedAll": 0.9316,
+     "unassigned": 6.5
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 4,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 2,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 2393,
+     "p90": 2966
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 2218,
+      "p90": 2351
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 2404,
+      "p90": 2876
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 2595,
+      "p90": 5101
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 2863,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": null,
+    "meanInputTokens": 2180.9167,
+    "meanOutputTokens": 245
+   },
+   "agreement": {
+    "mean": 0.8575,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "meets",
+    "f1Ok": true,
+    "latencyOk": true
+   }
+  },
+  {
+   "id": "openai|gpt-6-luna|plan|default-none|priority-on",
+   "label": "openai gpt-6-luna, effort none, priority on",
+   "files": [
+    "openai_gpt-6-luna_plan_priority-on_2026-11-22T20-12-22.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.7671,
+    "appliedAll": 0.7429,
+    "unassigned": 8.8333
+   },
+   "ten": {
+    "appliedTasked": 0.7455,
+    "appliedAll": 0.7171,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.6871,
+     "appliedAll": 0.6666,
+     "unassigned": 2
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.7436,
+     "appliedAll": 0.7019,
+     "unassigned": 36.5
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.791,
+     "appliedAll": 0.7631,
+     "unassigned": 4.5
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.6503,
+     "appliedAll": 0.6425,
+     "unassigned": 16
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.8988,
+     "appliedAll": 0.8937,
+     "unassigned": 7
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.7798,
+     "appliedAll": 0.7324,
+     "unassigned": 3.5
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8282,
+     "appliedAll": 0.7795,
+     "unassigned": 3
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.818,
+     "appliedAll": 0.7763,
+     "unassigned": 9
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.5706,
+     "appliedAll": 0.5567,
+     "unassigned": 6
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.6879,
+     "appliedAll": 0.658,
+     "unassigned": 5.5
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.8886,
+     "appliedAll": 0.8831,
+     "unassigned": 7
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.8611,
+     "appliedAll": 0.8611,
+     "unassigned": 6
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 1,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 3,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 3,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 5,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 1,
+     "duplicates": 8,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 1761,
+     "p90": 2175
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 1609,
+      "p90": 1847
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 1802,
+      "p90": 2048
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 1775,
+      "p90": 3273
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 1910,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": null,
+    "meanInputTokens": 2180.9167,
+    "meanOutputTokens": 244.4583
+   },
+   "agreement": {
+    "mean": 0.8566,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "misses",
+    "f1Ok": false,
+    "latencyOk": true
+   }
+  }
+ ],
+ "comparison": []
+}

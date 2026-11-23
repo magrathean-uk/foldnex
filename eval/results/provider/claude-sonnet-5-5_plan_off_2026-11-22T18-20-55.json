@@ -1,0 +1,843 @@
+{
+ "started": "2026-11-22T18-20-55",
+ "model": "claude-sonnet-5-5",
+ "mode": "plan",
+ "thinking": "off",
+ "effort": null,
+ "thinking_sent": {
+  "type": "between_tools"
+ },
+ "effort_sent": null,
+ "thinking_note": "between_tools (Sonnet 5.5 off setting)",
+ "windows": [
+  "dev",
+  "life"
+ ],
+ "repeats": 2,
+ "api_version": "2026-10-21",
+ "max_cost_usd": 0.4,
+ "cost_usd": 0.037804000000000004,
+ "stopped_early": false,
+ "stability": [
+  {
+   "window": "dev",
+   "a": 0,
+   "b": 1,
+   "f1": 0.877284595300261
+  },
+  {
+   "window": "life",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9056603773584906
+  }
+ ],
+ "units": [
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 3114,
+   "input_tokens": 3142,
+   "output_tokens": 304,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009324,
+   "score": {
+    "p": 0.8855421686746988,
+    "r": 0.8305084745762712,
+    "f1": 0.8571428571428572,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "Chrome AI",
+    "Embedding Models",
+    "LLM APIs",
+    "WireGuard Server",
+    "Swift App",
+    "MacBook Purchase",
+    "Company Admin",
+    "Daily Life",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    2,
+    3,
+    7,
+    9,
+    7,
+    6,
+    6,
+    9,
+    6
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3112,
+     "headers_ms": 1273,
+     "ttfb_ms": 1273,
+     "first_token_ms": 1273,
+     "stop_reason": "end_turn",
+     "input_tokens": 3142,
+     "output_tokens": 304,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1156
+     },
+     "usage_raw": {
+      "input_tokens": 3142,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 304,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       4,
+       61,
+       16,
+       32,
+       35,
+       39,
+       47
+      ]
+     },
+     {
+      "name": "Chrome AI",
+      "ids": [
+       1,
+       29
+      ]
+     },
+     {
+      "name": "Embedding Models",
+      "ids": [
+       9,
+       10,
+       3
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "WireGuard Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51,
+       37
+      ]
+     },
+     {
+      "name": "Swift App",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Company Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "Daily Life",
+      "ids": [
+       2,
+       42,
+       45,
+       53,
+       57,
+       58,
+       60,
+       12,
+       26
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       6,
+       13,
+       22,
+       24,
+       30,
+       43
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 2690,
+   "input_tokens": 3269,
+   "output_tokens": 300,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009538,
+   "score": {
+    "p": 0.8895348837209303,
+    "r": 0.9161676646706587,
+    "f1": 0.9026548672566371,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Purchase",
+    "Job Search",
+    "Running Training",
+    "Cooking Recipes",
+    "Home Admin",
+    "Finance News",
+    "News Streaming",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    7,
+    6,
+    6,
+    7,
+    6,
+    6,
+    4,
+    8,
+    1
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2689,
+     "headers_ms": 998,
+     "ttfb_ms": 998,
+     "first_token_ms": 998,
+     "stop_reason": "end_turn",
+     "input_tokens": 3269,
+     "output_tokens": 300,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1144
+     },
+     "usage_raw": {
+      "input_tokens": 3269,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 300,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       23,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       28,
+       29,
+       31,
+       48,
+       54,
+       12
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Home Admin",
+      "ids": [
+       0,
+       3,
+       53,
+       58,
+       17,
+       26
+      ]
+     },
+     {
+      "name": "Finance News",
+      "ids": [
+       7,
+       16,
+       19,
+       57
+      ]
+     },
+     {
+      "name": "News Streaming",
+      "ids": [
+       1,
+       5,
+       24,
+       35,
+       37,
+       44,
+       45,
+       50
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       61
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 3174,
+   "input_tokens": 3142,
+   "output_tokens": 313,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009414,
+   "score": {
+    "p": 0.8862275449101796,
+    "r": 0.8361581920903954,
+    "f1": 0.8604651162790697,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "Chrome AI",
+    "Embeddings Model",
+    "LLM APIs",
+    "WireGuard VPN Server",
+    "Swift iOS App",
+    "MacBook Purchase",
+    "Company Admin",
+    "Meetings & Email",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    2,
+    3,
+    7,
+    9,
+    7,
+    6,
+    7,
+    5,
+    9
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3174,
+     "headers_ms": 1296,
+     "ttfb_ms": 1302,
+     "first_token_ms": 1302,
+     "stop_reason": "end_turn",
+     "input_tokens": 3142,
+     "output_tokens": 313,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1156
+     },
+     "usage_raw": {
+      "input_tokens": 3142,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 313,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       4,
+       61,
+       16,
+       32,
+       35,
+       39,
+       47
+      ]
+     },
+     {
+      "name": "Chrome AI",
+      "ids": [
+       1,
+       29
+      ]
+     },
+     {
+      "name": "Embeddings Model",
+      "ids": [
+       9,
+       10,
+       3
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "WireGuard VPN Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51,
+       37
+      ]
+     },
+     {
+      "name": "Swift iOS App",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Company Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56,
+       26
+      ]
+     },
+     {
+      "name": "Meetings & Email",
+      "ids": [
+       2,
+       42,
+       53,
+       57,
+       60
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       6,
+       12,
+       13,
+       22,
+       24,
+       30,
+       43,
+       45,
+       58
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 1,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 3528,
+   "input_tokens": 3269,
+   "output_tokens": 299,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009528,
+   "score": {
+    "p": 0.9873417721518988,
+    "r": 0.9341317365269461,
+    "f1": 0.96,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Purchase",
+    "Job Search",
+    "Running Training",
+    "Recipes",
+    "Household Admin",
+    "Money News",
+    "Streaming Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    7,
+    6,
+    6,
+    7,
+    6,
+    6,
+    3,
+    5,
+    5
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3527,
+     "headers_ms": 1948,
+     "ttfb_ms": 1948,
+     "first_token_ms": 1948,
+     "stop_reason": "end_turn",
+     "input_tokens": 3269,
+     "output_tokens": 299,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1144
+     },
+     "usage_raw": {
+      "input_tokens": 3269,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 299,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       23,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       12,
+       28,
+       29,
+       31,
+       48,
+       54
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Household Admin",
+      "ids": [
+       0,
+       3,
+       7,
+       17,
+       53,
+       58
+      ]
+     },
+     {
+      "name": "Money News",
+      "ids": [
+       16,
+       19,
+       57
+      ]
+     },
+     {
+      "name": "Streaming Entertainment",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       26,
+       35,
+       37,
+       50,
+       61
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

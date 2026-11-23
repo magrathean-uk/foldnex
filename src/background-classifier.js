@@ -1,137 +1,28 @@
 /**
  * Foldnex - Background classifier
- * Labels tabs as they finish loading and keeps each window's plan and names
- * current, so a later cleanup only applies cached labels and names. On-device
- * engines (Nano, Ollama on a loopback address) run silently once the user
- * turned on background preparation or auto-grouping. Cloud engines run here
- * only when the user turned on auto-grouping, only for tabs opened or
- * navigated to a new page since then, and never consolidate.
+ * The background sends and prepares nothing on any engine: cloud engines and
+ * Ollama plan a window in one request on a click, and Offline smart mode
+ * groups on this device.
+ *
+ * Auto-group places new tabs by the local attach (attachNewTab) on every
+ * engine, from the tab events the classifier below watches.
  */
 
-import {
-  CLOUD_BATCH_SIZE,
-  consolidateWithCloud,
-  isLoopbackUrl,
-  labelCacheScope,
-  labelTabsWithAI,
-  MAX_GROUPS,
-  nameGroupsWithNano,
-  NANO_BACKGROUND_BATCH,
-  PROVIDER_CATALOG,
-  providerSettingKey,
-  updateNanoPerf
-} from './ai-engine.js';
-import { hashToken, PlanMemory, readResetEpoch, TabLabelCache, WindowPlanStore } from './cache-engine.js';
-import { createTrace, noopTrace } from './debug-trace.js';
-import { markProgrammaticGroupUpdate } from './group-state.js';
-import {
-  acceptEnginesFor,
-  applyFolders,
-  applyModelNames,
-  buildLockedGroups,
-  consolidationLimit,
-  getGroupableTabs,
-  getRunScope,
-  hasFolders,
-  loadGroupingSettings,
-  namingNeed
-} from './grouper.js';
-import {
-  buildLocalContext,
-  categoryFromTitle,
-  ensureUniqueNames,
-  inferLocalLabel,
-  labelPriority,
-  planGroups,
-  REVIEW_GROUP_NAME,
-  titleTokens,
-  transferNames
-} from './planner.js';
+import { isLoopbackUrl, PROVIDER_CATALOG, providerSettingKey } from './ai-engine.js';
+import { hashToken, WindowPlanStore } from './cache-engine.js';
+import { attachTabs } from './local-engine.js';
+import { buildLockedGroups, getGroupableTabs, getRunScope, loadGroupingSettings } from './grouper.js';
+import { REVIEW_GROUP_NAME } from './planner.js';
 
-export const FLUSH_DELAY_MS = 1500;
-// A tab that keeps changing cannot hold the queue back longer than this.
-export const FLUSH_MAX_WAIT_MS = 5000;
-export const PLAN_REFRESH_DELAY_MS = 4000;
-export const PLAN_REFRESH_MAX_POSTPONE_MS = 15000;
-export const NAMING_RATE_LIMIT_MS = 30000;
-export const TITLE_RELABEL_INTERVAL_MS = 10 * 60 * 1000;
-// Title changes this soon after a navigation belong to the page load.
-export const NAVIGATION_SETTLE_MS = 10000;
-export const RETRY_DELAYS_MS = Object.freeze([5000, 30000, 120000]);
 export const NEW_TABS_KEY = 'foldnex_new_tabs_v1';
 const NO_GROUP = -1;
-const REASON_RANK = Object.freeze({ title: 0, other: 1, settle: 2, load: 2, cleanup: 3 });
-
-// Last background naming attempt per window: {at, signature}. In memory
-// only; a service-worker restart simply allows one more attempt.
-const namingAttempts = new Map();
 
 export { isLoopbackUrl };
 
-/** Engines whose tab data stays on this device: Nano, and Ollama on a loopback address. */
-export function isOnDeviceEngine(settings = {}) {
-  const provider = settings?.provider || 'gemini_nano';
-  if (provider === 'gemini_nano') return true;
-  if (provider !== 'ollama') return false;
+/** Ollama on a loopback address: its tab data stays on this device. */
+export function isLocalOllama(settings = {}) {
+  if (settings?.provider !== 'ollama') return false;
   return isLoopbackUrl(settings[providerSettingKey('ollama', 'baseUrl')] || PROVIDER_CATALOG.ollama.baseUrl);
-}
-
-/** The consent gates: By task, a model engine, and cloud only with Auto-group. */
-function backgroundAllowed(settings) {
-  const { provider, groupingStrategy } = getRunScope(settings);
-  if (groupingStrategy !== 'task' || provider === 'offline') return false;
-  return isOnDeviceEngine(settings) || Boolean(settings.autoGroupNewTabs);
-}
-
-/**
- * Background work is opt-in: background preparation (backgroundPrep), or
- * Auto-group, which needs labels. For a cloud engine only Auto-group counts,
- * through the consent gates.
- */
-function backgroundPrepared(settings) {
-  return settings.backgroundPrep === true || Boolean(settings.autoGroupNewTabs);
-}
-
-/**
- * What the background may do under the saved settings: `allowed` at all
- * (the consent gates plus the opt-in, which the queue and the service worker
- * apply), `onDevice` (any tab may be labelled) or cloud (only new pages), and
- * whether Auto-group is on.
- */
-export async function loadBackgroundScope(settings = null) {
-  const resolved = settings || await loadGroupingSettings();
-  return {
-    allowed: backgroundAllowed(resolved) && backgroundPrepared(resolved),
-    // Without the opt-in, an on-device engine still finishes the tabs a
-    // cleanup the user just ran placed by address, then stops.
-    cleanupFollowUp: backgroundAllowed(resolved) && isOnDeviceEngine(resolved),
-    onDevice: isOnDeviceEngine(resolved),
-    autoGroup: Boolean(resolved.autoGroupNewTabs)
-  };
-}
-
-/** One immutable configuration for both admission and the eventual request. */
-async function loadBackgroundContext() {
-  const settings = Object.freeze({ ...await loadGroupingSettings() });
-  return Object.freeze({ ...await loadBackgroundScope(settings), settings });
-}
-
-/** Enforce fresh-page cloud consent at dispatch as well as at the queue. */
-function admittedTabs(tabIds, current, admission) {
-  if (!admission) return current.onDevice ? tabIds : [];
-  const reasons = new Map(admission.reasons || []);
-  const fresh = new Set(admission.freshIds || []);
-  return tabIds.filter(id => {
-    const reason = reasons.get(id);
-    if (!reason || (!current.allowed && !(current.cleanupFollowUp && reason === 'cleanup'))) return false;
-    return current.onDevice || (current.autoGroup && reason !== 'title' && fresh.has(id));
-  });
-}
-
-// Ignore numeric counters and boilerplate using the same topic vocabulary as
-// planning. A changed useful title may warrant one final label after load.
-function titleKey(tab) {
-  return hashToken(`${categoryFromTitle(tab?.title) || ''}|${[...titleTokens(tab)].sort().join('|')}`);
 }
 
 /** Address identity for "a new page": the URL without its fragment, hashed. */
@@ -139,338 +30,94 @@ export function pageKey(url) {
   return hashToken(String(url || '').replace(/#.*$/, ''));
 }
 
-async function liveTabs(tabIds) {
-  const tabs = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
-  // Discarded and not-yet-loaded tabs keep their title; a loading tab is
-  // queued again when it completes.
-  return getGroupableTabs(tabs.filter(tab => tab && !tab.incognito && tab.title && tab.status !== 'loading'));
-}
+// ---------------------------------------------------------------------------
+// Auto-group by local attach
+// ---------------------------------------------------------------------------
 
-/** Cached labels for a pool, plus local inference for the rest. */
-async function resolvePoolLabels(pool, settings) {
-  const { provider } = getRunScope(settings);
-  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope: labelCacheScope(settings) });
-  const labelsById = new Map();
-  for (const [id, entry] of lookup.labels) labelsById.set(id, { c: entry.c, src: 'cache' });
-  const ctx = buildLocalContext(pool, labelsById);
-  for (const tab of lookup.missing) {
-    const inferred = inferLocalLabel(tab, ctx);
-    if (inferred) labelsById.set(tab.id, inferred);
-  }
-  return { lookup, labelsById };
-}
+/*
+ * With Auto-group on, a new tab that has its title joins one of its window's
+ * existing tab groups on this device: a manual rule or Socials first (only
+ * into the live group already holding that name), otherwise the group whose
+ * member titles it is most like (attachTabs, title words only). Nothing
+ * reaching the threshold leaves it ungrouped. No group is created, no tab the
+ * user placed is moved, no other window is touched, a private window is left
+ * alone, and no provider request is sent on any engine.
+ */
+
+const lowerName = value => String(value || '').toLocaleLowerCase();
 
 /**
- * B3: label tabs with the selected engine, one batch at a time, and store
- * each batch as soon as it lands. Locked tabs (rules, Socials) are never
- * labelled. Which tabs may be sent is the queue's decision.
- * @returns {Promise<{windowIds: number[], storedWindowIds: number[], labelledIds: number[], unlabelledIds: number[], aborted: boolean, error: Error|null}>}
- *   `windowIds` holds every live tab's window, `storedWindowIds` only the
- *   windows that got a new label, and `unlabelledIds` the tabs sent to the
- *   engine that came back without one.
+ * Attach one new tab to an existing group in its window.
+ * @returns {Promise<{placed: boolean, groupId?: number, reason?: string}>}
  */
-export async function classifyTabs(tabIds, signal = null, { settings: snapshot = null, admission = null, epoch = null } = {}) {
-  const originEpoch = epoch ?? await readResetEpoch();
-  signal?.throwIfAborted();
-  const empty = { windowIds: [], storedWindowIds: [], labelledIds: [], labelledPages: [], unlabelledIds: [], aborted: false, error: null };
-  const settings = Object.freeze({ ...(snapshot || await loadGroupingSettings()) });
-  if (!backgroundAllowed(settings)) return empty;
-  const current = await loadBackgroundScope(settings);
-  const eligibleIds = admittedTabs(tabIds, current, admission);
-  if (eligibleIds.length === 0) return empty;
-  const { provider } = getRunScope(settings);
-  const scope = labelCacheScope(settings);
+export async function attachNewTab(tabId, { settings = null, signal = null } = {}) {
+  const resolved = settings || await loadGroupingSettings();
+  if (!resolved.autoGroupNewTabs) return { placed: false, reason: 'off' };
+  // By site category groups by address on a click; Auto-group stays with By task.
+  if (getRunScope(resolved).groupingStrategy !== 'task') return { placed: false, reason: 'site' };
 
-  const tabs = await liveTabs(eligibleIds);
-  if (tabs.length === 0) return empty;
-  const windowIds = [...new Set(tabs.map(tab => tab.windowId))];
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || tab.incognito || tab.pinned || !String(tab.title || '').trim()) return { placed: false, reason: 'tab' };
+  if ((tab.groupId ?? NO_GROUP) !== NO_GROUP) return { placed: false, reason: 'grouped' };
+  const windowTabs = getGroupableTabs(await chrome.tabs.query({ windowId: tab.windowId }));
+  if (windowTabs.some(item => item.incognito) || !windowTabs.some(item => item.id === tab.id)) return { placed: false, reason: 'tab' };
 
-  const { pool } = await buildLockedGroups(tabs, { incognito: false });
-  if (pool.length === 0) return { ...empty, windowIds };
-
-  const trace = createTrace({ kind: 'background', tabsInWindow: tabs.length });
-  const lookup = await TabLabelCache.lookup(pool, { acceptEngines: acceptEnginesFor(provider), scope });
-  trace.mark('bg_start', { tabs: pool.length, pending: lookup.missing.length, provider });
-  if (lookup.missing.length === 0) return { ...empty, windowIds };
-
-  // A prioritised window's tabs arrive first; within a window the tabs the
-  // planner can place least well are labelled first.
-  const cached = new Map([...lookup.labels].map(([id, entry]) => [id, { c: entry.c, src: 'cache' }]));
-  const ctx = buildLocalContext(pool, cached);
-  const windowRank = new Map(windowIds.map((id, index) => [id, index]));
-  const ordered = lookup.missing
-    .map((tab, position) => ({ tab, position, rank: windowRank.get(tab.windowId), priority: labelPriority(tab, ctx) }))
-    .sort((a, b) => a.rank - b.rank || a.priority - b.priority || a.position - b.position)
-    .map(entry => entry.tab);
-
-  const windowOf = new Map(tabs.map(tab => [tab.id, tab.windowId]));
-  const stored = new Set();
-  let result;
-  try {
-    signal?.throwIfAborted();
-    if (await readResetEpoch() !== originEpoch) return { ...empty, aborted: true };
-    result = await labelTabsWithAI(ordered, settings, {
-      signal,
-      epoch: originEpoch,
-      trace,
-      batchSize: provider === 'gemini_nano' ? NANO_BACKGROUND_BATCH : CLOUD_BATCH_SIZE,
-      // Background batches never burst: rate limits and local servers see one at a time.
-      sequential: true,
-      onBatch: async (labels, info) => {
-        signal?.throwIfAborted();
-        await TabLabelCache.store(labels, lookup.fingerprintById, provider, { epoch: originEpoch, scope });
-        signal?.throwIfAborted();
-        if (await readResetEpoch() !== originEpoch) throw new Error('Learning memory was reset');
-        for (const id of labels.keys()) stored.add(id);
-        if (provider === 'gemini_nano' && info.count > 0) await updateNanoPerf({ count: info.count, elapsedMs: info.ms });
-        trace.mark('bg_stored', { labels: labels.size });
-      }
-    });
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    result = {
-      error,
-      aborted: false,
-      unlabelledIds: Array.isArray(error?.unlabelledIds) ? error.unlabelledIds : ordered.map(tab => tab.id)
-    };
-  }
-  if (await readResetEpoch() !== originEpoch) return { ...empty, aborted: true };
-  if (result.error) console.warn('[Foldnex] Background labelling stopped early:', result.error?.message);
-
-  const labelledIds = [...stored];
-  const unlabelledIds = result.aborted
-    ? []
-    : (Array.isArray(result.unlabelledIds) ? result.unlabelledIds : ordered.map(tab => tab.id))
-      .filter(id => !stored.has(id));
-  return {
-    windowIds,
-    storedWindowIds: [...new Set(labelledIds.map(id => windowOf.get(id)))],
-    labelledIds,
-    labelledPages: tabs.filter(tab => stored.has(tab.id)).map(tab => ({ id: tab.id, page: pageKey(tab.url), title: titleKey(tab) })),
-    unlabelledIds,
-    aborted: Boolean(result.aborted),
-    error: result.error || null
+  const chromeGroups = (await chrome.tabGroups.query({ windowId: tab.windowId }))
+    .filter(group => windowTabs.some(item => item.groupId === group.id));
+  const { locked } = await buildLockedGroups(windowTabs, { incognito: false });
+  const claimOf = id => locked.find(group => (group.tabIds || []).includes(id)) || null;
+  const claim = claimOf(tab.id);
+  // A live group is a rule's or Socials' group by what its members are, never
+  // by its title: every member claimed by the same rule or Socials. Members
+  // claimed by different owners, or claimed and unclaimed together, are mixed
+  // evidence, and such a group is left alone.
+  const membersOf = group => windowTabs.filter(item => item.groupId === group.id).map(item => item.id);
+  const ownerOf = group => {
+    const claims = new Set(membersOf(group).map(claimOf));
+    if (claims.size !== 1) return { mixed: true };
+    return { mixed: false, owner: [...claims][0] };
   };
-}
+  // Review Later is known by name or by the stored plan's review group.
+  const record = await WindowPlanStore.get(tab.windowId).catch(() => null);
+  const reviewIds = new Set([...(record?.groups || []), ...(record?.applied?.groups || [])]
+    .filter(group => group?.kind === 'review').flatMap(group => group.tabIds || []));
+  const isReview = group => lowerName(group.title) === lowerName(REVIEW_GROUP_NAME) || membersOf(group).some(id => reviewIds.has(id));
 
-/**
- * B5: recompute a window's plan from cached labels and local inference, carry
- * remembered names over and, for on-device engines only, ask for names when
- * the plan changed and memory names fewer than half of its groups (at most
- * once per window every NAMING_RATE_LIMIT_MS). Cloud engines keep
- * deterministic names here: no extra paid call. Writes WindowPlanStore and
- * PlanMemory.
- * @returns {Promise<{K: number, signature: string, groups: object[]}|null>}
- */
-export async function refreshWindowPlan(windowId, settings, signal = null, { trace = noopTrace, epoch = null } = {}) {
-  const originEpoch = epoch ?? await readResetEpoch();
-  signal?.throwIfAborted();
-  const windowTabs = getGroupableTabs(await chrome.tabs.query({ windowId }));
-  // Incognito windows are never planned, named or stored.
-  if (windowTabs.length < 2 || windowTabs.some(tab => tab.incognito)) return null;
-  const { provider } = getRunScope(settings);
-  const scope = labelCacheScope(settings);
-
-  const { locked, pool } = await buildLockedGroups(windowTabs, { incognito: false });
-  const { lookup, labelsById } = await resolvePoolLabels(pool, settings);
-  const memory = await PlanMemory.read({ scope });
-  signal?.throwIfAborted();
-
-  const plan = planGroups(pool, labelsById, { locked, advice: memory.advice.cloud });
-  const tabsById = new Map(windowTabs.map(tab => [tab.id, tab]));
-  const fingerprintById = lookup.fingerprintById;
-  let groups = transferNames(plan.groups, memory, { tabsById, tokensById: plan.tokensById, fingerprintById });
-  groups = ensureUniqueNames(groups, locked, { tabsById });
-
-  const need = namingNeed(groups);
-  const previous = namingAttempts.get(windowId);
-  const localNamer = isOnDeviceEngine(settings);
-  const due = !previous || previous.epoch !== originEpoch || previous.scope !== scope
-    || (previous.signature !== plan.signature && Date.now() - previous.at >= NAMING_RATE_LIMIT_MS);
-  if (localNamer && need.needed && due) {
-    namingAttempts.set(windowId, { at: Date.now(), signature: plan.signature, epoch: originEpoch, scope });
-    try {
-      if (provider === 'gemini_nano') {
-        const raw = await nameGroupsWithNano(need.toName, tabsById, { signal, trace });
-        signal?.throwIfAborted();
-        const records = applyModelNames(need.toName, raw, groups, { tabsById, tokensById: plan.tokensById });
-        if (records.length > 0) await PlanMemory.putNames(records, { epoch: originEpoch, scope });
-      } else {
-        // Ollama on this device, so its consolidation may run here.
-        const k = consolidationLimit(plan, groups);
-        const result = await consolidateWithCloud(plan.candidates, k, settings, { signal, trace, tabsById, epoch: originEpoch });
-        signal?.throwIfAborted();
-        if (hasFolders(result)) {
-          const applied = applyFolders(groups, plan, result.folders, k, { tabsById, memory, fingerprintById });
-          groups = applied.groups;
-          if (applied.records.length > 0) await PlanMemory.putNames(applied.records, { epoch: originEpoch, scope });
-          await PlanMemory.putAdvice(applied.advice, { epoch: originEpoch, scope });
-        }
-      }
-    } catch (error) {
-      if (signal?.aborted) {
-        // A cleanup took the model; let the next refresh try again.
-        if (previous) namingAttempts.set(windowId, previous);
-        else namingAttempts.delete(windowId);
-        throw error;
-      }
-      console.warn('[Foldnex] Background naming failed:', error?.message);
-    }
+  let target = null;
+  if (claim) {
+    // A rule or Socials owns the tab: the one live group holding that
+    // owner's tabs, when all its members are the owner's; otherwise nothing.
+    const holding = chromeGroups.filter(group => membersOf(group).some(id => claimOf(id) === claim));
+    const only = holding.length === 1 ? ownerOf(holding[0]) : { mixed: true };
+    target = !only.mixed && only.owner === claim ? holding[0] : null;
+  } else {
+    const candidates = chromeGroups.filter(group => {
+      const { mixed, owner } = ownerOf(group);
+      return !mixed && owner === null && !isReview(group);
+    });
+    const groups = candidates.map(group => ({ tabIds: membersOf(group) }));
+    const { placed } = attachTabs(groups, [tab], new Map(windowTabs.map(item => [item.id, item])));
+    if (placed.has(tab.id)) target = candidates[placed.get(tab.id)];
   }
+  if (!target) return { placed: false, reason: 'no_match' };
 
-  signal?.throwIfAborted();
-  if (await readResetEpoch() !== originEpoch) return null;
-  const record = { K: plan.K, signature: plan.signature, groups };
-  await WindowPlanStore.put(windowId, record, { epoch: originEpoch });
-  trace.mark('bg_plan_refreshed', { windowId, groups: groups.length });
-  return record;
-}
-
-function isReviewTitle(title) {
-  return String(title || '').toLowerCase() === REVIEW_GROUP_NAME.toLowerCase();
-}
-
-/**
- * The Chrome group a plan group lives in: the one holding most of its
- * already-grouped members (Review Later aside). Only when no member is
- * grouped does a Chrome group with the same title count.
- */
-function resolveChromeGroup(group, groupIdOf, titleOf, byTitle) {
-  const votes = new Map();
-  for (const id of group.tabIds || []) {
-    const groupId = groupIdOf.get(id);
-    if (groupId === undefined || groupId === NO_GROUP || isReviewTitle(titleOf.get(groupId))) continue;
-    votes.set(groupId, (votes.get(groupId) || 0) + 1);
+  // Recheck everything the decision rested on, immediately before the move:
+  // the target group first, then consent, the tab's window, group, pin and
+  // page, and the classifier's lifecycle. Nothing is awaited between the last
+  // check and the move, so any change before it leaves the tab alone.
+  const live = await chrome.tabGroups.query({ windowId: tab.windowId }).catch(() => []);
+  if (!live.some(group => group.id === target.id)) return { placed: false, reason: 'moved' };
+  const now = await loadGroupingSettings();
+  const current = await chrome.tabs.get(tab.id).catch(() => null);
+  if (!now.autoGroupNewTabs || getRunScope(now).groupingStrategy !== 'task') return { placed: false, reason: 'off' };
+  if (!current || current.windowId !== tab.windowId || current.pinned || current.incognito
+    || (current.groupId ?? NO_GROUP) !== NO_GROUP || current.status !== 'complete'
+    || current.url !== tab.url || (current.pendingUrl || '') !== (tab.pendingUrl || '') || current.title !== tab.title) {
+    return { placed: false, reason: 'moved' };
   }
-  let best;
-  for (const [groupId, count] of votes) {
-    if (best === undefined || count > votes.get(best)) best = groupId;
-  }
-  return best !== undefined ? best : byTitle.get(group.name.toLowerCase());
-}
-
-/** The tabs that are still ungrouped, open and in this window right now. */
-async function stillUngrouped(tabIds, windowId) {
-  const tabs = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
-  return tabs
-    .filter(tab => tab && tab.windowId === windowId && !tab.pinned && (tab.groupId ?? NO_GROUP) === NO_GROUP)
-    .map(tab => tab.id);
-}
-
-/**
- * B6: file ungrouped candidate tabs into the Chrome group their plan group
- * already occupies, or create that group once two of them share it, no
- * member is grouped yet, and the window still has fewer titled groups than
- * the absolute task-mode limit. Grouped tabs are never moved and Review Later is never
- * auto-created. `candidateIds` limits which ungrouped tabs may move (null:
- * every ungrouped tab). An abort stops before the next Chrome change; a
- * group already created still gets its title.
- * @returns {Promise<number>} tabs moved
- */
-export async function autoGroupWindow(windowId, plan, {
-  trace = noopTrace,
-  signal = null,
-  candidateIds = null,
-  onGrouped = null
-} = {}) {
-  const windowTabs = getGroupableTabs(await chrome.tabs.query({ windowId }));
-  if (windowTabs.length === 0 || windowTabs.some(tab => tab.incognito)) return 0;
-  const allowed = candidateIds === null || candidateIds === undefined ? null : new Set(candidateIds);
-  const movable = new Set(windowTabs
-    .filter(tab => (tab.groupId ?? NO_GROUP) === NO_GROUP && (!allowed || allowed.has(tab.id)))
-    .map(tab => tab.id));
-  if (movable.size === 0 || !Array.isArray(plan?.groups)) return 0;
-
-  const chromeGroups = await chrome.tabGroups.query({ windowId });
-  const titleOf = new Map(chromeGroups.map(group => [group.id, group.title || '']));
-  const byTitle = new Map(chromeGroups.filter(group => group.title).map(group => [group.title.toLowerCase(), group.id]));
-  const groupIdOf = new Map(windowTabs.map(tab => [tab.id, tab.groupId ?? NO_GROUP]));
-  const ceiling = MAX_GROUPS;
-
-  const targets = [];
-  for (const group of plan.groups) {
-    if (!group?.name || group.kind === 'review' || isReviewTitle(group.name)) continue;
-    const members = new Set(group.tabIds || []);
-    const tabIds = windowTabs.filter(tab => movable.has(tab.id) && members.has(tab.id)).map(tab => tab.id);
-    if (tabIds.length === 0) continue;
-    targets.push({ name: group.name, color: group.color, groupId: resolveChromeGroup(group, groupIdOf, titleOf, byTitle), tabIds });
-  }
-
-  let moved = 0;
-  for (const target of targets) {
-    signal?.throwIfAborted();
-    // Re-read: a cleanup or the user may have grouped these tabs meanwhile.
-    const tabIds = await stillUngrouped(target.tabIds, windowId);
-    if (tabIds.length === 0) continue;
-    try {
-      if (target.groupId !== undefined) {
-        signal?.throwIfAborted();
-        await chrome.tabs.group({ groupId: target.groupId, tabIds });
-      } else {
-        if (tabIds.length < 2) continue;
-        const titled = (await chrome.tabGroups.query({ windowId })).filter(group => group.title).length;
-        if (titled >= ceiling) continue;
-        signal?.throwIfAborted();
-        const newGroupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
-        // Title it even if paused meanwhile, so no unnamed group is left behind.
-        await markProgrammaticGroupUpdate(newGroupId, target.name);
-        await chrome.tabGroups.update(newGroupId, { title: target.name, color: target.color || 'grey' });
-      }
-      moved += tabIds.length;
-      await onGrouped?.(tabIds);
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      // Tabs may close or move while the classifier runs.
-    }
-  }
-  trace.mark('bg_auto_grouped', { windowId, moved });
-  return moved;
-}
-
-/**
- * B5 then B6 for one window, under the consent gates. Auto-grouping runs only
- * when `autoGroup` is set and the setting is on; `candidateIds` and
- * `onGrouped` pass through to autoGroupWindow.
- */
-export async function refreshAndAutoGroup(windowId, signal = null, {
-  autoGroup = true,
-  candidateIds = null,
-  onGrouped = null,
-  settings: snapshot = null,
-  epoch = null
-} = {}) {
-  const originEpoch = epoch ?? await readResetEpoch();
-  signal?.throwIfAborted();
-  const settings = Object.freeze({ ...(snapshot || await loadGroupingSettings()) });
-  if (!backgroundAllowed(settings)) return null;
-  const trace = createTrace({ kind: 'background' });
-  const plan = await refreshWindowPlan(windowId, settings, signal, { trace, epoch: originEpoch });
-  if (plan && autoGroup && settings.autoGroupNewTabs && await readResetEpoch() === originEpoch) {
-    signal?.throwIfAborted();
-    await autoGroupWindow(windowId, plan, { trace, signal, candidateIds, onGrouped });
-  }
-  return plan;
-}
-
-/**
- * Development aid: each tab's label and where it came from, computed on
- * demand and never stored. Rows hold the host only, never titles or paths.
- */
-export async function dumpWindowLabels(windowId) {
-  const settings = await loadGroupingSettings();
-  const { provider } = getRunScope(settings);
-  const tabs = getGroupableTabs(await chrome.tabs.query({ windowId })).filter(tab => !tab.incognito);
-  const { labelsById } = await resolvePoolLabels(tabs, settings);
-  return tabs.map(tab => {
-    let host = '';
-    try {
-      host = new URL(tab.url).hostname;
-    } catch {
-      // Not a web page.
-    }
-    const label = labelsById.get(tab.id);
-    return { index: tab.index, host, c: label?.c ?? null, src: label?.src ?? null };
-  });
+  if (signal?.aborted) return { placed: false, reason: 'cancelled' };
+  await chrome.tabs.group({ groupId: target.id, tabIds: [tab.id] });
+  return { placed: true, groupId: target.id };
 }
 
 /**
@@ -572,449 +219,64 @@ export function createNewTabTracker({ area = () => globalThis.chrome?.storage?.s
 }
 
 /**
- * Debounced queue around classifyTabs and the per-window plan refreshes. Both
- * run inside flush() under one AbortController, so pause() cancels either and
- * a cleanup gets the model at once; cancelled work returns to the queue and
- * resume() continues after the cleanup.
- *
- * Queue reasons: 'load' (a page finished loading or navigated), 'title' (a
- * title-only change, or an address change within the same document) and
- * 'other' (popup open, startup, a cleanup's
- * provisional tabs). Only 'load' of an auto-group candidate lets a plan
- * refresh auto-group. With a cloud engine only fresh tabs, never for a
- * title-only change, are sent.
+ * Watches tab events for Auto-group: which tabs are new (createNewTabTracker)
+ * and, once a candidate has loaded with its title, its local attach. Attaches
+ * in flight are part of the pause and idle lifecycle, so a cleanup, Ungroup or
+ * Apply cancels or waits for them. Nothing else is queued or sent.
  */
 export function createBackgroundClassifier({
-  classify = classifyTabs,
-  refresh = refreshAndAutoGroup,
-  scope = loadBackgroundContext,
   tracker = createNewTabTracker(),
-  flushDelayMs = FLUSH_DELAY_MS,
-  flushMaxWaitMs = FLUSH_MAX_WAIT_MS,
-  refreshDelayMs = PLAN_REFRESH_DELAY_MS,
-  refreshMaxPostponeMs = PLAN_REFRESH_MAX_POSTPONE_MS,
-  retryDelaysMs = RETRY_DELAYS_MS,
-  titleRelabelMs = TITLE_RELABEL_INTERVAL_MS,
-  navigationSettleMs = NAVIGATION_SETTLE_MS
+  attach = attachNewTab
 } = {}) {
-  const pending = new Map();
-  const refreshDue = new Map();
-  const retries = new Map();
-  const failures = new Map();
-  const gaveUp = new Set();
-  const labelledAt = new Map();
-  const navigatedAt = new Map();
   const lastPageKey = new Map();
-  const latestTabs = new Map();
-  const labelledPages = new Map();
-  const inFlightPages = new Set();
-  const settlingTitles = new Map();
-  const settledFollowUps = new Set();
-  let pendingSince = null;
-  let flushTimer = null;
-  let refreshTimer = null;
-  let retryTimer = null;
-  let settleTimer = null;
-  let running = null;
-  let idle = Promise.resolve();
   let holds = 0;
+  // Bumped by every pause: a tab event admitted before it never starts an attach.
+  let pauses = 0;
   let configuration = 0;
   let admissionsReady = Promise.resolve();
+  // Auto-group attaches in flight, by tab: part of the pause and idle
+  // lifecycle, so a cleanup, Ungroup or Apply waits for or cancels them.
+  const attaches = new Map();
 
   const paused = () => holds > 0;
 
-  function addPending(id, reason) {
-    const current = pending.get(id);
-    if (current === undefined || REASON_RANK[reason] > REASON_RANK[current]) pending.set(id, reason);
-    if (pendingSince === null) pendingSince = Date.now();
-  }
-
-  function scheduleFlush() {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-    if (paused() || pending.size === 0) return;
-    if (pendingSince === null) pendingSince = Date.now();
-    const wait = Math.max(0, Math.min(flushDelayMs, pendingSince + flushMaxWaitMs - Date.now()));
-    flushTimer = setTimeout(flush, wait);
-  }
-
-  function armRefresh() {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-    if (paused() || running || refreshDue.size === 0) return;
-    const next = Math.min(...[...refreshDue.values()].map(entry => entry.at));
-    refreshTimer = setTimeout(flush, Math.max(0, next - Date.now()));
-  }
-
-  function pushRefresh(windowId, autoGroup) {
-    if (!Number.isInteger(windowId) || windowId < 0) return;
-    const now = Date.now();
-    const entry = refreshDue.get(windowId);
-    const firstAt = entry?.firstAt ?? now;
-    // Counted from the last label store, so a busy window refreshes once,
-    // but never postponed past the cap.
-    refreshDue.set(windowId, {
-      at: Math.min(now + refreshDelayMs, firstAt + refreshMaxPostponeMs),
-      firstAt,
-      autoGroup: Boolean(entry?.autoGroup || autoGroup)
-    });
-    armRefresh();
-  }
-
-  function armRetry() {
-    clearTimeout(retryTimer);
-    retryTimer = null;
-    if (retries.size === 0) return;
-    const next = Math.min(...[...retries.values()].map(entry => entry.at));
-    retryTimer = setTimeout(releaseRetries, Math.max(0, next - Date.now()));
-  }
-
-  function releaseRetries() {
-    retryTimer = null;
-    const now = Date.now();
-    let released = false;
-    for (const [id, entry] of [...retries]) {
-      if (entry.at > now) continue;
-      retries.delete(id);
-      addPending(id, entry.reason);
-      released = true;
-    }
-    if (released) scheduleFlush();
-    armRetry();
-  }
-
-  /** Back off a tab that came back unlabelled; give up after the last delay until it navigates. */
-  function scheduleRetry(id, reason) {
-    const count = (failures.get(id) || 0) + 1;
-    failures.set(id, count);
-    if (count > retryDelaysMs.length) {
-      gaveUp.add(id);
-      retries.delete(id);
-      return;
-    }
-    retries.set(id, { at: Date.now() + retryDelaysMs[count - 1], reason });
-    armRetry();
-  }
-
-  /** A user action (popup open, a cleanup's provisional tabs) gives a given-up tab one more attempt. */
-  function revive(id) {
-    if (!gaveUp.delete(id)) return;
-    failures.set(id, retryDelaysMs.length);
-  }
-
-  function forgetLabelState(tabId) {
-    failures.delete(tabId);
-    gaveUp.delete(tabId);
-    retries.delete(tabId);
-    labelledAt.delete(tabId);
-    labelledPages.delete(tabId);
-    inFlightPages.delete(tabId);
-    settlingTitles.delete(tabId);
-    settledFollowUps.delete(tabId);
-  }
-
-  function armSettlingTitles() {
-    clearTimeout(settleTimer);
-    settleTimer = null;
-    if (paused()) return;
-    const waiting = [...settlingTitles].filter(([id]) => !inFlightPages.has(id));
-    if (waiting.length === 0) return;
-    const next = Math.min(...waiting.map(([, at]) => at));
-    settleTimer = setTimeout(releaseSettlingTitles, Math.max(0, next - Date.now()));
-  }
-
-  function releaseSettlingTitles() {
-    settleTimer = null;
-    const now = Date.now();
-    for (const [id, at] of [...settlingTitles]) {
-      if (at > now || inFlightPages.has(id)) continue;
-      settlingTitles.delete(id);
-      const tab = latestTabs.get(id);
-      if (!tab) continue;
-      const labelled = labelledPages.get(id);
-      if (labelled?.page === pageKey(tab.url)) {
-        if (labelled.title === titleKey(tab) || settledFollowUps.has(id)) continue;
-        // Only one final useful-title request per navigation. Failed requests
-        // still use the ordinary retry queue rather than spending this again.
-        settledFollowUps.add(id);
-      }
-      enqueue([id], { reason: 'settle' });
-    }
-    armSettlingTitles();
-  }
-
-  function noteSettlingTitle(tabId) {
-    settlingTitles.set(tabId, (navigatedAt.get(tabId) || Date.now()) + navigationSettleMs);
-    armSettlingTitles();
-  }
-
-  function batchStopped(batch, signal, version) {
-    if (!signal.aborted && version === configuration) return false;
-    // A cleanup pause returns work; a settings change discards its old
-    // admission. No pause hold is added by configuration invalidation.
-    if (signal.aborted && version === configuration) for (const [id, reason] of batch) addPending(id, reason);
-    return true;
-  }
-
-  function enqueue(tabIds, { reason = 'other', retryGivenUp = false } = {}) {
-    const why = REASON_RANK[reason] === undefined ? 'other' : reason;
-    const now = Date.now();
-    let added = 0;
-    for (const id of tabIds || []) {
-      if (!Number.isInteger(id)) continue;
-      if (retryGivenUp) revive(id);
-      if (gaveUp.has(id)) continue;
-      const retry = retries.get(id);
-      if (retry) {
-        // Already waiting for its back-off.
-        if (REASON_RANK[why] > REASON_RANK[retry.reason]) retry.reason = why;
-        continue;
-      }
-      if (why === 'title' && now - (labelledAt.get(id) ?? -Infinity) < titleRelabelMs) continue;
-      addPending(id, why);
-      added++;
-    }
-    if (added > 0) scheduleFlush();
-  }
-
-  async function classifyBatch(batch, signal, version) {
-    await admissionsReady;
-    if (batchStopped(batch, signal, version)) return;
-    const epoch = await readResetEpoch();
-    let current;
-    try {
-      current = await scope();
-    } catch (error) {
-      console.warn('[Foldnex] Could not read background settings:', error?.message);
-      return;
-    }
-    if (!current || batchStopped(batch, signal, version)) return;
-    let sendable = batch;
-    if (!current.allowed) {
-      if (!current.cleanupFollowUp) return;
-      sendable = batch.filter(([, reason]) => reason === 'cleanup');
-    }
-    let freshIds = [];
-    if (!current.onDevice) {
-      // Cloud consent covers pages opened after Auto-group was turned on, never title-only changes.
-      freshIds = await tracker.freshIds();
-      const fresh = new Set(freshIds);
-      sendable = sendable.filter(([id, reason]) => reason !== 'title' && fresh.has(id));
-    }
-    if (sendable.length === 0 || batchStopped(sendable, signal, version)) return;
-    const ids = sendable.map(([id]) => id);
-    const reasonOf = new Map(sendable);
-
-    let result = null;
-    let unlabelled = [];
-    const dispatched = new Map((await liveTabs(ids)).map(tab => [tab.id, { id: tab.id, page: pageKey(tab.url), title: titleKey(tab) }]));
-    if (batchStopped(sendable, signal, version)) return;
-    for (const id of ids) inFlightPages.add(id);
-    try {
-      result = await classify(ids, signal, {
-        settings: current.settings || null,
-        admission: { freshIds, reasons: sendable },
-        epoch
-      });
-      unlabelled = result?.error
-        ? (Array.isArray(result.unlabelledIds) ? result.unlabelledIds : ids)
-        : (Array.isArray(result?.unlabelledIds) ? result.unlabelledIds : []);
-    } catch (error) {
-      if (!signal.aborted) {
-        console.warn('[Foldnex] Background classification failed:', error?.message);
-        unlabelled = Array.isArray(error?.unlabelledIds) ? error.unlabelledIds : ids;
-      }
-    } finally {
-      for (const id of ids) inFlightPages.delete(id);
-    }
-    if (signal.aborted) {
-      if (version === configuration) for (const [id, reason] of sendable) addPending(id, reason);
-      armSettlingTitles();
-      return;
-    }
-    if (version !== configuration || await readResetEpoch() !== epoch) return;
-
-    const now = Date.now();
-    const actualPages = new Map((result?.labelledPages || []).map(entry => [entry.id, entry]));
-    for (const id of result?.labelledIds || []) {
-      const page = actualPages.get(id) || dispatched.get(id);
-      if (page && lastPageKey.has(id) && page.page !== lastPageKey.get(id)) continue;
-      labelledAt.set(id, now);
-      failures.delete(id);
-      if (page && page.page === lastPageKey.get(id)) labelledPages.set(id, page);
-    }
-    armSettlingTitles();
-    const unlabelledSet = new Set(unlabelled.filter(id => reasonOf.has(id)));
-    for (const id of unlabelledSet) scheduleRetry(id, reasonOf.get(id));
-
-    // A candidate that just loaded lets its window auto-group; nothing else does.
-    const autoWindows = new Set();
-    if (current.autoGroup) {
-      const candidates = new Set(await tracker.candidateIds());
-      const triggers = sendable
-        .filter(([id, reason]) => (reason === 'load' || reason === 'settle') && candidates.has(id) && !unlabelledSet.has(id))
-        .map(([id]) => id);
-      const tabs = await Promise.all(triggers.map(id => chrome.tabs.get(id).catch(() => null)));
-      for (const tab of tabs) {
-        if (tab && !tab.incognito && (tab.groupId ?? NO_GROUP) === NO_GROUP) autoWindows.add(tab.windowId);
-      }
-    }
-    if (signal.aborted || version !== configuration || await readResetEpoch() !== epoch) return;
-    for (const windowId of new Set([...(result?.storedWindowIds || []), ...autoWindows])) {
-      pushRefresh(windowId, autoWindows.has(windowId));
-    }
-  }
-
-  async function runDueRefreshes(signal, version) {
-    const epoch = await readResetEpoch();
-    const now = Date.now();
-    if (![...refreshDue.values()].some(entry => entry.at <= now)) return;
-    // A refresh may prompt for names, so it needs the same opt-in as
-    // labelling; a due refresh the settings do not allow is dropped.
-    let current = null;
-    try {
-      current = await scope();
-    } catch (error) {
-      console.warn('[Foldnex] Could not read background settings:', error?.message);
-    }
-    for (const [windowId, entry] of [...refreshDue]) {
-      if (signal.aborted || version !== configuration) break;
-      if (entry.at > now) continue;
-      refreshDue.delete(windowId);
-      if (!current?.allowed) continue;
-      try {
-        const candidateIds = entry.autoGroup ? await tracker.candidateIds() : [];
-        await refresh(windowId, signal, {
-          autoGroup: entry.autoGroup,
-          candidateIds,
-          onGrouped: tabIds => tracker.markGrouped(tabIds),
-          settings: current.settings || null,
-          epoch
-        });
-      } catch (error) {
-        if (signal.aborted && version === configuration) {
-          if (!refreshDue.has(windowId)) refreshDue.set(windowId, { ...entry, at: Date.now() + refreshDelayMs });
-        } else if (!signal.aborted) {
-          console.warn('[Foldnex] Background plan refresh failed:', error?.message);
-        }
-      }
-    }
+  function cancelAttaches(reason, tabId = null) {
+    for (const [id, work] of attaches) if (tabId === null || id === tabId) work.controller.abort(new Error(reason));
   }
 
   function pause() {
     holds++;
-    clearTimeout(flushTimer);
-    flushTimer = null;
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-    clearTimeout(settleTimer);
-    settleTimer = null;
-    running?.abort(new Error('Paused for cleanup'));
+    pauses++;
+    cancelAttaches('Paused for cleanup');
   }
 
   function resume() {
     holds = Math.max(0, holds - 1);
-    if (paused()) return;
-    scheduleFlush();
-    armRefresh();
-    armSettlingTitles();
   }
 
   /** Configuration changes invalidate work immediately without changing holds. */
   function invalidate() {
     configuration++;
     admissionsReady = admissionsReady.then(() => tracker.retireAdmissions());
-    // Prevent an unhandled rejection; dispatch still awaits the original
-    // barrier and fails closed if admission retirement cannot complete.
+    // Prevent an unhandled rejection; tab events still await the original
+    // barrier and fail closed if admission retirement cannot complete.
     admissionsReady.catch(() => {});
-    running?.abort(new Error('Background settings changed'));
-    pending.clear();
-    pendingSince = null;
-    retries.clear();
-    refreshDue.clear();
-    settlingTitles.clear();
-    failures.clear();
-    gaveUp.clear();
-    labelledAt.clear();
-    labelledPages.clear();
-    settledFollowUps.clear();
-    for (const timer of [flushTimer, refreshTimer, retryTimer, settleTimer]) clearTimeout(timer);
-    flushTimer = refreshTimer = retryTimer = settleTimer = null;
+    cancelAttaches('Background settings changed');
   }
 
-  /** Settles once the current flush, if any, has finished or stopped. */
+  /** Settles once every attach in flight has finished or stopped. */
   function whenIdle() {
-    return running ? idle : Promise.resolve();
-  }
-
-  function flush() {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-    if (paused() || running) return idle;
-
-    const batch = [...pending];
-    pending.clear();
-    pendingSince = null;
-    const controller = new AbortController();
-    const version = configuration;
-    running = controller;
-    idle = (async () => {
-      try {
-        if (batch.length > 0) await classifyBatch(batch, controller.signal, version);
-        await runDueRefreshes(controller.signal, version);
-      } catch (error) {
-        console.warn('[Foldnex] Background queue failed:', error?.message);
-      } finally {
-        running = null;
-        scheduleFlush();
-        armRefresh();
-      }
-    })();
-    return idle;
+    const work = [...attaches.values()].map(item => item.done);
+    return work.length > 0 ? Promise.all(work).then(() => {}) : Promise.resolve();
   }
 
   return {
-    enqueue,
-    /**
-     * Move a window's groupable tabs to the front of the queue (adding any
-     * that are not queued) without flushing before the usual debounce. Tabs
-     * waiting for a retry keep waiting; a given-up tab gets one more attempt.
-     */
-    async prioritize(windowId) {
-      const version = configuration;
-      await admissionsReady;
-      const tabs = getGroupableTabs(await chrome.tabs.query({ windowId })).filter(tab => !tab.incognito);
-      if (version !== configuration) return;
-      for (const tab of tabs) revive(tab.id);
-      const ids = tabs.map(tab => tab.id).filter(id => !retries.has(id));
-      if (ids.length === 0) return;
-      const rest = [...pending];
-      pending.clear();
-      for (const id of ids) pending.set(id, 'other');
-      for (const [id, reason] of rest) {
-        const current = pending.get(id);
-        if (current === undefined || REASON_RANK[reason] > REASON_RANK[current]) pending.set(id, reason);
-      }
-      if (pendingSince === null) pendingSince = Date.now();
-      if (!flushTimer && !running) scheduleFlush();
-    },
-    /** A cleanup's follow-up refresh: it keeps the plan current and never auto-groups. */
-    scheduleWindowPlanRefresh(windowId) {
-      pushRefresh(windowId, false);
-    },
-    pendingTabIds() {
-      return [...pending.keys()];
-    },
     async noteTabCreated(tab, { autoGroup = false } = {}) {
       if (!tab || tab.incognito || !Number.isInteger(tab.id)) return;
       const version = configuration;
       await admissionsReady;
       if (version !== configuration) return;
       lastPageKey.set(tab.id, pageKey(tab.pendingUrl || tab.url));
-      latestTabs.set(tab.id, { ...tab, url: tab.pendingUrl || tab.url });
-      navigatedAt.set(tab.id, Date.now());
       // A tab Chrome restores without loading is not new.
       if (autoGroup && tab.status !== 'unloaded' && !tab.discarded) {
         await tracker.markNew(tab.id, { grouped: (tab.groupId ?? NO_GROUP) !== NO_GROUP, isCurrent: () => version === configuration });
@@ -1023,55 +285,59 @@ export function createBackgroundClassifier({
     async noteTabUpdated(tabId, changeInfo = {}, tab = {}, { autoGroup = false } = {}) {
       if (!Number.isInteger(tabId) || tab?.incognito) return;
       const version = configuration;
+      const admitted = pauses;
       await admissionsReady;
       if (version !== configuration) return;
-      const updated = { ...latestTabs.get(tabId), ...tab, ...changeInfo, id: tabId };
-      latestTabs.set(tabId, updated);
+      // A tab placed by hand or navigating away is no longer the tab an
+      // attach in flight decided on.
+      if (Number.isInteger(changeInfo.groupId) || typeof changeInfo.url === 'string' || changeInfo.status === 'loading') {
+        cancelAttaches('Tab changed', tabId);
+      }
       if (Number.isInteger(changeInfo.groupId)) {
         if (changeInfo.groupId === NO_GROUP) await tracker.markTakenOut([[tabId, pageKey(tab?.url)]]);
         else await tracker.markGrouped([tabId]);
       }
 
-      let navigated = false;
-      let addressRewritten = false;
       if (typeof changeInfo.url === 'string') {
         const key = pageKey(changeInfo.url);
         const known = (await tracker.outKey(tabId)) ?? lastPageKey.get(tabId);
         if (version !== configuration) return;
         lastPageKey.set(tabId, key);
         // A same-document change (fragment, history API, a map rewriting its
-        // address as it pans) is never a new page; it is treated like a
-        // title change.
+        // address as it pans) is never a new page.
         const sameDocument = tab?.status === 'complete' && changeInfo.status !== 'loading';
-        if (known !== key && sameDocument) {
-          addressRewritten = true;
-        } else if (known !== key) {
-          navigated = true;
-          forgetLabelState(tabId);
-          navigatedAt.set(tabId, Date.now());
-          if (autoGroup) await tracker.markNew(tabId, { grouped: (tab?.groupId ?? NO_GROUP) !== NO_GROUP, isCurrent: () => version === configuration });
+        if (known !== key && !sameDocument && autoGroup) {
+          await tracker.markNew(tabId, { grouped: (tab?.groupId ?? NO_GROUP) !== NO_GROUP, isCurrent: () => version === configuration });
         }
       }
 
       if (version !== configuration) return;
-      const settling = Date.now() - (navigatedAt.get(tabId) ?? -Infinity) < navigationSettleMs;
-      if ((changeInfo.status === 'complete' && !addressRewritten) || (navigated && tab?.status === 'complete')) {
-        if (settling && (labelledPages.has(tabId) || inFlightPages.has(tabId))) noteSettlingTitle(tabId);
-        else enqueue([tabId], { reason: 'load' });
-      } else if ((changeInfo.title || addressRewritten) && tab?.status === 'complete') {
-        if (settling && !addressRewritten) {
-          noteSettlingTitle(tabId);
-          if (!labelledPages.has(tabId) && !inFlightPages.has(tabId)) enqueue([tabId], { reason: 'load' });
-        } else enqueue([tabId], { reason: 'title' });
+      // Auto-group: a new tab with its title joins an existing group on this
+      // device, on every engine and with no request. Not during a cleanup,
+      // which places every tab itself.
+      const titled = String(tab?.title || changeInfo.title || '').trim();
+      if (autoGroup && !paused() && titled && tab?.status === 'complete' && (changeInfo.status === 'complete' || changeInfo.title)
+        && (tab?.groupId ?? NO_GROUP) === NO_GROUP && (await tracker.candidateIds()).includes(tabId)) {
+        if (version !== configuration || paused() || admitted !== pauses || attaches.has(tabId)) return;
+        const controller = new AbortController();
+        const work = { controller, done: null };
+        work.done = (async () => {
+          try {
+            const result = await attach(tabId, { signal: controller.signal });
+            if (result?.placed) await tracker.markGrouped([tabId]);
+          } catch (error) {
+            // The tab may close or move while it is placed.
+            console.warn('[Foldnex] Auto-group could not place a tab:', error?.message);
+          } finally {
+            if (attaches.get(tabId) === work) attaches.delete(tabId);
+          }
+        })();
+        attaches.set(tabId, work);
+        await work.done;
       }
     },
     async noteTabRemoved(tabId) {
-      pending.delete(tabId);
-      forgetLabelState(tabId);
-      navigatedAt.delete(tabId);
       lastPageKey.delete(tabId);
-      latestTabs.delete(tabId);
-      inFlightPages.delete(tabId);
       await tracker.forget(tabId);
     },
     /** After Ungroup all: the window's tabs stop being candidates until they open a new page. */
@@ -1085,9 +351,9 @@ export function createBackgroundClassifier({
       if (!enabled) await tracker.clear();
     },
     /**
-     * Background work was turned off: stop the current flush and drop every
-     * queued tab, pending retry and plan refresh. Waits up to `waitMs` for
-     * the stopped flush to hand its work back, so none of it survives.
+     * The engine, Auto-group or a credential changed: cancel every attach in
+     * flight and retire old admissions. Waits up to `waitMs` for the cancelled
+     * attaches to stop.
      */
     async clear({ waitMs = 1000 } = {}) {
       pause();
@@ -1097,13 +363,6 @@ export function createBackgroundClassifier({
         await Promise.race([whenIdle(), new Promise(resolve => { timer = setTimeout(resolve, waitMs); })]);
       } finally {
         clearTimeout(timer);
-        pending.clear();
-        pendingSince = null;
-        retries.clear();
-        clearTimeout(retryTimer);
-        retryTimer = null;
-        refreshDue.clear();
-        settlingTitles.clear();
         resume();
       }
     },

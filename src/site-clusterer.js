@@ -384,11 +384,6 @@ export function describeSite(rawUrl) {
   return { name, color, serviceName, siteName, known };
 }
 
-/** True when a service or unknown site's tabs should retain one stable group. */
-export function isAtomicSite(rawUrl) {
-  return resolveSite(rawUrl).atomic;
-}
-
 /** Registrable site label in lower case ('bbc' for www.bbc.co.uk), or '' without a host. */
 export function siteKeyForUrl(rawUrl) {
   try {

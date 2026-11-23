@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 import * as ai from '../src/ai-engine.js';
-import { isOnDeviceEngine } from '../src/background-classifier.js';
+import { isLocalOllama } from '../src/background-classifier.js';
+import { enforcePlan } from '../src/planner.js';
 
 const OPTIONS_HTML = await readFile(new URL('../options/options.html', import.meta.url), 'utf8');
 const OPTIONS_SCRIPT = (await readFile(new URL('../options/options.js', import.meta.url), 'utf8'))
@@ -85,7 +86,7 @@ function parseOptions() {
 }
 
 async function openOptions({
-  sync = { provider: 'openai' }, run = null, usage = {}, nano = 'ready',
+  sync = { provider: 'openai' }, run = null, usage = {},
   catalogError = null, connectionError = null, models = ['gpt-6'], storedLocal = {},
   catalogResponse = null, connectionResponse = null, savedSettingsResponse = null, saveSecretsResponse = null
 } = {}) {
@@ -109,25 +110,29 @@ async function openOptions({
     async set(values) { Object.assign(store, values); for (const [key, value] of Object.entries(values)) await emitStorage(key, value, areaName); },
     async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key]; }
   });
+  const syncArea = makeArea(sync, 'sync');
   const context = vm.createContext({
     ...ai,
-    checkChromeNanoStatus: async () => ({ status: nano, detail: 'Synthetic model availability' }),
-    isOnDeviceEngine,
+    isLocalOllama,
+    enforcePlan,
     PROVIDER_USAGE_KEY,
     readProviderUsageSummary: async () => summary,
     clearProviderUsage: async () => { summary = {}; },
     loadSavedSettings: async () => savedSettingsResponse
       ? savedSettingsResponse(++settingsReads, { ...sync, ...local })
       : { ...sync, ...local },
+    // The settings lock itself is covered in settings.test.js.
+    saveEngineChoice: values => syncArea.set(values),
     saveProviderSecrets: async values => {
       if (saveSecretsResponse) await saveSecretsResponse(values);
       Object.assign(local, values);
     },
-    labelTabsWithAI: async (tabs, settings) => {
-      requests.push({ tabs, settings });
-      if (connectionResponse) return connectionResponse({ tabs, settings }, requests.length);
+    labelTabsWithAI: async () => { throw new Error('Settings must not send a label request'); },
+    planWindowWithCloud: async (tabs, limit, settings) => {
+      requests.push({ tabs, limit, settings });
+      if (connectionResponse) return connectionResponse({ tabs, limit, settings }, requests.length);
       if (connectionError) throw new Error(connectionError);
-      return { labels: new Map([[1, 'work']]) };
+      return { json: { folders: [{ name: 'Project', ids: [0, 1] }] } };
     },
     listProviderModels: async (provider, context) => {
       const request = { provider, ...context };
@@ -138,7 +143,7 @@ async function openOptions({
     },
     LearningCache: { getRules: async () => [], STORAGE_KEY: 'rules' },
     ExactResultCache: { clear: async () => {} },
-    chrome: { storage: { sync: makeArea(sync, 'sync'), local: makeArea(local, 'local'), onChanged: { addListener: listener => storageListeners.push(listener) } } },
+    chrome: { storage: { sync: syncArea, local: makeArea(local, 'local'), onChanged: { addListener: listener => storageListeners.push(listener) } } },
     document: {
       visibilityState: 'hidden',
       getElementById: id => root.descendants().find(element => element.id === id) || null,
@@ -179,28 +184,12 @@ test('the OpenAI connection test honours the current Priority switch, including 
   options.byId('prefOpenaiPriority').checked = false;
   await options.byId('btnTestCompatible').fire('click');
   assert.equal(options.requests.length, 1);
+  assert.deepEqual([...options.requests[0].tabs].map(tab => tab.title), ['Project plan', 'Project notes'], 'one plan request on the two synthetic tabs');
   assert.equal(options.requests[0].settings.openaiPriority, false);
   assert.equal(options.sync.openaiPriority, true, 'the request uses the displayed control');
   options.byId('prefOpenaiPriority').checked = true;
   await options.byId('btnTestCompatible').fire('click');
   assert.equal(options.requests[1].settings.openaiPriority, true);
-});
-
-test('cloud economy mode defaults OFF, saves both values and applies to remote Ollama', async () => {
-  const options = await openOptions();
-  assert.equal(options.byId('prefCloudEconomy').checked, false);
-  assert.equal(options.byId('cloudCostSettings').classList.contains('hidden'), false);
-  options.byId('prefCloudEconomy').checked = true;
-  await options.byId('prefCloudEconomy').fire('change');
-  assert.equal(options.sync.cloudEconomyMode, true);
-  options.byId('prefCloudEconomy').checked = false;
-  await options.byId('prefCloudEconomy').fire('change');
-  assert.equal(options.sync.cloudEconomyMode, false);
-  const remote = await openOptions({ sync: { provider: 'ollama', ollamaBaseUrl: 'http://192.168.1.20:11434/v1', cloudEconomyMode: true } });
-  assert.equal(remote.byId('prefCloudEconomy').checked, true);
-  assert.equal(remote.byId('cloudCostSettings').classList.contains('hidden'), false);
-  const local = await openOptions({ sync: { provider: 'ollama' } });
-  assert.equal(local.byId('cloudCostSettings').classList.contains('hidden'), true);
 });
 
 test('cached labels with a paid refinement request report cloud usage and reasoning', async () => {
@@ -222,9 +211,25 @@ test('cached labels with a paid refinement request report cloud usage and reason
   assert.equal(options.byId('diagReasoningTokens').textContent, 'Not used');
 });
 
+test('minor 2: diagnostics count plan requests and show a plan run as a model run', async () => {
+  const run = {
+    provider: 'openai', source: 'cloud-plan', strategy: 'task', model: 'gpt-6-luna',
+    modelCalls: { label: 0, naming: 0, consolidation: 0, plan: 1 },
+    promptTokens: 900, completionTokens: 140, reasoningTokens: 0, reasoningEffort: 'none'
+  };
+  const options = await openOptions({ run });
+  assert.match(options.byId('diagSource').textContent, /cloud plan · 1 cloud request/);
+  assert.match(options.byId('diagTokens').textContent, /900 in · 140 out/);
+  assert.equal(options.byId('diagReasoning').textContent, 'None');
+  // A late plan: the request went out, its usage arrives with the answer.
+  await options.updateRun({ ...run, source: 'plan-pending', promptTokens: 0, completionTokens: 0, reasoningTokens: null });
+  assert.match(options.byId('diagSource').textContent, /plan pending · 1 cloud request/);
+  assert.doesNotMatch(options.byId('diagTokens').textContent, /Local or cache result/);
+});
+
 test('task diagnostics describe the preferred group target without treating it as a hard ceiling', async () => {
   const options = await openOptions({ run: {
-    provider: 'gemini_nano', strategy: 'task', source: 'nano', tabsGrouped: 23,
+    provider: 'openai', strategy: 'task', source: 'cloud', tabsGrouped: 23,
     groupsCreated: 8, groupCeiling: 6, modelCalls: { label: 1, naming: 0, consolidation: 0 }
   } });
   assert.equal(options.byId('diagOutcome').textContent, '23 tabs · 8 groups · 0 duplicates · preferred target 6');
@@ -280,28 +285,38 @@ test('provider usage updates after late replies independently of Last cleanup an
   assert.equal(options.byId('diagSource').textContent, sourceBefore);
 });
 
-test('Nano availability does not claim the worker model is already loaded', async () => {
-  const options = await openOptions({ sync: { provider: 'gemini_nano' }, nano: 'ready' });
-  assert.equal(options.byId('nanoBadge').textContent, 'Available');
-  const text = options.byId('nanoStatusText').children
-    .map(node => typeof node === 'string' ? node : node.textContent).join('');
-  assert.match(text, /Local model available/);
-  assert.match(text, /Chrome has downloaded it/);
-  assert.match(text, /If it needs loading/);
-  assert.match(text, /temporary local groups/);
-  assert.doesNotMatch(text, /model ready/);
-  assert.equal(options.byId('btnRecheckNano').classList.contains('hidden'), true);
+test('Settings offers no Gemini Nano engine, describes Offline smart mode plainly and keeps the model memory setting for Ollama', async () => {
+  const pageText = element => [element.textContent, ...element.descendants().map(child => child.textContent)].join(' ');
+  const options = await openOptions({ sync: { provider: 'gemini_nano', backgroundPrep: true } });
+  const engines = options.root.querySelectorAll('input[name="providerSelect"]').map(radio => radio.value);
+  assert.ok(engines.includes('offline'));
+  assert.equal(engines.includes('gemini_nano'), false);
+  assert.equal(options.root.querySelectorAll('input[name="providerSelect"]').find(radio => radio.checked)?.value, 'offline', 'a stale engine shows as Offline smart mode');
+  for (const id of ['panel-nano-details', 'btnRecheckNano', 'nanoStatusText', 'prefBackgroundPrep', 'modelMemoryRow', 'btnFreeModelMemory', 'autoGroupPrepNote']) {
+    assert.equal(options.byId(id), null, id);
+  }
+  const text = pageText(options.root);
+  assert.doesNotMatch(text, /Nano|on-device Gemini|Prompt API|chrome:\/\/on-device-internals|background preparation/i);
+  assert.doesNotMatch(pageText(options.byId('panel-offline-details')), /\u2014/, 'no em dashes');
+  assert.equal(options.byId('offlineSummary').textContent, 'Groups tabs on this device from their titles, words from their addresses and a small word table built into Foldnex. Nothing is sent.');
+  assert.equal(options.byId('onDeviceSettings').classList.contains('hidden'), true);
+
+  const ollama = await openOptions({ sync: { provider: 'ollama', modelUnloadAfter: '15m' } });
+  assert.equal(ollama.byId('onDeviceSettings').classList.contains('hidden'), false);
+  assert.equal(ollama.byId('prefModelUnloadAfter').value, '15m');
+  await ollama.selectProvider('openai');
+  assert.equal(ollama.byId('onDeviceSettings').classList.contains('hidden'), true);
 });
 
 test('model catalog and connection test errors never render echoed API credentials', async () => {
   const secret = 'synthetic-provider-echoed-key';
   const error = `HTTP 401: Incorrect API key provided: ${secret}`;
   const openai = await openOptions({ catalogError: error, connectionError: error });
-  assert.equal(openai.byId('compatibleModelsStatus').textContent, 'Invalid API key. Check the saved key.');
+  assert.equal(openai.byId('compatibleModelsStatus').textContent, 'API key missing or rejected. Check the key.');
   assert.doesNotMatch(openai.byId('compatibleModelsStatus').textContent, /synthetic-provider-echoed-key/);
   openai.byId('compatibleApiKey').value = secret;
   await openai.byId('btnTestCompatible').fire('click');
-  assert.equal(openai.byId('toast').textContent, 'Invalid API key. Check the saved key.');
+  assert.equal(openai.byId('toast').textContent, 'API key missing or rejected. Check the key.');
   assert.doesNotMatch(openai.byId('toast').textContent, /synthetic-provider-echoed-key/);
 
   const gemini = await openOptions({ sync: { provider: 'gemini_api' }, catalogError: `Provider body: ${secret}` });
@@ -363,7 +378,7 @@ test('committed credential and endpoint edits fetch fresh catalogs without trust
   assert.equal(options.catalogRequests.length, 2);
   await options.byId('compatibleBaseUrl').fire('change');
   assert.equal(options.catalogRequests.length, 3);
-  assert.equal(options.catalogRequests[2].baseUrl, 'https://another-gateway.example/v1');
+  assert.equal(options.catalogRequests[2].baseUrl, 'https://api.openai.com/v1', 'a fixed provider keeps its own endpoint');
   assert.equal(options.local.openaiApiKey, 'synthetic-old-account', 'fetching does not save a draft key');
   assert.deepEqual(options.local.openaiModelCatalog.models, ['stale-account-model'], 'catalog results are page-only');
   assert.equal(options.byId('compatibleModel').value, 'gpt-6-luna', 'refreshing does not select another model');
@@ -392,6 +407,14 @@ test('successful connection tests refresh catalogs and distinguish a catalog fai
   await gemini.byId('btnTestGemini').fire('click');
   assert.equal(gemini.catalogRequests.length, 3);
   assert.equal(gemini.byId('toast').textContent, 'Gemini grouping test passed.');
+});
+
+test('a connection test whose answer leaves no usable folder fails, with one plan request', async () => {
+  const options = await openOptions({ connectionResponse: async () => ({ json: { folders: [{ name: 'Imaginary', ids: [999] }] } }) });
+  options.byId('compatibleApiKey').value = 'synthetic-test-key';
+  await options.byId('btnTestCompatible').fire('click');
+  assert.equal(options.requests.length, 1);
+  assert.equal(options.byId('toast').textContent, 'Grouping test failed. Check the model and provider status.');
 });
 
 function deferred() {
@@ -444,10 +467,10 @@ test('late connection success or failure cannot describe a changed configuration
     }
     const before = options.catalogRequests.length;
     if (outcome === 'failure') result.reject(new Error('HTTP 401: synthetic-old-secret'));
-    else result.resolve({ labels: new Map([[1, 'office']]) });
+    else result.resolve({ json: { folders: [{ name: 'Office', ids: [0, 1] }] } });
     await running;
     assert.equal(options.catalogRequests.length, before, outcome);
-    assert.doesNotMatch(options.byId('toast').textContent, /grouping test passed|Invalid API key|synthetic-old-secret/, outcome);
+    assert.doesNotMatch(options.byId('toast').textContent, /grouping test passed|API key missing or rejected|synthetic-old-secret/, outcome);
     assert.equal(options.byId('btnTestCompatible').disabled, false);
   }
 });
@@ -480,9 +503,29 @@ test('a provider switch during Save cannot pair the original API key with the ne
   gate.resolve();
   await saving;
   assert.equal(options.local.openaiApiKey, 'synthetic-openai-key');
-  assert.equal(options.sync.openaiBaseUrl, 'https://original-openai-gateway.example/v1');
+  assert.equal(options.sync.openaiBaseUrl, undefined, 'a fixed provider endpoint is never stored');
   assert.equal(options.sync.openaiReasoningEffort, 'low');
   assert.equal(options.sync.openaiModel, 'gpt-6-luna');
   assert.equal(options.sync.provider, 'xai');
   assert.equal(options.sync.xaiBaseUrl, undefined, 'switching or typing does not save the other draft');
+});
+
+test('a synced endpoint override for a fixed provider is never shown, used or saved again', async () => {
+  const options = await openOptions({ sync: { provider: 'openai', openaiBaseUrl: 'https://stale-override.example/v1' } });
+  assert.equal(options.byId('compatibleBaseUrl').value, 'https://api.openai.com/v1');
+  assert.equal(options.catalogRequests[0].baseUrl, 'https://api.openai.com/v1');
+  options.byId('compatibleApiKey').value = 'synthetic-test-key';
+  await options.byId('btnTestCompatible').fire('click');
+  assert.equal(options.requests.at(-1).settings.openaiBaseUrl, 'https://api.openai.com/v1');
+  await options.byId('btnSaveCompatible').fire('click');
+  assert.equal('openaiBaseUrl' in options.sync, false, 'saving removes the stale override');
+});
+
+test('Settings marks a saved Ollama address the resolver refuses as not used', async () => {
+  const refused = await openOptions({ sync: { provider: 'ollama', ollamaBaseUrl: 'http://192.168.1.20:11434/v1' } });
+  assert.equal(refused.byId('compatibleBaseUrl').value, 'http://192.168.1.20:11434/v1');
+  assert.match(refused.byId('compatibleBaseUrlNote').textContent, /not used.*runs locally/i);
+  assert.equal(refused.byId('compatibleBaseUrlNote').classList.contains('hidden'), false);
+  const valid = await openOptions({ sync: { provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' } });
+  assert.equal(valid.byId('compatibleBaseUrlNote').classList.contains('hidden'), true);
 });

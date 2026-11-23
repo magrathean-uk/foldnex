@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nano-eval: loading</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; max-width: 1200px; }
+  #picker { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 12px; }
+  table { border-collapse: collapse; margin: 12px 0; }
+  th, td { border: 1px solid #bbb; padding: 3px 8px; text-align: right; }
+  th:first-child, td:first-child, td:last-child, th:last-child { text-align: left; }
+  pre { background: #f4f4f4; padding: 8px; overflow: auto; max-height: 40vh; }
+  button { font: inherit; padding: 4px 14px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<h1>Gemini Nano grouping evaluation</h1>
+<p>Today: labels in batches of 16. Candidate A: pass 1 names up to 10 folders, pass 2 assigns tabs in batches of 16.</p>
+<div id="picker"></div>
+<button id="run" type="button">Run</button>
+<p id="status">Loading fixtures...</p>
+<table id="table"></table>
+<pre id="results"></pre>
+<script type="module" src="./page.mjs"></script>
+</body>
+</html>

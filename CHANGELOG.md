@@ -2,6 +2,51 @@
 
 This changelog summarises source changes. A version entry does not establish Chrome Web Store approval or public availability.
 
+## 2.1.0
+
+Release candidate, 23 November 2026. Not yet submitted to the Chrome Web Store.
+
+### Grouping
+
+- With a cloud engine or Ollama, a cleanup sends at most one plan request for the window and the model returns named groups. Foldnex checks and repairs the answer locally (each tab placed at most once, names checked, at most ten groups of its own apart from rule and Socials groups) and applies it. Per-tab category labels, their batches and the naming and consolidation requests are removed.
+- Added a local engine used by Offline smart mode and by a failed or late request: it clusters tab titles and address words with a packaged word table (potion-base-4M, MIT, see the third-party notices) and sends no request.
+- Added plan upkeep: in a regular window an unchanged window reuses its applied plan, and when at most 10% of its tabs are new or changed since the last model plan, those tabs join the plan's groups on the device or wait in Review Later, with no request.
+- A plan that arrives after the click's wait (about 5.4 seconds) and still matches the window is offered in the popup with **Apply**; it never regroups the strip on its own.
+- Auto-group new tabs now attaches a new tab to an existing matching group on the device, in By task on every engine, and never sends a request.
+- Rule and Socials tabs are not sent to a model.
+- Plan requests use the lowest reasoning effort Foldnex offers for the model.
+
+### Privacy and security
+
+- Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
+- Cloud engines always use their provider's own address; a saved address override is ignored. An Ollama address must use HTTPS unless it is on this device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects.
+- Loopback Ollama is the first hop: the request goes to the Ollama server on this device, and that server can itself run cloud models.
+- The URL hint masks long identifiers in whole path segments, then keeps at most 80 path characters, as in 2.0.
+- The popup and Settings name only the endpoint a request would use; a saved Ollama address that is refused is shown as not used.
+- Run diagnostics record the configured model, not the model name a provider returns. Console messages hold no group names.
+- Plan answers and the Gemini model catalogue are read within fixed bounds.
+
+### Removed
+
+- Chrome Gemini Nano is no longer an engine. A saved Nano choice, and its setup choice, become Offline smart mode the first time settings load after the update. Foldnex then deletes the stored per-tab labels and Nano's timing memory, retrying a failed removal on a later load.
+- Removed background preparation, the Nano model-memory controls and Cloud economy mode, with their saved settings. Ollama on this device keeps its unload setting.
+- The background no longer sends or prepares anything on any engine.
+
+### Settings and store
+
+- Setup card: Cloud AI or Offline smart mode (Keep Ollama where it applies). New installs start on Offline smart mode.
+- Settings copy states that cleanups use the lowest reasoning effort, that a typed key is used to list models before Save, and that provider usage counts failed requests.
+- The store archive now includes Foldnex's own `LICENSE`.
+- Product links moved to `https://magrathean.uk/solutions/foldnex/`.
+- Store screenshots that showed Gemini Nano or removed copy were replaced with automated captures of 2.1.0 (02 with seeded example totals, 05 with a loopback stand-in model list).
+
+### What you need to know
+
+- If you used Gemini Nano, Foldnex now uses Offline smart mode. Choose a cloud engine or Ollama in Settings for model-quality groups.
+- No new permission.
+- The 2.1.0 archive is 3.9 MB because of the word table; the release plan records the previous package at 0.2 MB.
+- Measured on twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups): a plan from Claude Sonnet 5.5, measured directly against the Claude API, scored 0.84 and OpenAI's default model 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels; the local engine scored 0.39, against 0.19 for 2.0's local rules. The other engines' default models are not yet measured. See `docs/development/grouping-fix-plan.md` and `eval/results/rescore.md`.
+
 ## Documentation refresh — 6 October 2026
 
 - Added a user guide covering setup, engines, background work, memory, rules, diagnostics and troubleshooting.

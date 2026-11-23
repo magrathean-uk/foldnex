@@ -30,7 +30,7 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <span class="version-label">Foldnex v2.0.0</span>
+        <span class="version-label">Foldnex v2.1.0</span>
         <div class="sidebar-footer-links">
           <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
           <span aria-hidden="true">·</span>
@@ -73,24 +73,6 @@
         <div id="pendingEngineNote" class="pending-engine-note hidden" role="status"></div>
 
         <!-- Provider Details Configurations -->
-        <!-- Nano Config Details -->
-        <div id="panel-nano-details" class="provider-settings-box" tabindex="-1">
-          <h3>Chrome Gemini Nano</h3>
-          <div class="nano-status-banner" role="status" aria-live="polite">
-            <div id="nanoStatusText">Checking Chrome’s local model…</div>
-          </div>
-          <div id="nanoRequirements" class="setup-instructions">
-            <h4>Local model requirements</h4>
-            <ul>
-              <li><strong>Chrome 138+</strong> on macOS 13 or newer.</li>
-              <li><strong>22 GB free storage</strong> and either more than 4 GB VRAM or 16 GB RAM with at least four CPU cores.</li>
-              <li>An unmetered connection for the first download. Use the button below to start it.</li>
-              <li>For Chrome diagnostics, open <code class="code-link">chrome://on-device-internals</code>.</li>
-            </ul>
-          </div>
-          <button id="btnRecheckNano" class="secondary-btn" type="button">Checking…</button>
-        </div>
-
         <!-- Gemini API Config Details -->
         <div id="panel-gemini-details" class="provider-settings-box hidden" tabindex="-1">
           <h3>Google Gemini API Configuration</h3>
@@ -103,7 +85,7 @@
               </div>
               <button id="btnTestGemini" class="secondary-btn" type="button">Test connection</button>
             </div>
-            <span class="form-help">Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</span>
+            <span class="form-help">Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>. Stored only in Chrome local storage on this device. The key you type is sent to Google to list models, even before you save.</span>
           </div>
 
           <div class="form-group">
@@ -144,7 +126,7 @@
               </div>
               <button id="btnTestCompatible" class="secondary-btn" type="button">Test connection</button>
             </div>
-            <span class="form-help">Stored only in Chrome local storage on this device.</span>
+            <span class="form-help">Stored only in Chrome local storage on this device. The key you type is sent to this provider’s address to list models, even before you save.</span>
           </div>
 
           <div class="form-group">
@@ -171,7 +153,7 @@
           <div id="openaiPrioritySection" class="setting-item hidden">
             <div class="setting-text">
               <div class="setting-name">Priority processing</div>
-              <div class="setting-description">Faster OpenAI responses at a higher per-token price.</div>
+              <div class="setting-description">Requests OpenAI’s priority tier, which can cost more. Availability and speed are up to OpenAI.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefOpenaiPriority" aria-label="Use OpenAI priority processing">
@@ -182,6 +164,7 @@
           <div class="form-group">
             <label for="compatibleBaseUrl">API base URL</label>
             <input type="text" id="compatibleBaseUrl" class="form-input" readonly>
+            <span id="compatibleBaseUrlNote" class="form-help hidden"></span>
           </div>
 
           <div id="oauthSection" class="sub-section hidden">
@@ -189,7 +172,7 @@
             <div class="form-group">
               <label for="openaiOAuthToken">OpenAI bearer token</label>
               <input type="password" id="openaiOAuthToken" placeholder="eyJhbGciOi..." class="form-input">
-              <span class="form-help">Optional bearer token supplied by you and stored only in Chrome local storage on this device.</span>
+              <span class="form-help">Optional bearer token supplied by you and stored only in Chrome local storage on this device. An API key takes priority. To remove OpenAI authentication, clear both fields and save.</span>
             </div>
           </div>
 
@@ -201,50 +184,25 @@
         <!-- Offline Smart Mode Details -->
         <div id="panel-offline-details" class="provider-settings-box hidden" tabindex="-1">
           <h3>Offline smart mode</h3>
-          <div class="nano-status-banner">
-            <div><strong>Offline mode is active.</strong> Tabs are grouped using local URL structure and title similarity.</div>
+          <div class="engine-status-banner">
+            <div id="offlineSummary">Groups tabs on this device from their titles, words from their addresses and a small word table built into Foldnex. Nothing is sent.</div>
           </div>
           <div class="setup-instructions">
             <h4>How it works</h4>
             <ul>
-              <li>Grouping runs on this device without a cloud model request.</li>
-              <li>Foldnex uses this mode if the selected AI engine is unavailable.</li>
+              <li>If a cloud or Ollama request fails or answers late, Foldnex applies this mode’s grouping; that request has already been sent.</li>
+              <li>Private windows always use this mode, whatever engine is selected: nothing is sent from them.</li>
             </ul>
           </div>
         </div>
 
-        <section id="cloudCostSettings" class="provider-settings-box hidden" aria-labelledby="cloudCostHeading">
-          <h3 id="cloudCostHeading">Cloud request cost</h3>
-          <div class="setting-item">
-            <div class="setting-text">
-              <div id="cloudEconomyName" class="setting-name">Cloud economy mode</div>
-              <div id="cloudEconomyHelp" class="setting-description">Use fewer requests by skipping optional group refinement and naming. Tabs still receive category labels; group names may be simpler. Off by default to keep the current grouping behaviour.</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="prefCloudEconomy" aria-labelledby="cloudEconomyName" aria-describedby="cloudEconomyHelp">
-              <span class="slider round"></span>
-            </label>
-          </div>
-        </section>
-
-        <!-- On-device engines only: background preparation and model memory -->
+        <!-- Ollama on this device only: how long its model stays loaded -->
         <section id="onDeviceSettings" class="provider-settings-box on-device-settings hidden" aria-labelledby="onDeviceHeading">
-          <h3 id="onDeviceHeading">Background work and memory</h3>
-          <div class="setting-item">
-            <div class="setting-text">
-              <div id="backgroundPrepName" class="setting-name">Prepare groups in the background</div>
-              <div id="backgroundPrepHelp" class="setting-description">Labels tabs as they load, so a later cleanup can use saved labels. Uses about 3 GB of memory while the model is loaded, and some CPU when tabs change. Turn off to start labelling when you clean up: tabs the model has not reached yet are placed by site first, then labelled in the background for a later cleanup.</div>
-              <div id="backgroundPrepAutoNote" class="setting-note hidden">Auto-group new tabs is on, so background preparation stays active.</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="prefBackgroundPrep" aria-labelledby="backgroundPrepName" aria-describedby="backgroundPrepHelp backgroundPrepAutoNote">
-              <span class="slider round"></span>
-            </label>
-          </div>
+          <h3 id="onDeviceHeading">Model memory</h3>
           <div id="modelUnloadRow" class="setting-item stackable">
             <div class="setting-text">
-              <label class="setting-name" for="prefModelUnloadAfter">Unload the on-device model</label>
-              <div id="modelUnloadHelp" class="setting-description">Foldnex releases the model and Chrome then frees its memory. Grouping stays fast because labels are saved; only new tabs need the model to load again.</div>
+              <label class="setting-name" for="prefModelUnloadAfter">Unload the Ollama model</label>
+              <div id="modelUnloadHelp" class="setting-description">How long Ollama keeps the model loaded after a cleanup. Foldnex sends this to Ollama with each cleanup request; your Ollama server decides whether to honour it. The Ollama server on this device is the first hop: it can itself run cloud models.</div>
             </div>
             <select id="prefModelUnloadAfter" class="form-select setting-select" aria-describedby="modelUnloadHelp">
               <option value="immediately">Right after use</option>
@@ -255,13 +213,6 @@
               <option value="never">Keep loaded</option>
             </select>
           </div>
-          <div id="modelMemoryRow" class="setting-item stackable">
-            <div class="setting-text">
-              <div id="modelMemoryName" class="setting-name">Model memory</div>
-              <div id="modelStateLine" class="setting-description model-state">Checking…</div>
-            </div>
-            <button id="btnFreeModelMemory" class="secondary-btn" type="button" aria-describedby="modelStateLine">Free memory now</button>
-          </div>
         </section>
       </section>
 
@@ -269,7 +220,7 @@
       <section id="tab-learning" class="tab-panel" role="tabpanel" aria-labelledby="nav-learning">
         <div class="section-header">
           <h2>Rules & memory</h2>
-          <p class="section-subtitle">Explicit URL rules override grouping. Unchanged windows are reused from a short-lived semantic cache.</p>
+          <p class="section-subtitle">URL rules override grouping and their tabs are not sent to a model. Private windows always use Offline smart mode and do not read rules. An unchanged window’s result is reused for up to six hours.</p>
         </div>
 
         <!-- Add Manual Rule Form -->
@@ -277,7 +228,7 @@
           <h3>Add Custom Rule Override</h3>
           <div class="add-rule-grid">
             <div class="form-group">
-              <label for="newRulePattern">URL Pattern (wildcards allowed)</label>
+              <label for="newRulePattern">URL pattern (host, then optional path; * as wildcard)</label>
               <input type="text" id="newRulePattern" placeholder="github.com/my-org/*" class="form-input">
             </div>
             <div class="form-group">
@@ -364,7 +315,7 @@
           <div class="setting-item">
             <div class="setting-text">
               <div class="setting-name">Run from toolbar</div>
-              <div class="setting-description">Skip the popup and clean the current window immediately.</div>
+              <div class="setting-description">Skip the popup and clean the current window immediately, once setup is answered.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefOneClickMode" aria-label="Run directly from toolbar">
@@ -375,8 +326,7 @@
           <div class="setting-item">
             <div class="setting-text">
               <div class="setting-name">Auto-group new tabs</div>
-              <div class="setting-description">File each tab you open, or send to a new page, into a matching group as it loads. A tab you take out of a group stays out until it opens another page. With a cloud engine, the title and host/path hint of each such tab are sent to that provider; tabs that were already open are sent only when you run a cleanup.</div>
-              <div id="autoGroupPrepNote" class="setting-note hidden">With your on-device engine, Auto-group keeps background preparation active.</div>
+              <div class="setting-description">In By task, file each tab you open, or send to a new page, into a matching existing group as it loads. A tab you take out of a group stays out until it opens another page. Matching happens on this device on every engine; nothing is sent.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefAutoGroup" aria-label="Auto-group new tabs">
@@ -387,7 +337,7 @@
           <div class="setting-item">
             <div class="setting-text">
               <div class="setting-name">Auto-collapse new groups</div>
-              <div class="setting-description">Leave the active group open and collapse the rest.</div>
+              <div class="setting-description">Ask Chrome to collapse each group Foldnex creates.</div>
             </div>
             <label class="switch">
               <input type="checkbox" id="prefCollapseGroups" aria-label="Auto-collapse new groups">
@@ -398,7 +348,7 @@
 
         <div class="section-header diagnostics-heading">
           <h3>Last cleanup</h3>
-          <p class="section-subtitle">Privacy-safe execution details. Titles, URLs, prompts, and provider responses are never stored here.</p>
+          <p class="section-subtitle">Recent run details. Titles, URLs, prompts and provider responses are not stored here, but group names can contain words from them.</p>
         </div>
 
         <dl class="diagnostics-grid" aria-live="polite">
@@ -418,7 +368,7 @@
 
         <div class="section-header provider-usage-heading">
           <h3>Provider request usage</h3>
-          <p class="section-subtitle">Reported tokens from provider inference and connection-test requests, including late or background replies. Totals accumulate until cleared. Titles, URLs, prompts and keys are never stored here.</p>
+          <p class="section-subtitle">Every cleanup and connection-test request Foldnex starts, including failed and late ones, with the tokens the provider reports. Model lists and Incognito cleanups are not counted. Totals accumulate until cleared. Titles, URLs, prompts and keys are never stored here.</p>
         </div>
         <dl class="diagnostics-grid" aria-live="polite">
           <div><dt>Requests</dt><dd id="usageRequests">0</dd></div>
@@ -434,7 +384,7 @@
 
         <div class="section-header" style="margin-top: 32px;">
           <h3>Keyboard shortcuts</h3>
-          <p class="section-subtitle">Group or ungroup tabs instantly using global hotkeys.</p>
+          <p class="section-subtitle">Suggested Chrome shortcuts, active while Chrome is focused. Your current assignments may differ.</p>
         </div>
 
         <div class="shortcuts-box">

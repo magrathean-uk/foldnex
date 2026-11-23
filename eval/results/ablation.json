@@ -1,0 +1,1784 @@
+{
+  "protocol": {
+    "windows": [
+      "a-designer",
+      "a-hoarder",
+      "a-household",
+      "a-oncall",
+      "a-student",
+      "b-academic",
+      "b-expat",
+      "b-messy",
+      "b-move",
+      "b-shop",
+      "dev",
+      "life"
+    ],
+    "english": [
+      "a-designer",
+      "a-hoarder",
+      "a-oncall",
+      "a-student",
+      "b-academic",
+      "b-messy",
+      "b-move",
+      "b-shop",
+      "dev",
+      "life"
+    ],
+    "nonEnglish": [
+      "a-household",
+      "b-expat"
+    ],
+    "shares": [
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "seeds": 20,
+    "note": "Clusters as groups and plan upkeep, selection leave-one-window-out as run-local.mjs (first best wins ties). Blend grids are run-local's (all four idf/centring switches, wl 0, 0.5, 1); dense is the same grid at wl 0. Lexical channels have no switches and, in upkeep, only the mean and max representations (no dense centroid). Timing: warm, median of 20, similarity plus dendrogram and cut at the in-sample tau; not part of the determinism check."
+  },
+  "channels": {
+    "lexical-title": {
+      "grid": {
+        "tau": [
+          0.005,
+          0.01,
+          0.02,
+          0.03,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.005",
+          "0.01",
+          "0.02",
+          "0.03",
+          "0.05",
+          "0.075",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": null,
+        "switches": "none (idf is built into the overlap)",
+        "reps": [
+          "mean",
+          "max"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.3547,
+          "english": 0.3791,
+          "nonEnglish": 0.2326,
+          "perWindow": {
+            "a-designer": 0.4807,
+            "a-hoarder": 0.3148,
+            "a-household": 0.2037,
+            "a-oncall": 0.3263,
+            "a-student": 0.3403,
+            "b-academic": 0.3323,
+            "b-expat": 0.2615,
+            "b-messy": 0.5447,
+            "b-move": 0.4807,
+            "b-shop": 0.2188,
+            "dev": 0.2432,
+            "life": 0.5095
+          }
+        },
+        "inSample": {
+          "all": 0.3605,
+          "english": 0.386,
+          "nonEnglish": 0.2326,
+          "perWindow": {
+            "a-designer": 0.4807,
+            "a-hoarder": 0.3148,
+            "a-household": 0.2037,
+            "a-oncall": 0.3263,
+            "a-student": 0.3403,
+            "b-academic": 0.4012,
+            "b-expat": 0.2615,
+            "b-messy": 0.5447,
+            "b-move": 0.4807,
+            "b-shop": 0.2188,
+            "dev": 0.2432,
+            "life": 0.5095
+          },
+          "setting": "title-t0.02"
+        },
+        "heldOutSettings": {
+          "a-designer": "title-t0.02",
+          "a-hoarder": "title-t0.02",
+          "a-household": "title-t0.02",
+          "a-oncall": "title-t0.02",
+          "a-student": "title-t0.02",
+          "b-academic": "title-t0.03",
+          "b-expat": "title-t0.02",
+          "b-messy": "title-t0.02",
+          "b-move": "title-t0.02",
+          "b-shop": "title-t0.02",
+          "dev": "title-t0.02",
+          "life": "title-t0.02"
+        },
+        "tauEdge": {
+          "inSample": 0.02,
+          "chosen": {
+            "lowest": 0.02,
+            "highest": 0.03,
+            "gridMin": 0.005,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9389
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8727
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8035
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6443
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.9389,
+              "english": 0.9424,
+              "nonEnglish": 0.9214
+            },
+            "0.2": {
+              "all": 0.8727,
+              "english": 0.882,
+              "nonEnglish": 0.8262
+            },
+            "0.3": {
+              "all": 0.8035,
+              "english": 0.8114,
+              "nonEnglish": 0.7637
+            },
+            "0.5": {
+              "all": 0.6443,
+              "english": 0.6646,
+              "nonEnglish": 0.5426
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9497,
+              "0.2": 0.9191,
+              "0.3": 0.8418,
+              "0.5": 0.7496
+            },
+            "a-hoarder": {
+              "0.1": 0.9388,
+              "0.2": 0.8557,
+              "0.3": 0.8038,
+              "0.5": 0.6569
+            },
+            "a-household": {
+              "0.1": 0.9103,
+              "0.2": 0.8034,
+              "0.3": 0.7328,
+              "0.5": 0.499
+            },
+            "a-oncall": {
+              "0.1": 0.9442,
+              "0.2": 0.887,
+              "0.3": 0.8016,
+              "0.5": 0.6807
+            },
+            "a-student": {
+              "0.1": 0.9514,
+              "0.2": 0.88,
+              "0.3": 0.8317,
+              "0.5": 0.6619
+            },
+            "b-academic": {
+              "0.1": 0.934,
+              "0.2": 0.8725,
+              "0.3": 0.8025,
+              "0.5": 0.6451
+            },
+            "b-expat": {
+              "0.1": 0.9326,
+              "0.2": 0.849,
+              "0.3": 0.7947,
+              "0.5": 0.5863
+            },
+            "b-messy": {
+              "0.1": 0.9742,
+              "0.2": 0.9543,
+              "0.3": 0.8957,
+              "0.5": 0.7865
+            },
+            "b-move": {
+              "0.1": 0.9634,
+              "0.2": 0.9134,
+              "0.3": 0.8572,
+              "0.5": 0.6861
+            },
+            "b-shop": {
+              "0.1": 0.9025,
+              "0.2": 0.805,
+              "0.3": 0.7134,
+              "0.5": 0.5235
+            },
+            "dev": {
+              "0.1": 0.914,
+              "0.2": 0.8381,
+              "0.3": 0.7379,
+              "0.5": 0.5471
+            },
+            "life": {
+              "0.1": 0.9514,
+              "0.2": 0.8953,
+              "0.3": 0.8286,
+              "0.5": 0.7086
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9412
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8756
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8071
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6469
+            }
+          ],
+          "setting": "title|mean|0.02"
+        },
+        "heldOutSettings": {
+          "a-designer": "title|mean|0.03",
+          "a-hoarder": "title|mean|0.03",
+          "a-household": "title|mean|0.02",
+          "a-oncall": "title|mean|0.03",
+          "a-student": "title|mean|0.02",
+          "b-academic": "title|mean|0.02",
+          "b-expat": "title|mean|0.01",
+          "b-messy": "title|mean|0.02",
+          "b-move": "title|mean|0.02",
+          "b-shop": "title|mean|0.02",
+          "dev": "title|mean|0.03",
+          "life": "title|mean|0.02"
+        },
+        "thetaEdge": {
+          "inSample": "0.02",
+          "chosen": {
+            "lowest": 0.01,
+            "highest": 0.03,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    },
+    "lexical-title-url": {
+      "grid": {
+        "tau": [
+          0.005,
+          0.01,
+          0.02,
+          0.03,
+          0.05,
+          0.075,
+          0.1,
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.005",
+          "0.01",
+          "0.02",
+          "0.03",
+          "0.05",
+          "0.075",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": null,
+        "switches": "none (idf is built into the overlap)",
+        "reps": [
+          "mean",
+          "max"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.3341,
+          "english": 0.3526,
+          "nonEnglish": 0.2418,
+          "perWindow": {
+            "a-designer": 0.4571,
+            "a-hoarder": 0.2107,
+            "a-household": 0.2442,
+            "a-oncall": 0.3471,
+            "a-student": 0.2619,
+            "b-academic": 0.4061,
+            "b-expat": 0.2393,
+            "b-messy": 0.4547,
+            "b-move": 0.3211,
+            "b-shop": 0.2527,
+            "dev": 0.3864,
+            "life": 0.4277
+          }
+        },
+        "inSample": {
+          "all": 0.3341,
+          "english": 0.3526,
+          "nonEnglish": 0.2418,
+          "perWindow": {
+            "a-designer": 0.4571,
+            "a-hoarder": 0.2107,
+            "a-household": 0.2442,
+            "a-oncall": 0.3471,
+            "a-student": 0.2619,
+            "b-academic": 0.4061,
+            "b-expat": 0.2393,
+            "b-messy": 0.4547,
+            "b-move": 0.3211,
+            "b-shop": 0.2527,
+            "dev": 0.3864,
+            "life": 0.4277
+          },
+          "setting": "title-url-t0.01"
+        },
+        "heldOutSettings": {
+          "a-designer": "title-url-t0.01",
+          "a-hoarder": "title-url-t0.01",
+          "a-household": "title-url-t0.01",
+          "a-oncall": "title-url-t0.01",
+          "a-student": "title-url-t0.01",
+          "b-academic": "title-url-t0.01",
+          "b-expat": "title-url-t0.01",
+          "b-messy": "title-url-t0.01",
+          "b-move": "title-url-t0.01",
+          "b-shop": "title-url-t0.01",
+          "dev": "title-url-t0.01",
+          "life": "title-url-t0.01"
+        },
+        "tauEdge": {
+          "inSample": 0.01,
+          "chosen": {
+            "lowest": 0.01,
+            "highest": 0.01,
+            "gridMin": 0.005,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.936
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8639
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8012
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6461
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.936,
+              "english": 0.9405,
+              "nonEnglish": 0.9136
+            },
+            "0.2": {
+              "all": 0.8639,
+              "english": 0.8777,
+              "nonEnglish": 0.7946
+            },
+            "0.3": {
+              "all": 0.8012,
+              "english": 0.8112,
+              "nonEnglish": 0.7511
+            },
+            "0.5": {
+              "all": 0.6461,
+              "english": 0.6645,
+              "nonEnglish": 0.5542
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9602,
+              "0.2": 0.9231,
+              "0.3": 0.8484,
+              "0.5": 0.7336
+            },
+            "a-hoarder": {
+              "0.1": 0.9411,
+              "0.2": 0.877,
+              "0.3": 0.8183,
+              "0.5": 0.6584
+            },
+            "a-household": {
+              "0.1": 0.9074,
+              "0.2": 0.7774,
+              "0.3": 0.7071,
+              "0.5": 0.4863
+            },
+            "a-oncall": {
+              "0.1": 0.9383,
+              "0.2": 0.8661,
+              "0.3": 0.7696,
+              "0.5": 0.6182
+            },
+            "a-student": {
+              "0.1": 0.9354,
+              "0.2": 0.8638,
+              "0.3": 0.8109,
+              "0.5": 0.6433
+            },
+            "b-academic": {
+              "0.1": 0.9348,
+              "0.2": 0.8719,
+              "0.3": 0.7858,
+              "0.5": 0.6756
+            },
+            "b-expat": {
+              "0.1": 0.9198,
+              "0.2": 0.8118,
+              "0.3": 0.7951,
+              "0.5": 0.622
+            },
+            "b-messy": {
+              "0.1": 0.9576,
+              "0.2": 0.9285,
+              "0.3": 0.8457,
+              "0.5": 0.7339
+            },
+            "b-move": {
+              "0.1": 0.938,
+              "0.2": 0.8772,
+              "0.3": 0.823,
+              "0.5": 0.6287
+            },
+            "b-shop": {
+              "0.1": 0.9074,
+              "0.2": 0.8215,
+              "0.3": 0.7683,
+              "0.5": 0.563
+            },
+            "dev": {
+              "0.1": 0.9549,
+              "0.2": 0.8926,
+              "0.3": 0.8473,
+              "0.5": 0.7116
+            },
+            "life": {
+              "0.1": 0.9371,
+              "0.2": 0.8558,
+              "0.3": 0.7943,
+              "0.5": 0.679
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.936
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8639
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8012
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6461
+            }
+          ],
+          "setting": "title-url|mean|0.02"
+        },
+        "heldOutSettings": {
+          "a-designer": "title-url|mean|0.02",
+          "a-hoarder": "title-url|mean|0.02",
+          "a-household": "title-url|mean|0.02",
+          "a-oncall": "title-url|mean|0.02",
+          "a-student": "title-url|mean|0.02",
+          "b-academic": "title-url|mean|0.02",
+          "b-expat": "title-url|mean|0.02",
+          "b-messy": "title-url|mean|0.02",
+          "b-move": "title-url|mean|0.02",
+          "b-shop": "title-url|mean|0.02",
+          "dev": "title-url|mean|0.02",
+          "life": "title-url|mean|0.02"
+        },
+        "thetaEdge": {
+          "inSample": "0.02",
+          "chosen": {
+            "lowest": 0.02,
+            "highest": 0.02,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    },
+    "dense-4M": {
+      "grid": {
+        "tau": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.05",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": [
+          0
+        ],
+        "switches": "idf and centring, as run-local",
+        "reps": [
+          "mean",
+          "max",
+          "centroid"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.3561,
+          "english": 0.3751,
+          "nonEnglish": 0.2611,
+          "perWindow": {
+            "a-designer": 0.3296,
+            "a-hoarder": 0.2093,
+            "a-household": 0.2469,
+            "a-oncall": 0.3123,
+            "a-student": 0.267,
+            "b-academic": 0.3522,
+            "b-expat": 0.2753,
+            "b-messy": 0.6062,
+            "b-move": 0.3654,
+            "b-shop": 0.3163,
+            "dev": 0.4647,
+            "life": 0.5279
+          }
+        },
+        "inSample": {
+          "all": 0.3728,
+          "english": 0.3952,
+          "nonEnglish": 0.2611,
+          "perWindow": {
+            "a-designer": 0.5,
+            "a-hoarder": 0.2093,
+            "a-household": 0.2469,
+            "a-oncall": 0.3123,
+            "a-student": 0.267,
+            "b-academic": 0.3522,
+            "b-expat": 0.2753,
+            "b-messy": 0.6062,
+            "b-move": 0.3956,
+            "b-shop": 0.3163,
+            "dev": 0.4647,
+            "life": 0.5279
+          },
+          "setting": "raw-wl0-t0.25"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-wl0-t0.2",
+          "a-hoarder": "raw-wl0-t0.25",
+          "a-household": "raw-wl0-t0.25",
+          "a-oncall": "raw-wl0-t0.25",
+          "a-student": "raw-wl0-t0.25",
+          "b-academic": "raw-wl0-t0.25",
+          "b-expat": "raw-wl0-t0.25",
+          "b-messy": "raw-wl0-t0.25",
+          "b-move": "raw-wl0-t0.2",
+          "b-shop": "raw-wl0-t0.25",
+          "dev": "raw-wl0-t0.25",
+          "life": "raw-wl0-t0.25"
+        },
+        "tauEdge": {
+          "inSample": 0.25,
+          "chosen": {
+            "lowest": 0.2,
+            "highest": 0.25,
+            "gridMin": 0.15,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9399
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8732
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8034
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6578
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.9399,
+              "english": 0.9464,
+              "nonEnglish": 0.9078
+            },
+            "0.2": {
+              "all": 0.8732,
+              "english": 0.8913,
+              "nonEnglish": 0.7831
+            },
+            "0.3": {
+              "all": 0.8034,
+              "english": 0.8247,
+              "nonEnglish": 0.6974
+            },
+            "0.5": {
+              "all": 0.6578,
+              "english": 0.6962,
+              "nonEnglish": 0.4655
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9552,
+              "0.2": 0.9317,
+              "0.3": 0.8397,
+              "0.5": 0.7183
+            },
+            "a-hoarder": {
+              "0.1": 0.9403,
+              "0.2": 0.8886,
+              "0.3": 0.83,
+              "0.5": 0.6632
+            },
+            "a-household": {
+              "0.1": 0.9191,
+              "0.2": 0.8189,
+              "0.3": 0.7149,
+              "0.5": 0.4899
+            },
+            "a-oncall": {
+              "0.1": 0.9476,
+              "0.2": 0.8868,
+              "0.3": 0.8131,
+              "0.5": 0.7005
+            },
+            "a-student": {
+              "0.1": 0.9379,
+              "0.2": 0.8876,
+              "0.3": 0.8243,
+              "0.5": 0.6863
+            },
+            "b-academic": {
+              "0.1": 0.9376,
+              "0.2": 0.9037,
+              "0.3": 0.7911,
+              "0.5": 0.6869
+            },
+            "b-expat": {
+              "0.1": 0.8965,
+              "0.2": 0.7472,
+              "0.3": 0.6798,
+              "0.5": 0.4411
+            },
+            "b-messy": {
+              "0.1": 0.9722,
+              "0.2": 0.9273,
+              "0.3": 0.8817,
+              "0.5": 0.7986
+            },
+            "b-move": {
+              "0.1": 0.9406,
+              "0.2": 0.8556,
+              "0.3": 0.7977,
+              "0.5": 0.6207
+            },
+            "b-shop": {
+              "0.1": 0.9213,
+              "0.2": 0.8142,
+              "0.3": 0.7566,
+              "0.5": 0.5567
+            },
+            "dev": {
+              "0.1": 0.9561,
+              "0.2": 0.9158,
+              "0.3": 0.8697,
+              "0.5": 0.7837
+            },
+            "life": {
+              "0.1": 0.9548,
+              "0.2": 0.9015,
+              "0.3": 0.8427,
+              "0.5": 0.7474
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9399
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8732
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8034
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6578
+            }
+          ],
+          "setting": "raw-ctr-wl0|centroid|0.15"
+        },
+        "heldOutSettings": {
+          "a-designer": "raw-ctr-wl0|centroid|0.15",
+          "a-hoarder": "raw-ctr-wl0|centroid|0.15",
+          "a-household": "raw-ctr-wl0|centroid|0.15",
+          "a-oncall": "raw-ctr-wl0|centroid|0.15",
+          "a-student": "raw-ctr-wl0|centroid|0.15",
+          "b-academic": "raw-ctr-wl0|centroid|0.15",
+          "b-expat": "raw-ctr-wl0|centroid|0.15",
+          "b-messy": "raw-ctr-wl0|centroid|0.15",
+          "b-move": "raw-ctr-wl0|centroid|0.15",
+          "b-shop": "raw-ctr-wl0|centroid|0.15",
+          "dev": "raw-ctr-wl0|centroid|0.15",
+          "life": "raw-ctr-wl0|centroid|0.15"
+        },
+        "thetaEdge": {
+          "inSample": "0.15",
+          "chosen": {
+            "lowest": 0.15,
+            "highest": 0.15,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    },
+    "dense-8M": {
+      "grid": {
+        "tau": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.05",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": [
+          0
+        ],
+        "switches": "idf and centring, as run-local",
+        "reps": [
+          "mean",
+          "max",
+          "centroid"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.3853,
+          "english": 0.4103,
+          "nonEnglish": 0.2598,
+          "perWindow": {
+            "a-designer": 0.5203,
+            "a-hoarder": 0.2201,
+            "a-household": 0.2475,
+            "a-oncall": 0.2921,
+            "a-student": 0.35,
+            "b-academic": 0.3552,
+            "b-expat": 0.2722,
+            "b-messy": 0.5993,
+            "b-move": 0.3823,
+            "b-shop": 0.3171,
+            "dev": 0.4978,
+            "life": 0.5694
+          }
+        },
+        "inSample": {
+          "all": 0.3853,
+          "english": 0.4103,
+          "nonEnglish": 0.2598,
+          "perWindow": {
+            "a-designer": 0.5203,
+            "a-hoarder": 0.2201,
+            "a-household": 0.2475,
+            "a-oncall": 0.2921,
+            "a-student": 0.35,
+            "b-academic": 0.3552,
+            "b-expat": 0.2722,
+            "b-messy": 0.5993,
+            "b-move": 0.3823,
+            "b-shop": 0.3171,
+            "dev": 0.4978,
+            "life": 0.5694
+          },
+          "setting": "raw-wl0-t0.2"
+        },
+        "heldOutSettings": {
+          "a-designer": "raw-wl0-t0.2",
+          "a-hoarder": "raw-wl0-t0.2",
+          "a-household": "raw-wl0-t0.2",
+          "a-oncall": "raw-wl0-t0.2",
+          "a-student": "raw-wl0-t0.2",
+          "b-academic": "raw-wl0-t0.2",
+          "b-expat": "raw-wl0-t0.2",
+          "b-messy": "raw-wl0-t0.2",
+          "b-move": "raw-wl0-t0.2",
+          "b-shop": "raw-wl0-t0.2",
+          "dev": "raw-wl0-t0.2",
+          "life": "raw-wl0-t0.2"
+        },
+        "tauEdge": {
+          "inSample": 0.2,
+          "chosen": {
+            "lowest": 0.2,
+            "highest": 0.2,
+            "gridMin": 0.15,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9458
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8804
+            },
+            {
+              "share": 0.3,
+              "f1": 0.817
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6734
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.9458,
+              "english": 0.9547,
+              "nonEnglish": 0.9011
+            },
+            "0.2": {
+              "all": 0.8804,
+              "english": 0.9032,
+              "nonEnglish": 0.7662
+            },
+            "0.3": {
+              "all": 0.817,
+              "english": 0.8419,
+              "nonEnglish": 0.6927
+            },
+            "0.5": {
+              "all": 0.6734,
+              "english": 0.7168,
+              "nonEnglish": 0.456
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9662,
+              "0.2": 0.9347,
+              "0.3": 0.8481,
+              "0.5": 0.7133
+            },
+            "a-hoarder": {
+              "0.1": 0.9535,
+              "0.2": 0.9016,
+              "0.3": 0.8468,
+              "0.5": 0.6981
+            },
+            "a-household": {
+              "0.1": 0.9094,
+              "0.2": 0.8004,
+              "0.3": 0.7085,
+              "0.5": 0.4844
+            },
+            "a-oncall": {
+              "0.1": 0.9495,
+              "0.2": 0.8982,
+              "0.3": 0.8248,
+              "0.5": 0.7209
+            },
+            "a-student": {
+              "0.1": 0.9569,
+              "0.2": 0.9057,
+              "0.3": 0.8625,
+              "0.5": 0.7265
+            },
+            "b-academic": {
+              "0.1": 0.9425,
+              "0.2": 0.9267,
+              "0.3": 0.8101,
+              "0.5": 0.7287
+            },
+            "b-expat": {
+              "0.1": 0.8928,
+              "0.2": 0.732,
+              "0.3": 0.6769,
+              "0.5": 0.4276
+            },
+            "b-messy": {
+              "0.1": 0.9735,
+              "0.2": 0.9185,
+              "0.3": 0.8764,
+              "0.5": 0.7837
+            },
+            "b-move": {
+              "0.1": 0.9563,
+              "0.2": 0.8803,
+              "0.3": 0.8485,
+              "0.5": 0.6483
+            },
+            "b-shop": {
+              "0.1": 0.9239,
+              "0.2": 0.8368,
+              "0.3": 0.7859,
+              "0.5": 0.6283
+            },
+            "dev": {
+              "0.1": 0.9598,
+              "0.2": 0.9125,
+              "0.3": 0.8617,
+              "0.5": 0.7531
+            },
+            "life": {
+              "0.1": 0.9649,
+              "0.2": 0.9173,
+              "0.3": 0.8539,
+              "0.5": 0.7673
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9458
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8804
+            },
+            {
+              "share": 0.3,
+              "f1": 0.817
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6734
+            }
+          ],
+          "setting": "idf-ctr-wl0|centroid|0.1"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-ctr-wl0|centroid|0.1",
+          "a-hoarder": "idf-ctr-wl0|centroid|0.1",
+          "a-household": "idf-ctr-wl0|centroid|0.1",
+          "a-oncall": "idf-ctr-wl0|centroid|0.1",
+          "a-student": "idf-ctr-wl0|centroid|0.1",
+          "b-academic": "idf-ctr-wl0|centroid|0.1",
+          "b-expat": "idf-ctr-wl0|centroid|0.1",
+          "b-messy": "idf-ctr-wl0|centroid|0.1",
+          "b-move": "idf-ctr-wl0|centroid|0.1",
+          "b-shop": "idf-ctr-wl0|centroid|0.1",
+          "dev": "idf-ctr-wl0|centroid|0.1",
+          "life": "idf-ctr-wl0|centroid|0.1"
+        },
+        "thetaEdge": {
+          "inSample": "0.1",
+          "chosen": {
+            "lowest": 0.1,
+            "highest": 0.1,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    },
+    "blend-4M": {
+      "grid": {
+        "tau": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.05",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": [
+          0,
+          0.5,
+          1
+        ],
+        "switches": "idf and centring, as run-local",
+        "reps": [
+          "mean",
+          "max",
+          "centroid"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.4209,
+          "english": 0.452,
+          "nonEnglish": 0.2652,
+          "perWindow": {
+            "a-designer": 0.5127,
+            "a-hoarder": 0.3446,
+            "a-household": 0.2651,
+            "a-oncall": 0.3202,
+            "a-student": 0.4698,
+            "b-academic": 0.3762,
+            "b-expat": 0.2652,
+            "b-messy": 0.6224,
+            "b-move": 0.4242,
+            "b-shop": 0.3767,
+            "dev": 0.443,
+            "life": 0.6304
+          }
+        },
+        "inSample": {
+          "all": 0.4209,
+          "english": 0.452,
+          "nonEnglish": 0.2652,
+          "perWindow": {
+            "a-designer": 0.5127,
+            "a-hoarder": 0.3446,
+            "a-household": 0.2651,
+            "a-oncall": 0.3202,
+            "a-student": 0.4698,
+            "b-academic": 0.3762,
+            "b-expat": 0.2652,
+            "b-messy": 0.6224,
+            "b-move": 0.4242,
+            "b-shop": 0.3767,
+            "dev": 0.443,
+            "life": 0.6304
+          },
+          "setting": "idf-wl1-t0.2"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-wl1-t0.2",
+          "a-hoarder": "idf-wl1-t0.2",
+          "a-household": "idf-wl1-t0.2",
+          "a-oncall": "idf-wl1-t0.2",
+          "a-student": "idf-wl1-t0.2",
+          "b-academic": "idf-wl1-t0.2",
+          "b-expat": "idf-wl1-t0.2",
+          "b-messy": "idf-wl1-t0.2",
+          "b-move": "idf-wl1-t0.2",
+          "b-shop": "idf-wl1-t0.2",
+          "dev": "idf-wl1-t0.2",
+          "life": "idf-wl1-t0.2"
+        },
+        "tauEdge": {
+          "inSample": 0.2,
+          "chosen": {
+            "lowest": 0.2,
+            "highest": 0.2,
+            "gridMin": 0.15,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9471
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8878
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8261
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6823
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.9471,
+              "english": 0.9541,
+              "nonEnglish": 0.912
+            },
+            "0.2": {
+              "all": 0.8878,
+              "english": 0.9064,
+              "nonEnglish": 0.7947
+            },
+            "0.3": {
+              "all": 0.8261,
+              "english": 0.8454,
+              "nonEnglish": 0.7297
+            },
+            "0.5": {
+              "all": 0.6823,
+              "english": 0.7227,
+              "nonEnglish": 0.4801
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9597,
+              "0.2": 0.9349,
+              "0.3": 0.8633,
+              "0.5": 0.7519
+            },
+            "a-hoarder": {
+              "0.1": 0.949,
+              "0.2": 0.8912,
+              "0.3": 0.8387,
+              "0.5": 0.7027
+            },
+            "a-household": {
+              "0.1": 0.9109,
+              "0.2": 0.8093,
+              "0.3": 0.7152,
+              "0.5": 0.4921
+            },
+            "a-oncall": {
+              "0.1": 0.9573,
+              "0.2": 0.9113,
+              "0.3": 0.8422,
+              "0.5": 0.7425
+            },
+            "a-student": {
+              "0.1": 0.9586,
+              "0.2": 0.9148,
+              "0.3": 0.868,
+              "0.5": 0.7433
+            },
+            "b-academic": {
+              "0.1": 0.9495,
+              "0.2": 0.926,
+              "0.3": 0.8328,
+              "0.5": 0.7407
+            },
+            "b-expat": {
+              "0.1": 0.9131,
+              "0.2": 0.7801,
+              "0.3": 0.7442,
+              "0.5": 0.468
+            },
+            "b-messy": {
+              "0.1": 0.978,
+              "0.2": 0.9435,
+              "0.3": 0.9039,
+              "0.5": 0.8288
+            },
+            "b-move": {
+              "0.1": 0.9546,
+              "0.2": 0.8968,
+              "0.3": 0.8452,
+              "0.5": 0.6677
+            },
+            "b-shop": {
+              "0.1": 0.9275,
+              "0.2": 0.8333,
+              "0.3": 0.7779,
+              "0.5": 0.6022
+            },
+            "dev": {
+              "0.1": 0.9483,
+              "0.2": 0.9048,
+              "0.3": 0.8317,
+              "0.5": 0.7054
+            },
+            "life": {
+              "0.1": 0.9589,
+              "0.2": 0.9074,
+              "0.3": 0.8502,
+              "0.5": 0.7421
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.948
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8904
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8291
+            },
+            {
+              "share": 0.5,
+              "f1": 0.6875
+            }
+          ],
+          "setting": "idf-ctr-wl1|mean|0.1"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-ctr-wl1|mean|0.1",
+          "a-hoarder": "idf-ctr-wl1|mean|0.1",
+          "a-household": "idf-ctr-wl1|mean|0.1",
+          "a-oncall": "idf-ctr-wl1|mean|0.1",
+          "a-student": "idf-ctr-wl1|mean|0.1",
+          "b-academic": "idf-ctr-wl1|mean|0.1",
+          "b-expat": "raw-ctr-wl1|mean|0.1",
+          "b-messy": "idf-ctr-wl1|mean|0.1",
+          "b-move": "raw-ctr-wl1|mean|0.1",
+          "b-shop": "idf-ctr-wl1|mean|0.1",
+          "dev": "idf-ctr-wl1|mean|0.1",
+          "life": "idf-ctr-wl1|mean|0.05"
+        },
+        "thetaEdge": {
+          "inSample": "0.1",
+          "chosen": {
+            "lowest": 0.05,
+            "highest": 0.1,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    },
+    "blend-8M": {
+      "grid": {
+        "tau": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35,
+          0.4,
+          0.45,
+          0.5,
+          0.55,
+          0.6
+        ],
+        "theta": [
+          "-Infinity",
+          "0",
+          "0.05",
+          "0.1",
+          "0.15",
+          "0.2",
+          "0.25",
+          "0.3",
+          "0.35",
+          "0.4",
+          "0.45",
+          "0.5",
+          "0.55",
+          "0.6",
+          "0.7"
+        ],
+        "wl": [
+          0,
+          0.5,
+          1
+        ],
+        "switches": "idf and centring, as run-local",
+        "reps": [
+          "mean",
+          "max",
+          "centroid"
+        ]
+      },
+      "cluster": {
+        "heldOut": {
+          "all": 0.396,
+          "english": 0.4221,
+          "nonEnglish": 0.2658,
+          "perWindow": {
+            "a-designer": 0.4729,
+            "a-hoarder": 0.3288,
+            "a-household": 0.2595,
+            "a-oncall": 0.3297,
+            "a-student": 0.4195,
+            "b-academic": 0.338,
+            "b-expat": 0.2722,
+            "b-messy": 0.5751,
+            "b-move": 0.4242,
+            "b-shop": 0.3155,
+            "dev": 0.4248,
+            "life": 0.5921
+          }
+        },
+        "inSample": {
+          "all": 0.4167,
+          "english": 0.4468,
+          "nonEnglish": 0.2658,
+          "perWindow": {
+            "a-designer": 0.5364,
+            "a-hoarder": 0.3288,
+            "a-household": 0.2595,
+            "a-oncall": 0.3297,
+            "a-student": 0.4195,
+            "b-academic": 0.4044,
+            "b-expat": 0.2722,
+            "b-messy": 0.6378,
+            "b-move": 0.4242,
+            "b-shop": 0.3155,
+            "dev": 0.4798,
+            "life": 0.5921
+          },
+          "setting": "raw-wl1-t0.2"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-wl1-t0.2",
+          "a-hoarder": "raw-wl1-t0.2",
+          "a-household": "raw-wl1-t0.2",
+          "a-oncall": "raw-wl1-t0.2",
+          "a-student": "raw-wl1-t0.2",
+          "b-academic": "idf-wl1-t0.2",
+          "b-expat": "raw-wl1-t0.2",
+          "b-messy": "idf-wl1-t0.2",
+          "b-move": "raw-wl1-t0.2",
+          "b-shop": "raw-wl1-t0.2",
+          "dev": "idf-wl1-t0.2",
+          "life": "raw-wl1-t0.2"
+        },
+        "tauEdge": {
+          "inSample": 0.2,
+          "chosen": {
+            "lowest": 0.2,
+            "highest": 0.2,
+            "gridMin": 0.15,
+            "gridMax": 0.6
+          }
+        }
+      },
+      "upkeep": {
+        "heldOut": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9511
+            },
+            {
+              "share": 0.2,
+              "f1": 0.898
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8393
+            },
+            {
+              "share": 0.5,
+              "f1": 0.704
+            }
+          ],
+          "groups": {
+            "0.1": {
+              "all": 0.9511,
+              "english": 0.9602,
+              "nonEnglish": 0.9054
+            },
+            "0.2": {
+              "all": 0.898,
+              "english": 0.9207,
+              "nonEnglish": 0.7844
+            },
+            "0.3": {
+              "all": 0.8393,
+              "english": 0.8615,
+              "nonEnglish": 0.7283
+            },
+            "0.5": {
+              "all": 0.704,
+              "english": 0.7466,
+              "nonEnglish": 0.4907
+            }
+          },
+          "perWindow": {
+            "a-designer": {
+              "0.1": 0.9628,
+              "0.2": 0.9397,
+              "0.3": 0.8686,
+              "0.5": 0.774
+            },
+            "a-hoarder": {
+              "0.1": 0.9585,
+              "0.2": 0.9149,
+              "0.3": 0.8676,
+              "0.5": 0.735
+            },
+            "a-household": {
+              "0.1": 0.91,
+              "0.2": 0.8131,
+              "0.3": 0.719,
+              "0.5": 0.5057
+            },
+            "a-oncall": {
+              "0.1": 0.968,
+              "0.2": 0.9344,
+              "0.3": 0.8701,
+              "0.5": 0.771
+            },
+            "a-student": {
+              "0.1": 0.9617,
+              "0.2": 0.9332,
+              "0.3": 0.8843,
+              "0.5": 0.7751
+            },
+            "b-academic": {
+              "0.1": 0.9497,
+              "0.2": 0.9252,
+              "0.3": 0.8407,
+              "0.5": 0.7576
+            },
+            "b-expat": {
+              "0.1": 0.9008,
+              "0.2": 0.7557,
+              "0.3": 0.7376,
+              "0.5": 0.4757
+            },
+            "b-messy": {
+              "0.1": 0.9817,
+              "0.2": 0.9513,
+              "0.3": 0.9082,
+              "0.5": 0.8419
+            },
+            "b-move": {
+              "0.1": 0.9699,
+              "0.2": 0.9099,
+              "0.3": 0.8685,
+              "0.5": 0.6867
+            },
+            "b-shop": {
+              "0.1": 0.9313,
+              "0.2": 0.852,
+              "0.3": 0.7987,
+              "0.5": 0.6389
+            },
+            "dev": {
+              "0.1": 0.9522,
+              "0.2": 0.9099,
+              "0.3": 0.8377,
+              "0.5": 0.7122
+            },
+            "life": {
+              "0.1": 0.9664,
+              "0.2": 0.9368,
+              "0.3": 0.8712,
+              "0.5": 0.7737
+            }
+          }
+        },
+        "inSample": {
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9511
+            },
+            {
+              "share": 0.2,
+              "f1": 0.898
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8393
+            },
+            {
+              "share": 0.5,
+              "f1": 0.704
+            }
+          ],
+          "setting": "idf-ctr-wl1|mean|0.05"
+        },
+        "heldOutSettings": {
+          "a-designer": "idf-ctr-wl1|mean|0.05",
+          "a-hoarder": "idf-ctr-wl1|mean|0.05",
+          "a-household": "idf-ctr-wl1|mean|0.05",
+          "a-oncall": "idf-ctr-wl1|mean|0.05",
+          "a-student": "idf-ctr-wl1|mean|0.05",
+          "b-academic": "idf-ctr-wl1|mean|0.05",
+          "b-expat": "idf-ctr-wl1|mean|0.05",
+          "b-messy": "idf-ctr-wl1|mean|0.05",
+          "b-move": "idf-ctr-wl1|mean|0.05",
+          "b-shop": "idf-ctr-wl1|mean|0.05",
+          "dev": "idf-ctr-wl1|mean|0.05",
+          "life": "idf-ctr-wl1|mean|0.05"
+        },
+        "thetaEdge": {
+          "inSample": "0.05",
+          "chosen": {
+            "lowest": 0.05,
+            "highest": 0.05,
+            "gridMin": 0,
+            "gridMax": 0.7
+          }
+        }
+      }
+    }
+  },
+  "control": {
+    "4M": {
+      "clusterHeldOut": {
+        "ablation": 0.4209,
+        "recorded": 0.4209
+      },
+      "upkeepHeldOut": [
+        {
+          "share": 0.1,
+          "ablation": 0.9471,
+          "recorded": 0.9471
+        },
+        {
+          "share": 0.2,
+          "ablation": 0.8878,
+          "recorded": 0.8878
+        },
+        {
+          "share": 0.3,
+          "ablation": 0.8261,
+          "recorded": 0.8261
+        },
+        {
+          "share": 0.5,
+          "ablation": 0.6823,
+          "recorded": 0.6823
+        }
+      ],
+      "maxDifference": 0
+    },
+    "8M": {
+      "clusterHeldOut": {
+        "ablation": 0.396,
+        "recorded": 0.396
+      },
+      "upkeepHeldOut": [
+        {
+          "share": 0.1,
+          "ablation": 0.9511,
+          "recorded": 0.9511
+        },
+        {
+          "share": 0.2,
+          "ablation": 0.898,
+          "recorded": 0.898
+        },
+        {
+          "share": 0.3,
+          "ablation": 0.8393,
+          "recorded": 0.8393
+        },
+        {
+          "share": 0.5,
+          "ablation": 0.704,
+          "recorded": 0.704
+        }
+      ],
+      "maxDifference": 0
+    }
+  },
+  "timing": {
+    "lexical-title": {
+      "tau": 0.02,
+      "sizes": {
+        "60": 0.5553,
+        "200": 4.1544,
+        "500": 26.1946
+      }
+    },
+    "lexical-title-url": {
+      "tau": 0.01,
+      "sizes": {
+        "60": 1.7781,
+        "200": 6.514,
+        "500": 32.6158
+      }
+    },
+    "dense-4M": {
+      "tau": 0.25,
+      "sizes": {
+        "60": 4.13,
+        "200": 20.9287,
+        "500": 38.9051
+      }
+    },
+    "dense-8M": {
+      "tau": 0.2,
+      "sizes": {
+        "60": 2.1439,
+        "200": 16.155,
+        "500": 54.5586
+      }
+    },
+    "blend-4M": {
+      "tau": 0.2,
+      "sizes": {
+        "60": 2.3016,
+        "200": 14.3786,
+        "500": 50.2214
+      }
+    },
+    "blend-8M": {
+      "tau": 0.2,
+      "sizes": {
+        "60": 3.309,
+        "200": 18.6973,
+        "500": 67.5763
+      }
+    }
+  }
+}

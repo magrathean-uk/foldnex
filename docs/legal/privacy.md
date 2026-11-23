@@ -1,27 +1,33 @@
 # Foldnex Privacy Policy
 
-**Effective date:** 6 October 2026
+**Effective date:** 23 November 2026 (Foldnex 2.1.0)
 
 **Controller:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
 **Privacy contact:** contact+foldnex@magrathean.uk
 
-**Online version:** [https://magrathean.uk/apps/foldnex/privacy/](https://magrathean.uk/apps/foldnex/privacy/)
+**Online version:** [https://magrathean.uk/solutions/foldnex/privacy/](https://magrathean.uk/solutions/foldnex/privacy/)
 
-This Privacy Policy explains how MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our") processes personal data in connection with the Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/apps/foldnex/](https://magrathean.uk/apps/foldnex/), and related support channels. It is written for users in the United Kingdom, European Economic Area, Switzerland, and other countries where Foldnex is made available.
+This Privacy Policy explains how MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our") processes personal data in connection with the Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/solutions/foldnex/](https://magrathean.uk/solutions/foldnex/), and related support channels. It is written for users in the United Kingdom, European Economic Area, Switzerland, and other countries where Foldnex is made available.
 
 ---
 
 ## 1. Short Version & Core Principle
 
-Foldnex 2.0 operates on an offline-first, local-first architecture. It removes duplicate tabs using conservative page identities and organizes tabs in the current Chrome window into clean, colored tab groups. Ordinary document anchors are ignored when comparing HTTP(S) URLs; query values and route-like fragments are preserved so different application pages remain distinct.
+Foldnex removes duplicate tabs using conservative page identities and organises the tabs of the current Chrome window into coloured tab groups. Ordinary document anchors are ignored when comparing HTTP(S) URLs; query values and route-like fragments are preserved so different application pages remain distinct.
 
 - **Zero extension telemetry:** The extension contains no analytics SDKs, tracking pixels, or cross-site identifiers.
 - **No page body reading:** Foldnex never inspects web page content, DOM trees, keystrokes, form submissions, or cookies. It does not inject content scripts into web pages.
 - **No cloud relay:** Magrathean operates no cloud proxy or backend relay for your tab data. Tab titles and URLs never pass through Magrathean servers.
-- **Local processing:** Deterministic categorization ("By site category"), Offline smart mode, and Chrome built-in Gemini Nano process tab data on your device. Ollama defaults to `http://localhost:11434`; requests to a loopback address stay on your device, while a configured non-loopback Ollama endpoint is treated as cloud processing. Endpoint access remains subject to Chrome permissions and network rules. Foldnex does not control downstream handling configured in the user's Ollama installation. Chrome may separately download its built-in model. With Gemini Nano or local Ollama selected for "By task", and "Prepare groups in the background" or "Auto-group new tabs" turned on, Foldnex also labels open tabs in all non-Incognito windows in the background, on your device. Background preparation is off until you turn it on in Settings or choose Gemini Nano in the first-run setup card, and it never applies to cloud engines. Without it, an on-device engine only finishes labelling the tabs a cleanup you ran placed by address for a later cleanup, then stops.
-- **Optional BYOK AI:** If you explicitly choose an optional cloud AI engine (OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), your browser connects directly to that provider's configured endpoint using your user-supplied API key or bearer token; the packaged provider defaults use HTTPS. A reachable non-loopback Ollama endpoint also receives tab inputs as cloud processing, over that endpoint's transport. This happens when you run a cleanup and, if you turn on "Auto-group new tabs", in the background for each tab you open or send to a new page after turning it on. URL credentials, all query parameters, and fragments are removed from the URL hint before prompting. Tab titles and retained path segments can still contain sensitive information, so review the current window before using cloud grouping.
-- **Optional cloud economy mode:** Off by default. When you enable it, Foldnex skips optional cloud group naming and consolidation requests while still obtaining category labels and planning groups locally. It does not enable background cloud processing.
+- **Local by default:** Offline smart mode is the default engine. It, "By site category" and "Auto-group new tabs" process tab data on your device and send nothing. Offline smart mode uses tab titles, words from the tab's address and a word table packaged inside the extension; nothing is downloaded or sent to do so.
+- **Optional engines you choose:** If you select a cloud engine (OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok) or Ollama, and leave the strategy on "By task", a cleanup you run sends **at most one request for the window**, and may send none, directly from your browser with your own API key or bearer token. For each eligible tab it holds a row number, the title (control characters removed, whitespace collapsed, at most 160 characters) and a short host/path hint. For web addresses the hint drops URL credentials, port, query and fragment, and replaces long identifiers in the first path segments with `:id` before the hint is shortened. Titles and the remaining path can still contain private information, including an address that appears in a title, so review the window before using a cloud engine.
+- **Rules:** Tabs matched by your URL rules and recognised social sites are grouped locally and not sent.
+- **Private windows:** Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
+- **Settings requests:** In Settings, Foldnex asks the selected provider for its model list, and **Test connection** sends one request with two made-up tabs. Both use the key or token currently typed in the field, including one you have not saved yet. Neither sends your tabs. Settings opens in a regular window, even from a private window's popup, so its model lists and Test connection are regular-window requests.
+- **Ollama:** Ollama defaults to `http://localhost:11434`. A loopback address (`localhost`, `127.0.0.1` or `[::1]`) is the first hop: the request goes to the Ollama server on your device, and that server can itself run cloud models, which sends the request off your device. A configured non-loopback Ollama address is treated as cloud processing.
+- **No background requests:** Nothing is sent when you open the popup, when tabs open or load, when "Auto-group new tabs" files a tab, or when Chrome starts.
+
+Earlier versions offered Chrome's built-in Gemini Nano model, background labelling and a "Cloud economy" setting. Foldnex 2.1.0 removes them: a saved Gemini Nano choice becomes Offline smart mode, and the extension tries to delete the stored per-tab labels, the Nano timing estimate and the removed settings when its settings next load, retrying a failed removal later. Other records from earlier versions, such as diagnostics and name memory, are kept.
 
 ---
 
@@ -29,10 +35,10 @@ Foldnex 2.0 operates on an offline-first, local-first architecture. It removes d
 
 This policy applies to:
 - The Foldnex Chrome Extension (Manifest V3);
-- The Foldnex website and legal pages at `https://magrathean.uk/apps/foldnex/`;
+- The Foldnex website and legal pages at `https://magrathean.uk/solutions/foldnex/`;
 - User support, security reports, and communications with Magrathean relating to Foldnex.
 
-Third-party AI providers that you configure (e.g. OpenAI, Google, Groq, Cerebras, OpenRouter, DeepSeek, xAI) and your browser provider (Google) act as independent controllers under their own terms and privacy notices.
+Third-party AI providers that you configure (e.g. OpenAI, Google, Groq, Cerebras, OpenRouter, DeepSeek, xAI), the operator of any Ollama or compatible server you configure, and your browser provider (Google) act as independent controllers under their own terms and privacy notices. Links in Foldnex (Donate, Privacy policy, Google AI Studio) open those pages in a new tab only when you click them, under those sites' own policies.
 
 ---
 
@@ -41,50 +47,53 @@ Third-party AI providers that you configure (e.g. OpenAI, Google, Groq, Cerebras
 Foldnex processes the following categories locally within Google Chrome:
 
 ### 3.1 Tab Metadata
-- Tab URLs, tab titles (truncated to 160 characters for cloud prompts), pin state, active tab status, and tab position.
-- Used strictly to identify exact duplicates, label tabs by category, and assign tabs to Chrome tab groups.
-- A cleanup acts on the current window. Background labelling (with Gemini Nano or local Ollama and "Prepare groups in the background" or "Auto-group new tabs" on, or with a cloud engine and "Auto-group new tabs" on) also reads the titles and URLs of tabs in other non-Incognito windows. Foldnex does not access your browsing history.
+- Tab URLs, tab titles, pin state, active tab status, tab position and tab-group membership.
+- Used to identify exact duplicates, plan groups and assign tabs to Chrome tab groups.
+- A cleanup acts on the current window only. To recognise new pages and tabs you take out of a group, Foldnex notes tab IDs and a hash of each tab's address as tabs change in non-Incognito windows, including while "Auto-group new tabs" is off. With "Auto-group new tabs" on, it also reads the title and address of a tab you open, or send to a new page, and the titles and addresses of the tabs in that window's groups, to place it on your device. Foldnex does not access your browsing history.
+- When you rename a tab group in a regular window, including a group you created yourself, Foldnex reads that group's tabs to learn the name (see 3.3).
 
 ### 3.2 Credentials & Configuration
-- User-supplied API keys or bearer tokens for optional cloud providers and an optional Ollama credential. Stored in `chrome.storage.local`, restricted to trusted extension contexts. Chrome extension storage is not encrypted; these values are not placed in Chrome Sync or sent to Magrathean.
-- Legacy credentials already present in Chrome Sync are automatically migrated when settings are loaded. Existing local values, including an explicitly cleared value, take precedence; a missing local credential is saved before its Sync copy is removed. Migration and new credential saves share a lock so a migration cannot replace a newly saved key.
-- Non-secret preferences (engine selection, model IDs, provider endpoint settings, grouping preferences, cloud economy mode, OpenAI Priority processing, collapse settings, your first-run setup choice, whether background preparation is on, and how long an idle on-device model stays loaded). These may be synchronized via Chrome Sync if enabled by the user in browser settings.
+- User-supplied API keys or bearer tokens for optional cloud providers and an optional Ollama credential. Stored in `chrome.storage.local`, restricted to trusted extension contexts, until you overwrite them or uninstall Foldnex. Chrome extension storage is not encrypted; these values are not placed in Chrome Sync or sent to Magrathean.
+- Legacy credentials still present in Chrome Sync are moved to local storage when settings load. An existing local value, including an explicitly cleared one, takes precedence; a missing local credential is saved before its Sync copy is removed. Migration and new credential saves share a lock so a migration cannot replace a newly saved key.
+- Preferences: engine, grouping strategy, model IDs, an Ollama address, reasoning choices, OpenAI Priority processing, toolbar, collapse and Auto-group switches, your first-run setup choice and how long a local Ollama model stays loaded. These are kept in Chrome sync storage and may be synchronised by Chrome if you have enabled sync. Model IDs and an Ollama address are stored as you enter them, so do not put private text in them.
 
-### 3.3 User-Authored Rules & Grouping Cache
-- Domain-classification rules, including user-authored patterns and labels. Exported rule files include that rule content.
-- Rule patterns are limited to 200 characters; `*` is the only wildcard and other punctuation is literal. Imported rules are validated before storage. When older learned rules are migrated to the current rule format, their previous contents may remain in a local legacy backup until you clear all rules or uninstall the extension.
-- Scoped group-rename preferences containing a fingerprint, a group label, a Chrome color token, and an update time. At most 100 preferences are retained; this store has no automatic age expiry. Group labels can contain meaningful tab context.
-- Content-addressed grouping results containing fingerprints of normalized titles (up to 1,000 characters) and sanitised URL inputs, group titles, and Chrome group color tokens. Raw titles and raw URLs are not stored in this cache.
-- The cache treats entries older than six hours as ineligible for reuse when it reads or writes the cache. Expired entries are removed during a later cache write, rather than by a guaranteed six-hour deletion timer. New cache writes retain at most twelve entries.
-- Per-tab category labels containing, for each labelled tab, a fingerprint of its normalized title (up to 1,000 characters) and sanitised URL input, the category key the engine chose, the engine identifier, a non-secret scope identifier for the model, reasoning setting, endpoint and semantic revision, and the time. Raw titles and raw URLs are not stored. Entries older than seven days are not reused, and at most 3,000 are kept.
-- Cache fingerprints can account for allowlisted query values locally, so a change to relevant page context invalidates the result. These values are hashed rather than stored as raw URL data in the grouping caches, and they are excluded from AI prompt URL hints. Hashes support cache matching; they are not a guarantee that meaningful tab context cannot be inferred.
-- Group-name memory containing group names chosen by you or by a model, Chrome color tokens, grouping keys (category keys or hashes), short hashes of title words (not the words), and, for your own renames, fingerprints of the renamed tabs; and up to 200 pairs of grouping keys across at most 12 engine/model scopes recording which groups a cloud model merged. Model names and merge advice are reused only within their scope; your own renames remain available across engines. Group names can contain meaningful tab context. In this store, your renames remain eligible for 90 days and model-chosen names and merge advice for 14 days, with at most 120 names.
-- A reset counter and an estimate of Gemini Nano's speed (two timing values). The reset counter stamps grouping memory and asynchronous writes so a result from work begun before clearing cannot restore the cleared data.
-- In session storage (`chrome.storage.session`), cleared when Chrome closes: each window's latest grouping plan (tab IDs, group names, color tokens, category and grouping keys, and a plan signature), the IDs of tabs opened while "Auto-group new tabs" is on, a hash of the page address of each tab taken out of a group, and tab-group titles and expected-update records used to tell your renames apart from Foldnex's own changes. A session-start marker prevents restored tabs from being treated as new during startup.
+### 3.3 Rules, Grouping Memory and Cache (`chrome.storage.local`)
+- **URL rules** you add or import: pattern, group name, colour and rule metadata, stored as entered. Patterns are limited to 200 characters; `*` is the only wildcard and other punctuation is literal. Imported rules are validated before storage. Rules from an older format may remain in a local legacy backup until you clear all rules or uninstall the extension. **Export JSON** saves your rules as a browser download; delete that file separately.
+- **Rename preferences:** when you rename a tab group in a regular window, a fingerprint of its tabs, the name (up to 40 characters), the colour and an update time. At most 100 are kept, with no age limit.
+- **Group-name memory:** the same renames, normalised to at most 30 characters, with fingerprints of the renamed tabs, colours and short grouping keys; they stay usable for 90 days and at most 120 names are kept. Model-chosen names and merge advice saved by earlier versions may remain until this store is next written or cleared; 2.1.0 does not use them.
+- **Exact results:** for a window whose tabs have not changed, the finished grouping (fingerprints of each tab, group names, colours and grouping keys) so a repeat cleanup gives the same result without a new request. Entries older than six hours are not reused and at most twelve are kept; expired entries are removed on a later write.
+- Fingerprints are hashes of a normalised title (up to 1,000 characters) and a sanitised URL that keeps allowlisted query values. Raw titles and raw URLs are not stored in these records. Hashes support matching; they do not guarantee that meaningful tab context cannot be inferred. Group names and rule patterns are stored as text and can contain words from your titles, addresses or input.
+- A reset counter and a schema version. The reset counter stamps grouping memory and pending writes so work begun before you clear memory cannot restore it.
 
-### 3.4 Aggregate Diagnostics
-- Up to twenty recent diagnostic records containing technical metadata: engine type, tab count, group count, duplicate count, latency (ms), token metrics, and quality flags. Each record also lists the name and size of each group created; group names can contain meaningful tab context.
-- Diagnostics strictly exclude tab titles, URLs, prompts, and provider responses.
-- When Foldnex is loaded unpacked for development, it also keeps the latest phase-timing trace of a cleanup and of background work (phase names, timings, counts, window IDs, and the engine and strategy used; no titles, URLs, prompts, or responses). Other installs, including from the Chrome Web Store, never record this trace.
+### 3.4 Session Storage (`chrome.storage.session`)
+Chrome clears this storage when the browser restarts and when the extension is disabled, reloaded or updated.
+- Each window's latest plan: tab and group IDs, group names, colours, grouping keys, update times, hashes of the window's tab set and settings and, for a plan made by a model, short hashes of its tabs, so a few new tabs can be added on your device without a new request.
+- A plan offer: when a model's answer arrives after the cleanup has finished, its groups (tab IDs, names, colours, grouping keys), the hash of the tab set it was made for and the tab-group membership at that time. An offer that no longer matches the window is not applied, but can stay stored until it is next checked, replaced, applied or cleared, or the window closes.
+- The tab-set hashes cover full addresses, including query and fragment, and titles; the addresses themselves are not stored there.
+- For Auto-group: the IDs of new tabs while Auto-group is on, the address hash of each tab taken out of a group (recorded whether or not Auto-group is on), and a start-up marker so restored tabs are not treated as new.
+- Group titles and expected-update records that tell your renames apart from Foldnex's own changes.
+- Hashes of engine, model and endpoint whose structured-answer format was rejected, so later requests use plain JSON mode (at most 50).
 
-### 3.5 Provider Request Usage
-- Separate, content-free inference totals in `chrome.storage.local`: overall and per-provider request counts, reported input/output/total and reasoning tokens, cached-input and cache-write tokens, the number of requests without reported usage, returned OpenAI service-tier counts, and an update time. These totals cover supported HTTP providers, including Ollama, rather than Chrome's built-in model.
-- Inference and connection-test requests contribute, including late or background replies. Model-catalog requests and Incognito inference do not contribute. These totals are independent of the last-cleanup report, so a cleanup that used cached labels can still record a cloud consolidation request.
-- Usage aggregates contain no tab titles, URLs, group names, credentials, prompts, reasoning text or provider response bodies. Only normalized counts and allowed provider/tier identifiers are retained. They remain local until cleared or the extension is uninstalled; Foldnex sends no usage telemetry to Magrathean.
-- "Clear provider usage" resets the totals independently of rules and cleanup history. Requests dispatched before that clear cannot restore the cleared totals when they finish.
+### 3.5 Aggregate Diagnostics
+- Up to twenty recent records of cleanups and late-plan applications: engine, the configured model (never the model name a provider returns), effort, strategy, tab, group and duplicate counts, latency, token counts, fallback class and quality flags, and the name and size of each group created. Group names can contain words from tab titles or addresses.
+- Diagnostics have no fields for tab titles, URLs, prompts, or provider responses.
+- When Foldnex is loaded unpacked for development, it also keeps the latest phase-timing trace of a cleanup (phase names, timings, counts, window IDs, engine and strategy; no titles, URLs, prompts or responses). Other installs, including from the Chrome Web Store, never record this trace.
 
-### 3.6 Temporary Request Sharing
-- Matching label inputs and identical consolidation requests under the same provider settings can share work already running in the service worker. The request identities and tab inputs exist only in worker memory while that work runs; they are not persisted or logged. Incognito requests do not share this work with ordinary windows.
+### 3.6 Provider Request Usage
+- Content-free totals in `chrome.storage.local`: overall and per-provider request counts, reported input, output, total and reasoning tokens, cached-input and cache-write tokens, the number of requests without reported usage, returned OpenAI service-tier counts and an update time. They cover the cloud providers and Ollama.
+- Every cleanup or connection-test request Foldnex starts counts, including one that fails, times out or answers after the cleanup. Model-list requests do not, and private windows send none. Totals from earlier versions remain until you clear them.
+- The totals contain no tab titles, URLs, group names, credentials, prompts, reasoning text or response bodies, and are never sent to Magrathean.
 
 ---
 
 ## 4. Incognito Window Isolation
 
-When Foldnex groups tabs in an Incognito window:
-- That run does **not** persist custom rules, cached grouping results, per-tab labels, group-name memory, window plans, session group-title baselines, the Gemini Nano speed estimate, diagnostic records, provider-usage totals or rename preferences. Group updates are checked against their member tabs before a group-title baseline or learned rename is saved.
-- Incognito tabs are never labelled in the background or auto-grouped.
-- Chrome extension settings in `chrome.storage.local` and `chrome.storage.sync` are shared between regular and Incognito contexts. User changes to these settings can still be saved.
-- If an optional cloud provider is selected, direct client-to-provider prompting occurs for that execution, but no cache or record is retained in extension storage.
+When you run a cleanup in an Incognito window:
+- Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
+- Foldnex does not read your URL rules, and does not save the private window's tabs as rules, exact results, group-name memory, rename preferences, window plans, plan offers, diagnostics, provider-usage totals or development traces. It reads shared settings and the reset counter, and keeps private group titles in the service worker's memory while it runs. Social sites are still kept together, locally.
+- Incognito tabs are never auto-grouped, and renaming a group in an Incognito window teaches Foldnex nothing.
+- Chrome itself keeps the private tabs and their groups. Foldnex writes no group names to the extension's console.
+- The popup in an Incognito window can show statistics from regular windows. Chrome extension settings in `chrome.storage.local` and `chrome.storage.sync` are shared between regular and Incognito contexts; settings you change there apply to regular windows too. Settings opens in a regular window, even from a private window's popup, so its model lists and Test connection are regular-window requests.
 
 ---
 
@@ -92,20 +101,23 @@ When Foldnex groups tabs in an Incognito window:
 
 The extension and its supporting services have these data-handling paths:
 
-1. **User-Selected Cloud AI Provider (BYOK):** When you select "By task" with an optional cloud engine, Foldnex connects directly from your browser to that provider's configured endpoint using your stored API key or bearer token. Tab titles (up to 160 characters each) and a sanitised URL host/path hint are sent. A request to consolidate groups sends up to three of each group's tab titles, shortened to 60 characters, with the group's category and tab count. Cloud economy mode skips this optional request; it does not skip needed category labels. If you turn on "Auto-group new tabs", the same title and hint are sent in the background for each tab you open or send to a new page after turning it on, in any non-Incognito window; tabs that were already open are sent only when you run a cleanup. URL credentials, all query parameters, and fragments are removed from the hint, but Foldnex cannot guarantee that a title or retained path segment contains no sensitive information. A cleanup deadline does not necessarily cancel an ordinary cloud request; late replies can prepare a later cleanup and contribute to local usage totals.
-2. **Provider Discovery & Connection Tests:** Model discovery sends a catalog request and your configured credential when required or supplied; it sends no tab data. "Test connection" sends two synthetic example tabs (`example.com`), your selected model, and your credential through the same labelling request used for real tabs. It does not send your current window's tab data. OpenRouter requests also identify the application as Foldnex and include the public repository address. OpenAI Priority processing sends `service_tier: "priority"` when on and `service_tier: "default"` when off, including in the test; the returned tier is determined by the provider. Gemini inference includes an output-token cap that scales with request size and selected reasoning effort, including reasoning in the budget.
-3. **Configured Ollama:** The default endpoint is `http://localhost:11434`. Loopback requests stay on your device, including background labelling of open tabs with "Prepare groups in the background" or "Auto-group new tabs" on and a cleanup's follow-up labels. They include a `keep_alive` value controlling how long your Ollama server keeps its model loaded. A configured non-loopback Ollama endpoint is treated as cloud processing: background preparation does not authorize requests to it, and background labelling requires "Auto-group new tabs". Tab inputs are then sent to that server over its configured transport when Chrome permits access. Foldnex does not control downstream handling by either local or remote Ollama.
-4. **Chrome Sync:** Non-secret preferences saved in Chrome sync storage may be transferred by Chrome when sync is enabled.
-5. **Website & Support:** When you visit `https://magrathean.uk/apps/foldnex/` or email `contact+foldnex@magrathean.uk`, standard website technical logs and correspondence are processed as described in the Magrathean Website Privacy Policy.
+1. **Selected cloud engine (bring your own key):** Only when you run a cleanup (popup, toolbar or keyboard shortcut) in a regular window with a cloud engine and "By task". A cleanup sends at most one request for the current window, directly from your browser to the configured endpoint with your stored credential: an instruction text, the row number, title (up to 160 characters) and host/path hint of each eligible tab not kept back by your rules or the social-site group, the number of groups allowed, the model, answer-format settings, an output-token limit and the model's lowest reasoning setting. Nothing is sent when the window has fewer than two eligible tabs or no free group slot, when a saved result for the unchanged window can be reused, when a request for the window is still pending or its late answer is waiting, or when at most 10% of its tabs are new or changed since the last model plan (Foldnex adds them on your device). A failed or discarded request can be sent again on a later cleanup. Foldnex waits about 5.4 seconds for the answer; a later answer that still matches the window is kept in session storage and offered in the popup, and is applied only if you choose **Apply**. A request is abandoned after 30 seconds.
+2. **Recipient and transport:** Requests go directly from Chrome to the endpoint shown in Settings. Cloud engines always use their provider's own address; a saved address override is ignored. An Ollama address must use HTTPS unless it is on your device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects. OpenRouter requests also identify the application as Foldnex with the public repository address, and OpenRouter can pass the request on to its model hosts under its own terms.
+3. **Settings requests:** Settings asks the selected provider for its model list when Settings opens on that provider or you switch to it, when you finish editing its key, token or address, when you select **Refresh models**, after **Save** and after a successful test. It uses the key or token currently in the field, including one you have not saved yet, and sends no tab data. **Test connection** sends one grouping request with two synthetic tabs ("Project plan" and "Project notes" on `example.com`), using the model, address and credential in the fields; it does not send your window's tabs and can incur provider charges. These requests run whatever strategy or engine your cleanups use. OpenAI Priority processing sends `service_tier: "priority"` when on and `service_tier: "default"` when off; the provider decides the tier it applies.
+4. **Configured Ollama:** Cleanups and tests go to your Ollama server in the same way. At a loopback address a cleanup also carries a `keep_alive` value from the "Unload the Ollama model" setting. A loopback address is the first hop: that Ollama server can itself run cloud models, which sends the request off your device. A non-loopback Ollama address is treated as cloud processing. Foldnex does not control how your Ollama installation handles data.
+5. **Chrome Sync:** Preferences in Chrome sync storage, including model IDs and an Ollama address, may be transferred by Chrome when sync is enabled.
+6. **Website & Support:** When you visit `https://magrathean.uk/solutions/foldnex/` or email `contact+foldnex@magrathean.uk`, standard website technical logs and correspondence are processed as described in the Magrathean Website Privacy Policy.
+
+Offline smart mode, "By site category", "Auto-group new tabs" and every cleanup in a private window send no tab data anywhere. With a cloud engine or Ollama, a failed or late request ends with a local grouping, after the request has been sent.
 
 ---
 
 ## 6. Chrome Extension Permissions Justification
 
-- **`tabs`:** Required to read tab URLs, titles, pin state, and window position in the active window to detect duplicates and assemble tab groups, and to read the URLs and titles of tabs in other windows for background labelling and "Auto-group new tabs". Foldnex does not read web page content or browsing history.
-- **`tabGroups`:** Required to create, name, assign colors to, collapse, and remove Chrome tab groups in the active window, and, with "Auto-group new tabs" on, to add new tabs to a group, or create one, in their window.
-- **`storage`:** Required to persist local settings, rules, 6-hour grouping cache, per-tab labels, group-name memory, session-only window plans, aggregate diagnostics and separate provider-inference usage totals.
-- **Host Permissions:** The packaged permissions cover HTTPS requests to `generativelanguage.googleapis.com`, `api.openai.com`, `api.x.ai`, `api.groq.com`, `openrouter.ai`, `api.deepseek.com`, `api.cerebras.ai`, and HTTP requests to `localhost:11434`. Saving another compatible-provider or Ollama base URL does not add host permission; access remains subject to those permissions and Chrome's network rules. Providers are contacted when configured or run, including connection tests and model discovery. A cloud provider can also be contacted for tabs opened or sent to a new page with "Auto-group new tabs" on. Loopback Ollama can be contacted for on-device background preparation or a cleanup's follow-up labels.
+- **`tabs`:** Reads URLs, titles, pin state, active state and position of tabs in the current window to detect duplicates and build groups; notes tab IDs and address hashes as tabs are opened or navigated, to recognise new pages and tabs taken out of a group; reads the tabs of a regular-window group you rename; and, with "Auto-group new tabs" on, reads the title and address of a newly opened or navigated tab and of its window's grouped tabs. Foldnex does not read web page content or browsing history.
+- **`tabGroups`:** Creates, names, colours, collapses and removes Chrome tab groups in the current window, watches group renames, and with "Auto-group new tabs" on adds a new tab to an existing group in its window.
+- **`storage`:** Keeps settings, credentials, rules, grouping memory, exact results, session-only window plans, offers and tab bookkeeping, diagnostics and provider-usage totals as described above.
+- **Host Permissions:** HTTPS requests to `generativelanguage.googleapis.com`, `api.openai.com`, `api.x.ai`, `api.groq.com`, `openrouter.ai`, `api.deepseek.com` and `api.cerebras.ai`, and HTTP requests to `localhost:11434`. Saving another Ollama address does not add host permission. A provider is contacted only for a cleanup with that engine, a connection test or a model-list request.
 
 ---
 
@@ -120,13 +132,16 @@ Where Magrathean acts as controller (for support requests, security reports, and
 
 ## 8. Data Retention and Deletion
 
-Because tab data is stored locally in your browser, you retain complete control over retention:
-- **Cache eligibility:** Grouping-cache entries older than 6 hours are not reused. Expired entries are removed when a later cache write occurs, and new writes retain at most 12 entries. Diagnostics retain a rolling maximum of 20 runs.
-- **Labels and name memory:** Per-tab labels older than 7 days are not reused and at most 3,000 are kept. In group-name memory, your renames remain eligible for 90 days and model-chosen names and merge advice for 14 days, with at most 120 names. Expired entries are removed when that store is next written. The separate scoped rename-preference store retains up to 100 entries without an age expiry; rules and any legacy rule backup remain until removed or cleared.
-- **Session data:** Window plans, the "Auto-group new tabs" list, page-address hashes, tab-group titles, expected-update records, and the startup marker in session storage are cleared when Chrome closes.
-- **Manual Clearing:** You can clear rules, grouping memory, diagnostics and provider usage from Foldnex Settings. "Clear all rules" also removes the grouping-result cache, per-tab labels, group-name memory, scoped rename preferences and the legacy rule backup, and invalidates session plans. Invalidated plans may remain in session storage until replaced, removed with their window, or cleared when Chrome closes, but are not reused. Generation guards prevent work begun before clearing from restoring usable old grouping memory. "Clear run history" clears cleanup diagnostics; "Clear provider usage" separately resets inference totals and excludes replies from requests dispatched before that clear.
-- **Credential Removal:** Clear an API key field and save that provider to remove the key from `chrome.storage.local`.
-- **Complete Deletion:** Uninstalling Foldnex permanently purges all local extension storage from your Chrome profile.
+Because tab data is stored locally in your browser, you control its retention:
+- **URL rules and the legacy backup:** kept until you delete them or clear all rules. Exported rule files are downloads you delete yourself.
+- **Exact results:** not reused after 6 hours; at most 12 kept; expired entries removed on a later write.
+- **Name memory:** your renames usable for 90 days, at most 120 names; expired entries removed when that store is next written. Rename preferences: up to 100, no age limit.
+- **Diagnostics:** the 20 most recent records, kept until replaced or cleared.
+- **Provider usage:** kept until cleared.
+- **Session data:** window plans, plan offers, Auto-group records, group-title records and the answer-format list are cleared when Chrome restarts or the extension is disabled, reloaded or updated; a closed window's plan and offer are removed with it.
+- **Manual clearing in Settings:** **Clear all rules** removes rules, the legacy rule backup, exact results, group-name memory and rename preferences, and makes stored window plans and offers unusable. **Clear run history** removes cleanup diagnostics; a cleanup still running can add a new record afterwards. **Clear provider usage** resets the request totals; a reply to a request sent before the clear cannot restore them.
+- **Credential removal:** clear a credential field and save that provider to replace the stored value with an empty one. For OpenAI, clear both the API key and the bearer token.
+- **Complete deletion:** uninstalling Foldnex removes its local and session extension storage from your Chrome profile. Copies held elsewhere (by providers, your Ollama server, Chrome Sync on Google's servers, exported files and support correspondence) are managed separately.
 
 ---
 
@@ -144,4 +159,4 @@ If you are not satisfied with our data handling, you have the right to lodge a c
 
 ## 11. Changes to This Policy
 
-We may update this Privacy Policy from time to time. The "Effective date" indicates when the current version took effect. Revisions will be published at [https://magrathean.uk/apps/foldnex/privacy/](https://magrathean.uk/apps/foldnex/privacy/) and in the project repository.
+We may update this Privacy Policy from time to time. The "Effective date" indicates when the current version took effect. Revisions will be published at [https://magrathean.uk/solutions/foldnex/privacy/](https://magrathean.uk/solutions/foldnex/privacy/) and in the project repository.

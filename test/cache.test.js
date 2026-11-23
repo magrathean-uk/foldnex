@@ -8,7 +8,6 @@ import {
   LearningCache,
   MAX_RULE_PATTERN_LENGTH,
   PlanMemory,
-  TabLabelCache,
   WindowPlanStore,
   fingerprintTab,
   hashToken,
@@ -17,7 +16,6 @@ import {
   safeGlobToRegExp,
   sanitizeTitle
 } from '../src/cache-engine.js';
-import { LABEL_VOCAB_VERSION } from '../src/label-vocabulary.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CLOUD_ENGINES = ['openai', 'anthropic', 'gemini', 'groq', 'openrouter'];
@@ -154,173 +152,27 @@ test('rule validation uses a shared length bound and rejects controls, malformed
   assert.equal(LearningCache.buildDomainIndex({}).size, 0);
 });
 
-test('TabLabelCache stores model labels by fingerprint and returns them on lookup', async () => {
-  const { local } = installChromeStorageMock();
-  const tabs = makeTabs(4);
-
-  const cold = await TabLabelCache.lookup(tabs, { acceptEngines: null });
-  assert.equal(cold.labels.size, 0);
-  assert.deepEqual(cold.missing.map(tab => tab.id), [1, 2, 3, 4]);
-  assert.equal(cold.fingerprintById.size, 4);
-  assert.equal(cold.fingerprintById.get(1), await fingerprintTab(tabs[0]));
-
-  await TabLabelCache.store(new Map([[1, 'dev'], [2, 'food'], [3, 'not-a-category'], [99, 'news']]), cold.fingerprintById, 'gemini_nano');
-
-  const warm = await TabLabelCache.lookup(tabs, { acceptEngines: null });
-  assert.deepEqual([...warm.labels], [[1, { c: 'dev', e: 'gemini_nano' }], [2, { c: 'food', e: 'gemini_nano' }]]);
-  assert.deepEqual(warm.missing.map(tab => tab.id), [3, 4]);
-
-  const record = local[TabLabelCache.STORAGE_KEY];
-  assert.equal(record.v, LABEL_VOCAB_VERSION);
-  assert.equal(Object.keys(record.entries).length, 2);
-  for (const entry of Object.values(record.entries)) {
-    assert.deepEqual(Object.keys(entry).sort(), ['c', 'e', 't']);
-  }
-  const serialised = JSON.stringify(local);
-  assert.ok(!serialised.includes('secret'), 'no title text is stored');
-  assert.ok(!serialised.includes('example-'), 'no URL is stored');
-
-  // Labels are context-free: the same content in another window reuses them.
-  const otherWindow = tabs.slice(0, 2).map(tab => ({ ...tab, id: tab.id + 500, windowId: 9 }));
-  const reused = await TabLabelCache.lookup(otherWindow);
-  assert.deepEqual([...reused.labels.keys()], [501, 502]);
-});
-
-test('TabLabelCache only gives cloud engines labels a cloud engine wrote', async () => {
-  installChromeStorageMock();
-  const tabs = makeTabs(2);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map([[1, 'travel']]), fingerprintById, 'gemini_nano');
-  await TabLabelCache.store(new Map([[2, 'shop']]), fingerprintById, 'openai');
-
-  const cloud = await TabLabelCache.lookup(tabs, { acceptEngines: new Set(CLOUD_ENGINES) });
-  assert.deepEqual([...cloud.labels], [[2, { c: 'shop', e: 'openai' }]]);
-  assert.deepEqual(cloud.missing.map(tab => tab.id), [1]);
-
-  const local = await TabLabelCache.lookup(tabs, { acceptEngines: null });
-  assert.equal(local.labels.size, 2);
-
-  // A cloud label replaces the Nano one, so the next cloud click is warm.
-  await TabLabelCache.store(new Map([[1, 'travel']]), cloud.fingerprintById, 'anthropic');
-  const upgraded = await TabLabelCache.lookup(tabs, { acceptEngines: CLOUD_ENGINES });
-  assert.equal(upgraded.missing.length, 0);
-  assert.equal(upgraded.labels.get(1).e, 'anthropic');
-});
-
-test('TabLabelCache ignores a vocabulary mismatch, expired entries and unknown keys', async () => {
-  const { local } = installChromeStorageMock();
-  const tabs = makeTabs(3);
-  const fingerprints = await Promise.all(tabs.map(fingerprintTab));
-
-  local[TabLabelCache.STORAGE_KEY] = {
-    v: 'v0',
-    entries: { [fingerprints[0]]: { c: 'dev', t: Date.now(), e: 'openai' } }
-  };
-  assert.equal((await TabLabelCache.lookup(tabs)).labels.size, 0);
-  assert.deepEqual(await TabLabelCache.read(), {});
-
-  local[TabLabelCache.STORAGE_KEY] = {
-    v: LABEL_VOCAB_VERSION,
-    entries: {
-      [fingerprints[0]]: { c: 'dev', t: Date.now() - 8 * DAY_MS, e: 'openai' },
-      [fingerprints[1]]: { c: 'social', t: Date.now(), e: 'openai' },
-      [fingerprints[2]]: { c: 'news', t: Date.now() - 6 * DAY_MS, e: 'openai' }
-    }
-  };
-  const result = await TabLabelCache.lookup(tabs);
-  assert.deepEqual([...result.labels.keys()], [3]);
-
-  // A store drops expired and invalid entries from the record.
-  await TabLabelCache.store(new Map([[1, 'dev']]), result.fingerprintById, 'openai');
-  assert.deepEqual(Object.keys(local[TabLabelCache.STORAGE_KEY].entries).sort(), [fingerprints[0], fingerprints[2]].sort());
-});
-
-test('TabLabelCache keeps only the 3,000 newest entries', async () => {
-  const { local } = installChromeStorageMock();
-  const now = Date.now();
-  const entries = {};
-  for (let index = 0; index < 3000; index++) {
-    entries[`old-${String(index).padStart(4, '0')}`] = { c: 'read', t: now - DAY_MS + index, e: 'gemini_nano' };
-  }
-  local[TabLabelCache.STORAGE_KEY] = { v: LABEL_VOCAB_VERSION, entries };
-
-  const tabs = makeTabs(5);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, 'games'])), fingerprintById, 'gemini_nano');
-
-  const stored = local[TabLabelCache.STORAGE_KEY].entries;
-  assert.equal(Object.keys(stored).length, 3000);
-  for (const fingerprint of fingerprintById.values()) assert.equal(stored[fingerprint].c, 'games');
-  for (let index = 0; index < 5; index++) assert.ok(!(`old-000${index}` in stored), `oldest entry ${index} trimmed`);
-  assert.ok('old-0005' in stored);
-});
-
-test('TabLabelCache and PlanMemory writes are serialised, so concurrent writers lose nothing', async () => {
-  const { local } = installChromeStorageMock({ delayMs: 2 });
-  const tabs = makeTabs(10);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
+test('PlanMemory writes are serialised, so concurrent writers lose nothing', async () => {
+  installChromeStorageMock({ delayMs: 2 });
+  const tabs = makeTabs(9);
 
   await Promise.all([
-    ...tabs.map(tab => TabLabelCache.store(new Map([[tab.id, 'dev']]), fingerprintById, 'gemini_nano')),
-    PlanMemory.putNames([{ k: ['cat:food'], w: [hashToken('pasta')], n: 'Pasta Night', c: 'orange', s: 'nano' }]),
     PlanMemory.recordUserRename({ tabs: tabs.slice(0, 3), name: 'Recipes', color: 'green', keys: ['cat:food'] }),
-    PlanMemory.putAdvice({ 'cat:games': 'cat:video' }),
-    PlanMemory.putNames([{ k: ['cat:dev'], w: [], n: 'Coding', c: 'blue', s: 'cloud' }])
+    PlanMemory.recordUserRename({ tabs: tabs.slice(3, 6), name: 'Coding', color: 'blue', keys: ['cat:dev'] }),
+    PlanMemory.recordUserRename({ tabs: tabs.slice(6, 9), name: 'Pasta Night', color: 'orange', keys: [] })
   ]);
 
-  assert.equal(Object.keys(local[TabLabelCache.STORAGE_KEY].entries).length, 10);
   const memory = await PlanMemory.read();
   assert.deepEqual(memory.names.map(record => record.n).sort(), ['Coding', 'Pasta Night', 'Recipes']);
-  assert.deepEqual(memory.advice.cloud, { 'cat:games': 'cat:video' });
 });
 
-test('incognito tabs are never read from or written to the label cache or plan memory', async () => {
+test('incognito tabs are never written to plan memory', async () => {
   const { local } = installChromeStorageMock();
   const tabs = makeTabs(2).map(tab => ({ ...tab, incognito: true }));
 
-  const result = await TabLabelCache.lookup(tabs);
-  assert.equal(result.fingerprintById.size, 0);
-  assert.deepEqual(result.missing.map(tab => tab.id), [1, 2]);
-  await TabLabelCache.store(new Map([[1, 'dev'], [2, 'dev']]), result.fingerprintById, 'gemini_nano');
   await PlanMemory.recordUserRename({ tabs, name: 'Secret', color: 'red', keys: ['cat:dev'] });
 
   assert.deepEqual(local, {});
-});
-
-test('PlanMemory.putNames stores hashed model names and replaces a newer name for the same group', async () => {
-  const { local } = installChromeStorageMock();
-  const japan = [hashToken('japan'), hashToken('tokyo'), hashToken('kyoto')];
-  const paris = [hashToken('paris'), hashToken('louvre')];
-
-  await PlanMemory.putNames([
-    { k: ['task:abc', 'cat:travel'], w: japan, n: 'Japan Trip', c: 'cyan', s: 'nano', f: ['should-not-be-kept'] },
-    { k: ['cat:travel'], w: [...paris, 'louvre', 'raw words'], n: '  Paris\nWeekend  ', c: 'not-a-colour', s: 'cloud' },
-    { k: ['cat:food'], w: [], n: '   ', c: 'orange', s: 'nano' }
-  ]);
-
-  let memory = await PlanMemory.read();
-  assert.equal(memory.v, 1);
-  assert.equal(memory.names.length, 2);
-  const japanRecord = memory.names.find(record => record.n === 'Japan Trip');
-  assert.deepEqual(japanRecord.k, ['cat:travel', 'task:abc']);
-  assert.deepEqual(japanRecord.w, japan);
-  assert.deepEqual(japanRecord.f, []);
-  assert.equal(japanRecord.s, 'nano');
-  const parisRecord = memory.names.find(record => record.n === 'Paris Weekend');
-  assert.deepEqual(parisRecord.w, paris);
-  assert.equal(parisRecord.c, null);
-  assert.equal(parisRecord.s, 'cloud');
-
-  const serialised = JSON.stringify(local);
-  for (const word of ['japan', 'tokyo', 'paris', 'louvre', 'raw words', 'should-not-be-kept']) {
-    assert.ok(!serialised.includes(word), `${word} is not stored`);
-  }
-
-  // A newer model name for the same keys and tokens replaces the old one; a
-  // same-keyed group with different tokens is a different group and stays.
-  await PlanMemory.putNames([{ k: ['cat:travel', 'task:abc'], w: japan.slice(0, 2), n: 'Japan 2026', c: 'cyan', s: 'cloud' }]);
-  memory = await PlanMemory.read();
-  assert.deepEqual(memory.names.map(record => record.n), ['Japan 2026', 'Paris Weekend']);
 });
 
 test('PlanMemory keeps model names 14 days and user renames 90 days', async () => {
@@ -346,6 +198,7 @@ test('PlanMemory keeps model names 14 days and user renames 90 days', async () =
 });
 
 test('PlanMemory holds at most 120 names, newest first, evicting model names before user renames', async () => {
+  const renamed = makeTabs(10, { start: 500 });
   const { local } = installChromeStorageMock();
   const now = Date.now();
   local[PlanMemory.STORAGE_KEY] = {
@@ -361,41 +214,19 @@ test('PlanMemory holds at most 120 names, newest first, evicting model names bef
     advice: { cloud: {}, t: 0 }
   };
 
-  await PlanMemory.putNames(Array.from({ length: 10 }, (_, index) => ({
-    k: [`split:${index}`], w: [], n: `New ${index}`, c: 'red', s: 'cloud'
-  })));
+  for (const [index, tab] of renamed.entries()) {
+    await PlanMemory.recordUserRename({ tabs: [tab], name: `New ${index}`, color: 'red', keys: [] });
+  }
 
   const memory = await PlanMemory.read();
   assert.equal(memory.names.length, 120);
-  assert.equal(memory.names.filter(record => record.s === 'user').length, 5);
+  assert.equal(memory.names.filter(record => record.s === 'user').length, 15);
   assert.equal(memory.names.filter(record => record.n.startsWith('New ')).length, 10);
   assert.ok(!memory.names.some(record => ['Model 105', 'Model 114'].includes(record.n)), 'oldest model names evicted');
   assert.ok(memory.names.some(record => record.n === 'Model 104'));
   for (let index = 1; index < memory.names.length; index++) {
     assert.ok(memory.names[index - 1].t >= memory.names[index].t, 'newest first');
   }
-});
-
-test('PlanMemory.putAdvice merges cloud advice, retires reversed pairs and caps at 200', async () => {
-  installChromeStorageMock();
-  await PlanMemory.putAdvice({ 'cat:games': 'cat:video', 'cat:cars': 'cat:shop', 'cat:home': 'cat:money' });
-  await PlanMemory.putAdvice(new Map([
-    ['cat:games', 'cat:sport'],
-    ['cat:shop', 'cat:cars'],
-    ['cat:home', 'cat:home'],
-    ['cat:news', 42]
-  ]));
-
-  let memory = await PlanMemory.read();
-  assert.deepEqual(memory.advice.cloud, { 'cat:games': 'cat:sport', 'cat:shop': 'cat:cars' });
-  assert.ok(memory.advice.t > 0);
-
-  await PlanMemory.putAdvice(Array.from({ length: 210 }, (_, index) => [`task:${index}`, 'cat:dev']));
-  memory = await PlanMemory.read();
-  const keys = Object.keys(memory.advice.cloud);
-  assert.equal(keys.length, 200);
-  assert.equal(keys[0], 'task:0');
-  assert.ok(!('cat:games' in memory.advice.cloud), 'older pairs fall off first');
 });
 
 test('PlanMemory.recordUserRename stores fingerprints and replaces an earlier rename of the same tabs', async () => {
@@ -505,45 +336,40 @@ test('WindowPlanStore keeps one plan per window in session storage only', async 
   assert.equal(await WindowPlanStore.get(7), null);
 });
 
-test('deleteRule clears only the exact cache; resetRules also clears labels, plan memory and the legacy key', async () => {
+test('deleteRule clears only the exact cache; resetRules also clears plan memory, a leftover label cache and the legacy key', async () => {
   const { local } = installChromeStorageMock();
   await LearningCache.learnUserCorrections(['https://unifi.ui.com/network'], 'Network', 'cyan');
   const tabs = makeTabs(3);
   const context = await ExactResultCache.makeContext(tabs, 'labels-v1');
   await ExactResultCache.put(context, [{ name: 'Mixed', color: 'blue', tabIds: [1, 2, 3] }]);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map([[1, 'infra']]), fingerprintById, 'gemini_nano');
-  await PlanMemory.putNames([{ k: ['cat:infra'], w: [], n: 'Network', c: 'cyan', s: 'nano' }]);
+  local.foldnex_tab_labels_v1 = { v: 'v2', g: 0, entries: {} };
+  await PlanMemory.recordUserRename({ tabs: tabs.slice(0, 1), name: 'Network', color: 'cyan', keys: [] });
   local.foldnex_tab_assignments_v1 = { scope: 'dev', entries: {} };
 
   await LearningCache.deleteRule('unifi.ui.com/network/*');
   assert.ok(!(ExactResultCache.STORAGE_KEY in local));
-  assert.ok(TabLabelCache.STORAGE_KEY in local, 'labels do not depend on rules');
   assert.ok(PlanMemory.STORAGE_KEY in local, 'plan memory does not depend on rules');
   assert.deepEqual(await LearningCache.getRules(), []);
 
   await LearningCache.learnUserCorrections(['https://unifi.ui.com/network'], 'Network', 'cyan');
   await LearningCache.resetRules();
-  for (const key of [TabLabelCache.STORAGE_KEY, PlanMemory.STORAGE_KEY, 'foldnex_tab_assignments_v1', LearningCache.STORAGE_KEY]) {
+  for (const key of ['foldnex_tab_labels_v1', PlanMemory.STORAGE_KEY, 'foldnex_tab_assignments_v1', LearningCache.STORAGE_KEY]) {
     assert.ok(!(key in local), `${key} removed`);
   }
   assert.equal(local.foldnex_learning_schema_version, 2);
   assert.ok(!('foldnex_legacy_rules_backup' in local), 'reset never moves rules into the legacy backup');
 });
 
-test('resetRules waits for queued label writes so they cannot restore the cache', async () => {
+test('resetRules waits for queued plan memory writes so they cannot restore it', async () => {
   const { local } = installChromeStorageMock({ delayMs: 2 });
   const tabs = makeTabs(3);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
 
-  const pending = TabLabelCache.store(new Map([[1, 'dev'], [2, 'dev']]), fingerprintById, 'gemini_nano');
-  const pendingName = PlanMemory.putNames([{ k: ['cat:dev'], w: [], n: 'Coding', c: 'blue', s: 'nano' }]);
+  const pendingName = PlanMemory.recordUserRename({ tabs: tabs.slice(0, 2), name: 'Coding', color: 'blue', keys: [] });
   await LearningCache.resetRules();
-  await Promise.all([pending, pendingName]);
+  await pendingName;
 
-  assert.ok(!(TabLabelCache.STORAGE_KEY in local));
   assert.ok(!(PlanMemory.STORAGE_KEY in local));
-  assert.equal((await TabLabelCache.lookup(tabs)).labels.size, 0);
+  assert.deepEqual((await PlanMemory.read()).names, []);
 });
 
 test('a reset from another context wins over a write that read before it', async () => {
@@ -554,22 +380,18 @@ test('a reset from another context wins over a write that read before it', async
   const options = await import('../src/cache-engine.js?context=options');
   const tabs = makeTabs(6);
   const scope = 'labels-v1';
-  const { fingerprintById } = await worker.TabLabelCache.lookup(tabs);
   const context = await worker.ExactResultCache.makeContext(tabs, scope);
   const epochKey = 'foldnex_reset_epoch';
 
   const seed = async () => {
-    await worker.TabLabelCache.store(new Map([[1, 'food']]), fingerprintById, 'gemini_nano');
     await worker.PlanMemory.recordUserRename({ tabs: tabs.slice(0, 2), name: 'Recipes', color: 'green', keys: ['cat:food'] });
-    await worker.PlanMemory.putAdvice({ 'cat:games': 'cat:video' });
     await worker.LearningCache.learnGroupRename(tabs.slice(0, 2), 'Recipes', 'green');
     await worker.ExactResultCache.put(context, [{ name: 'Mixed', color: 'blue', tabIds: tabs.map(tab => tab.id) }]);
     await worker.LearningCache.learnUserCorrections(['https://unifi.ui.com/network'], 'Network', 'cyan');
-    assert.equal((await worker.TabLabelCache.lookup(tabs)).labels.size, 1, 'seeded');
+    assert.equal((await worker.PlanMemory.read()).names.length, 1, 'seeded');
   };
   const assertCleared = async label => {
     for (const view of [worker, options]) {
-      assert.equal((await view.TabLabelCache.lookup(tabs)).labels.size, 0, label);
       assert.deepEqual(await view.PlanMemory.read(), { v: 1, names: [], advice: { cloud: {}, t: 0 } }, label);
       const renamed = await view.LearningCache.applyGroupPreferences([
         { name: 'A', tabIds: [1, 2] }, { name: 'B', tabIds: [3, 4] }
@@ -582,9 +404,6 @@ test('a reset from another context wins over a write that read before it', async
   // [name, write, key, stamped]. Rules are a plain array without an epoch
   // stamp, so only the check before their write applies to them.
   const writes = [
-    ['labels', () => worker.TabLabelCache.store(new Map([[2, 'travel']]), fingerprintById, 'openai'), TabLabelCache.STORAGE_KEY, true],
-    ['names', () => worker.PlanMemory.putNames([{ k: ['cat:dev'], w: [], n: 'Coding', c: 'blue', s: 'nano' }]), PlanMemory.STORAGE_KEY, true],
-    ['advice', () => worker.PlanMemory.putAdvice({ 'cat:cars': 'cat:travel' }), PlanMemory.STORAGE_KEY, true],
     ['rename', () => worker.PlanMemory.recordUserRename({ tabs: tabs.slice(2, 4), name: 'Work', color: 'red', keys: [] }), PlanMemory.STORAGE_KEY, true],
     ['preferences', () => worker.LearningCache.learnGroupRename(tabs.slice(2, 4), 'Work', 'red'), CACHE_SCHEMA.groupPreferencesKey, true],
     ['exact', () => worker.ExactResultCache.put(context, [{ name: 'Other', color: 'red', tabIds: tabs.map(tab => tab.id) }]), ExactResultCache.STORAGE_KEY, true],
@@ -630,45 +449,41 @@ test('a reset from another context wins over a write that read before it', async
   }
 
   // The first write after a reset starts from an empty record.
-  await worker.TabLabelCache.store(new Map([[3, 'dev']]), fingerprintById, 'gemini_nano');
-  assert.deepEqual([...(await options.TabLabelCache.lookup(tabs)).labels.keys()], [3]);
-  assert.equal(local[TabLabelCache.STORAGE_KEY].g, resets);
+  await worker.PlanMemory.recordUserRename({ tabs: tabs.slice(4, 6), name: 'After Reset', color: 'blue', keys: [] });
+  assert.deepEqual((await options.PlanMemory.read()).names.map(record => record.n), ['After Reset']);
+  assert.equal(local[PlanMemory.STORAGE_KEY].g, resets);
 });
 
 test('records written before the reset epoch existed stay readable until the first reset', async () => {
   const { local } = installChromeStorageMock();
   const tabs = makeTabs(4);
   const scope = 'labels-v1';
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
   const context = await ExactResultCache.makeContext(tabs, scope);
-  await TabLabelCache.store(new Map([[1, 'food']]), fingerprintById, 'gemini_nano');
   await PlanMemory.recordUserRename({ tabs: tabs.slice(0, 2), name: 'Recipes', color: 'green', keys: ['cat:food'] });
   await LearningCache.learnGroupRename(tabs.slice(0, 2), 'Recipes', 'green');
   await ExactResultCache.put(context, [{ name: 'Mixed', color: 'blue', tabIds: tabs.map(tab => tab.id) }]);
 
   // The shipped version stored no epoch stamp and no epoch key.
   delete local.foldnex_reset_epoch;
-  delete local[TabLabelCache.STORAGE_KEY].g;
   delete local[PlanMemory.STORAGE_KEY].g;
   for (const preference of local[CACHE_SCHEMA.groupPreferencesKey]) delete preference.g;
   for (const record of local[ExactResultCache.STORAGE_KEY]) delete record.g;
 
   const readAll = async () => ({
-    labels: (await TabLabelCache.lookup(tabs)).labels.size,
     names: (await PlanMemory.read()).names.map(record => record.n),
     preferred: (await LearningCache.applyGroupPreferences([{ name: 'A', tabIds: [1, 2] }], tabs))[0].name,
     exact: Boolean((await ExactResultCache.get(tabs, scope)).groups)
   });
-  assert.deepEqual(await readAll(), { labels: 1, names: ['Recipes'], preferred: 'Recipes', exact: true });
+  assert.deepEqual(await readAll(), { names: ['Recipes'], preferred: 'Recipes', exact: true });
 
   // A new write keeps the older records beside its own.
-  await TabLabelCache.store(new Map([[2, 'dev']]), fingerprintById, 'gemini_nano');
+  await PlanMemory.recordUserRename({ tabs: tabs.slice(2, 4), name: 'Work', color: 'red', keys: [] });
   await LearningCache.learnGroupRename(tabs.slice(2, 4), 'Work', 'red');
-  assert.equal((await TabLabelCache.lookup(tabs)).labels.size, 2);
+  assert.deepEqual((await PlanMemory.read()).names.map(record => record.n).sort(), ['Recipes', 'Work']);
   assert.equal((await LearningCache.applyGroupPreferences([{ name: 'A', tabIds: [1, 2] }], tabs))[0].name, 'Recipes');
 
   await LearningCache.resetRules();
-  assert.deepEqual(await readAll(), { labels: 0, names: [], preferred: 'A', exact: false });
+  assert.deepEqual(await readAll(), { names: [], preferred: 'A', exact: false });
 });
 
 test('an explicit operation epoch fences delayed results while fresh results may reuse fingerprints and contexts', async () => {
@@ -676,7 +491,6 @@ test('an explicit operation epoch fences delayed results while fresh results may
   const worker = await import('../src/cache-engine.js?context=origin-worker');
   const options = await import('../src/cache-engine.js?context=origin-options');
   const tabs = makeTabs(2);
-  const { fingerprintById } = await worker.TabLabelCache.lookup(tabs);
   const context = await worker.ExactResultCache.makeContext(tabs, 'origin');
   const groups = [{ name: 'Model Name', color: 'blue', tabIds: [1, 2], keys: ['cat:dev'] }];
   const epoch = await worker.readResetEpoch();
@@ -685,9 +499,6 @@ test('an explicit operation epoch fences delayed results while fresh results may
   assert.equal(await worker.readResetEpoch(), 1);
 
   const save = async origin => {
-    await worker.TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai', origin);
-    await worker.PlanMemory.putNames([{ k: ['cat:dev'], w: [], n: 'Model Name', s: 'cloud' }], origin);
-    await worker.PlanMemory.putAdvice({ 'cat:games': 'cat:video' }, origin);
     await worker.PlanMemory.recordUserRename({ tabs, name: 'My Group', keys: ['cat:dev'] }, origin);
     await worker.LearningCache.learnGroupRename(tabs, 'My Group', 'green', origin);
     await worker.LearningCache.learnFromGroupings([{ name: 'Work', tabs: [{ url: 'https://example.test/work' }] }], origin);
@@ -696,7 +507,6 @@ test('an explicit operation epoch fences delayed results while fresh results may
     await worker.WindowPlanStore.put(7, { groups, signature: 'origin' }, origin);
   };
   await save({ epoch });
-  assert.equal((await worker.TabLabelCache.lookup(tabs)).labels.size, 0);
   assert.equal((await worker.PlanMemory.read()).names.length, 0);
   assert.deepEqual(await worker.LearningCache.getRules(), []);
   assert.equal((await worker.ExactResultCache.get(tabs, 'origin')).groups, null);
@@ -706,9 +516,7 @@ test('an explicit operation epoch fences delayed results while fresh results may
   // Fresh work explicitly reuses these pre-reset data objects. They carry no
   // generation: the supplied operation epoch decides whether saving is safe.
   await save({ epoch: await worker.readResetEpoch() });
-  assert.equal((await options.TabLabelCache.lookup(tabs)).labels.size, 1);
-  assert.deepEqual((await options.PlanMemory.read()).names.map(record => record.n).sort(), ['Model Name', 'My Group']);
-  assert.deepEqual((await options.PlanMemory.read()).advice.cloud, { 'cat:games': 'cat:video' });
+  assert.deepEqual((await options.PlanMemory.read()).names.map(record => record.n), ['My Group']);
   assert.equal((await options.LearningCache.getRules()).length, 1);
   assert.equal((await options.LearningCache.applyGroupPreferences(groups, tabs))[0].name, 'My Group');
   assert.equal((await options.ExactResultCache.get(tabs, 'origin')).groups[0].name, 'Model Name');
@@ -725,34 +533,31 @@ test('writes without an explicit origin capture their epoch before waiting behin
   const worker = await import('../src/cache-engine.js?context=queued-origin-worker');
   const options = await import('../src/cache-engine.js?context=queued-origin-options');
   const tabs = makeTabs(2);
-  const { fingerprintById } = await worker.TabLabelCache.lookup(tabs);
   const context = await worker.ExactResultCache.makeContext(tabs, 'queued');
+  const blocker = await worker.ExactResultCache.makeContext(makeTabs(2, { start: 90 }), 'blocker');
   const groups = [{ name: 'Old Result', tabIds: [1, 2] }];
   let started;
   let release;
   const blocked = new Promise(resolve => { started = resolve; });
   const gate = new Promise(resolve => { release = resolve; });
   hooks.beforeSet = async values => {
-    if (!(TabLabelCache.STORAGE_KEY in values)) return;
+    if (!(ExactResultCache.STORAGE_KEY in values)) return;
     hooks.beforeSet = null;
     started();
     await gate;
   };
-  const first = worker.TabLabelCache.store(new Map([[1, 'food']]), fingerprintById, 'openai', { epoch: 0 });
+  const first = worker.ExactResultCache.put(blocker, [{ name: 'Blocker', tabIds: [90, 91] }], { epoch: 0 });
   await blocked;
   let captured;
   const allCaptured = new Promise(resolve => { captured = resolve; });
   let origins = 0;
   hooks.afterGet = keys => {
-    if (keys.length === 1 && keys[0] === 'foldnex_reset_epoch' && ++origins === 7) {
+    if (keys.length === 1 && keys[0] === 'foldnex_reset_epoch' && ++origins === 4) {
       hooks.afterGet = null;
       captured();
     }
   };
   const pending = [
-    worker.TabLabelCache.store(new Map([[2, 'dev']]), fingerprintById, 'openai'),
-    worker.PlanMemory.putNames([{ k: ['cat:dev'], n: 'Old Name' }]),
-    worker.PlanMemory.putAdvice({ 'cat:games': 'cat:video' }),
     worker.PlanMemory.recordUserRename({ tabs, name: 'Old Rename' }),
     worker.LearningCache.learnGroupRename(tabs, 'Old Preference', 'red'),
     worker.ExactResultCache.put(context, groups),
@@ -762,7 +567,6 @@ test('writes without an explicit origin capture their epoch before waiting behin
   await options.LearningCache.resetRules();
   release();
   await Promise.all([first, ...pending]);
-  assert.equal((await options.TabLabelCache.lookup(tabs)).labels.size, 0);
   assert.deepEqual(await options.PlanMemory.read(), { v: 1, names: [], advice: { cloud: {}, t: 0 } });
   assert.equal((await options.ExactResultCache.get(tabs, 'queued')).groups, null);
   assert.equal(await options.WindowPlanStore.get(7), null);
@@ -850,14 +654,13 @@ test('a delayed old rename does not clear an exact result saved after reset', as
 test('a failed write does not block later writes', async () => {
   installChromeStorageMock();
   const tabs = makeTabs(1);
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
   const originalSet = chrome.storage.local.set;
   chrome.storage.local.set = async () => { throw new Error('QUOTA_BYTES quota exceeded'); };
-  await assert.rejects(TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai'), /quota/);
+  await assert.rejects(PlanMemory.recordUserRename({ tabs, name: 'Coding', color: 'blue', keys: [] }), /quota/);
   chrome.storage.local.set = originalSet;
 
-  await TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai');
-  assert.equal((await TabLabelCache.lookup(tabs)).labels.get(1).c, 'dev');
-  await TabLabelCache.clear();
-  assert.equal((await TabLabelCache.lookup(tabs)).labels.size, 0);
+  await PlanMemory.recordUserRename({ tabs, name: 'Coding', color: 'blue', keys: [] });
+  assert.deepEqual((await PlanMemory.read()).names.map(record => record.n), ['Coding']);
+  await PlanMemory.clear();
+  assert.deepEqual((await PlanMemory.read()).names, []);
 });

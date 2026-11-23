@@ -1,24 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { LearningCache, PlanMemory, PlanOfferStore, readResetEpoch, tabSetSignature, WindowPlanStore } from '../src/cache-engine.js';
+import { buildLockedGroups, getGroupableTabs, getRunScope, loadGroupingSettings, lockedPartitionKey } from '../src/grouper.js';
 import {
-  configureOnDeviceMemory,
-  getOnDeviceModelState,
-  IMMEDIATE_UNLOAD_GRACE_MS,
-  labelCacheScope,
-  NAME_SYSTEM,
-  resetNanoBases
-} from '../src/ai-engine.js';
-import { LearningCache, PlanMemory, TabLabelCache, WindowPlanStore } from '../src/cache-engine.js';
-import {
-  autoGroupWindow,
-  classifyTabs,
+  attachNewTab,
   createBackgroundClassifier,
   createNewTabTracker,
-  isOnDeviceEngine,
-  loadBackgroundScope,
-  PLAN_REFRESH_DELAY_MS,
-  refreshAndAutoGroup
+  isLocalOllama
 } from '../src/background-classifier.js';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -150,54 +139,6 @@ function installBrowser(tabs, { sync = {}, chromeGroups = [], liveGroups = false
   return { local, session, sync, calls, groups };
 }
 
-/**
- * Chrome's Prompt API. Records label and name prompts and base creations,
- * with whether Foldnex still held a base (the model) when each load began;
- * setting `calls.createDelayMs` makes later loads that slow.
- */
-function installNanoMock({ labelFor = keyForTitle, nameFor = name => name, nameDelayMs = 0 } = {}) {
-  const calls = { labelPrompts: [], namePrompts: [], creates: 0, heldAtCreate: [], createDelayMs: 0 };
-  const makeSession = createOptions => ({
-    inputUsage: 300,
-    async clone() {
-      return makeSession(createOptions);
-    },
-    async prompt(text) {
-      const naming = createOptions?.initialPrompts?.[0]?.content === NAME_SYSTEM;
-      (naming ? calls.namePrompts : calls.labelPrompts).push(text);
-      if (naming && nameDelayMs > 0) await sleep(nameDelayMs);
-      const answer = {};
-      for (const line of text.split('\n')) {
-        const match = line.match(/^(\d+) \| (.*) \| (.*)$/);
-        if (match) answer[match[1]] = naming ? nameFor(match[2]) : labelFor(match[2]);
-      }
-      return JSON.stringify(answer);
-    },
-    async measureInputUsage(text) {
-      return Math.ceil(text.length / 4);
-    },
-    destroy() {}
-  });
-  resetNanoBases();
-  globalThis.self = globalThis;
-  globalThis.LanguageModel = {
-    async availability() { return 'available'; },
-    async create(options) {
-      calls.creates++;
-      calls.heldAtCreate.push(getOnDeviceModelState().loaded);
-      if (calls.createDelayMs > 0) await sleep(calls.createDelayMs);
-      return makeSession(options);
-    }
-  };
-  return calls;
-}
-
-function removeNanoMock() {
-  resetNanoBases();
-  delete globalThis.LanguageModel;
-  delete globalThis.self;
-}
-
 /** An OpenAI-compatible endpoint that labels every row and tracks concurrency. */
 function installCloudFetch({ delayMs = 0, failFirst = false } = {}) {
   const original = globalThis.fetch;
@@ -235,188 +176,35 @@ function installCloudFetch({ delayMs = 0, failFirst = false } = {}) {
   };
 }
 
-async function cacheLabels(tabs, engine = 'gemini_nano') {
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  const settings = await chrome.storage.sync.get(null);
-  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, engine, {
-    scope: labelCacheScope({ ...settings, provider: engine })
-  });
-}
-
-async function lookupSelectedLabels(tabs) {
-  const settings = await chrome.storage.sync.get(null);
-  return TabLabelCache.lookup(tabs, { scope: labelCacheScope(settings) });
-}
-
-const ON_DEVICE = async () => ({ allowed: true, onDevice: true, autoGroup: true });
-
-/* ------------------------------------------------------------------------ */
-/* Auto-group resolves plan groups by membership                            */
-/* ------------------------------------------------------------------------ */
-
-test('auto-group joins the Chrome group holding a plan group\'s members, whatever its title', async () => {
-  const W = 201;
-  const tabs = makeTopicTabs(W, 20100, { travel: 3, food: 2 });
-  for (const tab of tabs) tab.groupId = tab.title.includes('flights') ? 11 : 12;
-  const newcomer = { ...makeTopicTabs(W, 20190, { travel: 1 })[0], index: tabs.length };
-  tabs.push(newcomer);
-  const { calls } = installBrowser(tabs, {
-    chromeGroups: [
-      { id: 11, windowId: W, title: 'Travel' },
-      { id: 12, windowId: W, title: 'Food & Recipes' },
-      { id: 13, windowId: W, title: 'Japan Trip' }
-    ]
-  });
-  const plan = {
-    groups: [
-      { name: 'Japan Trip', kind: 'category', tabIds: [20100, 20101, 20102, 20190] },
-      { name: 'Home Cooking', kind: 'category', tabIds: [20103, 20104] }
-    ]
-  };
-
-  // One new tab joins at once; the empty same-titled group is not used.
-  assert.equal(await autoGroupWindow(W, plan, { candidateIds: [20190] }), 1);
-  assert.deepEqual(calls.group, [{ groupId: 11, tabIds: [20190] }]);
-  assert.deepEqual(calls.update, []);
-});
-
-test('auto-group never creates a second group for members that already sit in one', async () => {
-  const W = 202;
-  const tabs = makeTopicTabs(W, 20200, { travel: 7 });
-  // Members sit 2:1 across two groups, and one more in Review Later, which never counts.
-  tabs[0].groupId = 21;
-  tabs[1].groupId = 21;
-  tabs[2].groupId = 22;
-  tabs[3].groupId = 23;
-  const newIds = [20204, 20205, 20206];
-  const { calls } = installBrowser(tabs, {
-    chromeGroups: [
-      { id: 21, windowId: W, title: 'Travel' },
-      { id: 22, windowId: W, title: 'Trips' },
-      { id: 23, windowId: W, title: 'Review Later' }
-    ]
-  });
-  const plan = { groups: [{ name: 'Tokyo', kind: 'category', tabIds: tabs.map(tab => tab.id) }] };
-  assert.equal(await autoGroupWindow(W, plan, { candidateIds: newIds }), 3);
-  assert.deepEqual(calls.group, [{ groupId: 21, tabIds: newIds }]);
-});
-
-test('auto-group falls back to a title match only when no member is grouped', async () => {
-  const W = 203;
-  const tabs = makeTopicTabs(W, 20300, { food: 2, travel: 2 });
-  tabs[0].groupId = 31;
-  const { calls } = installBrowser(tabs, { chromeGroups: [{ id: 31, windowId: W, title: 'Travel' }] });
-  // Food members are ungrouped, but a group titled Travel exists for the travel plan group.
-  const plan = {
-    groups: [
-      { name: 'Travel', kind: 'category', tabIds: [20302, 20303] },
-      { name: 'Food & Recipes', kind: 'category', tabIds: [20300, 20301] }
-    ]
-  };
-  await autoGroupWindow(W, plan, { candidateIds: [20301, 20302, 20303] });
-  // Travel joins by title; the one ungrouped food tab joins the group its sibling sits in.
-  assert.deepEqual(calls.group, [
-    { groupId: 31, tabIds: [20302, 20303] },
-    { groupId: 31, tabIds: [20301] }
-  ]);
-});
-
-test('background naming that renames only the stored plan no longer splits a topic', async () => {
-  const W = 204;
-  const tabs = makeTopicTabs(W, 20400, { travel: 4, food: 4, dev: 4 });
-  const idOf = { travel: 41, food: 42, dev: 43 };
-  for (const tab of tabs) tab.groupId = idOf[keyForTitle(tab.title)];
-  const newcomers = makeTopicTabs(W, 20490, { travel: 2 }).map((tab, i) => ({ ...tab, index: 12 + i, title: `Hotel near Tokyo station ${i}` }));
-  tabs.push(...newcomers);
-  const { calls } = installBrowser(tabs, {
-    sync: { provider: 'gemini_nano', autoGroupNewTabs: true },
-    chromeGroups: [
-      { id: 41, windowId: W, title: 'Travel' },
-      { id: 42, windowId: W, title: 'Food & Recipes' },
-      { id: 43, windowId: W, title: 'Coding' }
-    ]
-  });
-  await cacheLabels(tabs);
-  const renamed = { Travel: 'Japan Trip', 'Food & Recipes': 'Home Cooking', Coding: 'React App' };
-  const nano = installNanoMock({ nameFor: name => renamed[name] || name });
-  try {
-    const plan = await refreshAndAutoGroup(W, null, { candidateIds: newcomers.map(tab => tab.id) });
-    assert.equal(nano.namePrompts.length, 1);
-    assert.ok(plan.groups.some(group => group.name === 'Japan Trip'), 'the stored plan was renamed');
-    assert.deepEqual(calls.group, [{ groupId: 41, tabIds: [20490, 20491] }]);
-  } finally {
-    removeNanoMock();
-  }
-});
-
 /* ------------------------------------------------------------------------ */
 /* Auto-group candidates                                                    */
 /* ------------------------------------------------------------------------ */
 
-function recordingClassifier({ stored = () => [], tracker = createNewTabTracker(), ...options } = {}) {
-  const refreshes = [];
-  const classified = [];
+function recordingClassifier({ tracker = createNewTabTracker(), ...options } = {}) {
+  const attached = [];
   const classifier = createBackgroundClassifier({
-    classify: async ids => {
-      classified.push(ids);
-      return { windowIds: [], storedWindowIds: stored(ids), labelledIds: [], unlabelledIds: [] };
+    attach: async id => {
+      attached.push(id);
+      return { placed: false };
     },
-    refresh: async (windowId, _signal, details) => {
-      refreshes.push({ windowId, ...details });
-      return null;
-    },
-    scope: ON_DEVICE,
     tracker,
-    flushDelayMs: 5,
-    refreshDelayMs: 5,
     ...options
   });
-  return { classifier, refreshes, classified, tracker };
+  return { classifier, tracker, attached };
 }
-
-test('popup open, a cleanup and a cached-only flush never auto-group', async () => {
-  const W = 205;
-  const tabs = makeTopicTabs(W, 20500, { food: 3 });
-  installBrowser(tabs);
-  let stored = [];
-  const { classifier, refreshes, classified, tracker } = recordingClassifier({ stored: () => stored });
-  try {
-    // A candidate exists in the window, but only its own load may trigger auto-group.
-    await tracker.markNew(20500);
-
-    await classifier.prioritize(W);
-    assert.ok(await waitFor(() => classified.length === 1));
-    await sleep(40);
-    assert.deepEqual(refreshes, [], 'nothing stored, nothing refreshed');
-
-    stored = [W];
-    classifier.enqueue([20501], { reason: 'title' });
-    assert.ok(await waitFor(() => refreshes.length === 1));
-    assert.equal(refreshes[0].autoGroup, false);
-    assert.deepEqual(refreshes[0].candidateIds, []);
-
-    classifier.scheduleWindowPlanRefresh(W);
-    assert.ok(await waitFor(() => refreshes.length === 2));
-    assert.equal(refreshes[1].autoGroup, false);
-  } finally {
-    classifier.pause();
-  }
-});
 
 test('only a tab opened or navigated with Auto-group on becomes a candidate, until it is grouped or taken out', async () => {
   const W = 206;
   const tabs = makeTopicTabs(W, 20600, { food: 4 });
   installBrowser(tabs);
-  const { classifier, refreshes, tracker } = recordingClassifier();
+  const { classifier, attached, tracker } = recordingClassifier();
   const on = { autoGroup: true };
   const [a, b, c, d] = tabs;
   try {
-    // Opened while Auto-group was on, then loaded: its window auto-groups it.
+    // Opened while Auto-group was on, then loaded: it is attached locally.
     await classifier.noteTabCreated({ ...a, status: 'loading', url: '', pendingUrl: a.url }, on);
     await classifier.noteTabUpdated(a.id, { status: 'complete' }, a, on);
-    assert.ok(await waitFor(() => refreshes.length === 1));
-    assert.equal(refreshes[0].autoGroup, true);
-    assert.deepEqual(refreshes[0].candidateIds, [a.id]);
+    assert.deepEqual(attached, [a.id]);
 
     // Grouped, then taken out by the user: no longer a candidate.
     await classifier.noteTabUpdated(a.id, { groupId: 7 }, { ...a, groupId: 7 }, on);
@@ -431,16 +219,14 @@ test('only a tab opened or navigated with Auto-group on becomes a candidate, unt
     await classifier.noteTabUpdated(c.id, { title: 'Kitchen notes' }, { ...c, title: 'Kitchen notes' }, on);
     await classifier.noteTabUpdated(c.id, { url: 'https://www.food-site-20602.com/other' }, { ...c, url: 'https://www.food-site-20602.com/other' }, on);
     await sleep(60);
-    assert.equal(refreshes.length, 1);
+    assert.equal(attached.length, 1);
     assert.deepEqual(await tracker.candidateIds(), []);
 
     // Opening a new page makes the taken-out tab a candidate again.
     const next = 'https://www.food-site-20600.com/another';
     await classifier.noteTabUpdated(a.id, { status: 'loading', url: next }, { ...a, status: 'loading', url: next }, on);
     await classifier.noteTabUpdated(a.id, { status: 'complete' }, { ...a, url: next }, on);
-    assert.ok(await waitFor(() => refreshes.length === 2));
-    assert.equal(refreshes[1].autoGroup, true);
-    assert.deepEqual(refreshes[1].candidateIds, [a.id]);
+    assert.deepEqual(attached, [a.id, a.id]);
 
     // Ungroup all: the window's tabs stop being candidates.
     await classifier.noteWindowUngrouped(W);
@@ -450,7 +236,7 @@ test('only a tab opened or navigated with Auto-group on becomes a candidate, unt
     await classifier.noteTabCreated({ ...d, status: 'loading' }, { autoGroup: false });
     await classifier.noteTabUpdated(d.id, { status: 'complete' }, d, { autoGroup: false });
     await sleep(60);
-    assert.equal(refreshes.length, 2);
+    assert.equal(attached.length, 2);
 
     // Turning Auto-group off forgets new tabs; closing a tab forgets it.
     await classifier.noteTabCreated({ ...d, id: 20699, status: 'loading' }, on);
@@ -465,7 +251,7 @@ test('only a tab opened or navigated with Auto-group on becomes a candidate, unt
   }
 });
 
-test('an address the page rewrites itself is not a new page and is re-labelled like a title change', async () => {
+test('an address the page rewrites itself is not a new page', async () => {
   const W = 223;
   const maps = {
     id: 22300, windowId: W, index: 0, pinned: false, incognito: false, status: 'complete', groupId: -1,
@@ -475,19 +261,7 @@ test('an address the page rewrites itself is not a new page and is re-labelled l
   installBrowser([maps, other], { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
   const cloud = installCloudFetch();
   const tracker = createNewTabTracker();
-  const cloudQueue = createBackgroundClassifier({ tracker, flushDelayMs: 20, flushMaxWaitMs: 60, refreshDelayMs: 60000 });
-  const classified = [];
-  const localQueue = createBackgroundClassifier({
-    classify: async ids => {
-      classified.push(ids);
-      return { windowIds: [W], storedWindowIds: [], labelledIds: ids, unlabelledIds: [] };
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 20,
-    flushMaxWaitMs: 60
-  });
+  const cloudQueue = createBackgroundClassifier({ tracker });
   const on = { autoGroup: true };
   try {
     // An old map tab the user took out of a group, panned eight times.
@@ -497,17 +271,14 @@ test('an address the page rewrites itself is not a new page and is re-labelled l
       // Chrome may or may not report the status with a same-document change.
       const changeInfo = i % 2 ? { url: maps.url } : { status: 'complete', url: maps.url };
       await cloudQueue.noteTabUpdated(maps.id, changeInfo, { ...maps }, on);
-      await localQueue.noteTabUpdated(maps.id, changeInfo, { ...maps }, on);
       await sleep(40);
     }
     await sleep(100);
     assert.deepEqual(await tracker.candidateIds(), [], 'a taken-out tab stays out');
     assert.deepEqual(await tracker.freshIds(), [], 'an old tab does not become new');
     assert.equal(cloud.requests.length, 0);
-    assert.equal(classified.length, 1, 'an on-device engine re-labels it once per interval');
   } finally {
     cloudQueue.pause();
-    localQueue.pause();
     cloud.restore();
   }
 });
@@ -530,18 +301,14 @@ test('after Ungroup all, opening the popup regroups nothing and a removed tab st
   const W = 207;
   const tabs = makeTopicTabs(W, 20700, { food: 5, travel: 5, dev: 5 });
   const { calls } = installBrowser(tabs, {
-    sync: { provider: 'gemini_nano', groupingStrategy: 'task', autoGroupNewTabs: true },
+    sync: { provider: 'offline', groupingStrategy: 'task', autoGroupNewTabs: true },
     chromeGroups: [{ id: 71, windowId: W, title: 'Food & Recipes' }],
     liveGroups: true
   });
-  await cacheLabels(tabs);
-  installNanoMock();
-  const classifier = createBackgroundClassifier({ flushDelayMs: 10, refreshDelayMs: 20 });
+  const classifier = createBackgroundClassifier();
   const on = { autoGroup: true };
   try {
     // Every tab is ungrouped, as Ungroup all leaves them.
-    await classifier.prioritize(W);
-    await sleep(250);
     assert.deepEqual(calls.group, []);
 
     // The food tabs are grouped again; the user takes one out.
@@ -552,7 +319,7 @@ test('after Ungroup all, opening the popup regroups nothing and a removed tab st
     await classifier.noteTabUpdated(removed.id, { groupId: -1 }, removed, on);
 
     // A new food tab loads: it joins the food group, the removed tab does not.
-    const fresh = { ...makeTopicTabs(W, 20790, { food: 1 })[0], index: tabs.length, title: 'Kitchen recipe 9', status: 'loading' };
+    const fresh = { ...makeTopicTabs(W, 20790, { food: 1 })[0], index: tabs.length, title: 'Easy ramen recipe with miso', status: 'loading' };
     tabs.push(fresh);
     await classifier.noteTabCreated(fresh, on);
     fresh.status = 'complete';
@@ -563,796 +330,213 @@ test('after Ungroup all, opening the popup regroups nothing and a removed tab st
     assert.equal(removed.groupId, -1);
   } finally {
     classifier.pause();
-    removeNanoMock();
   }
 });
 
 /* ------------------------------------------------------------------------ */
-/* Queue timing, rate limit and retries                                     */
+/* Ollama on this device                                                    */
 /* ------------------------------------------------------------------------ */
 
-test('a tab that keeps changing cannot hold the flush past its maximum wait', async () => {
-  installBrowser([]);
-  const { classifier, classified } = recordingClassifier({ flushDelayMs: 50, flushMaxWaitMs: 150 });
-  try {
-    const startedAt = Date.now();
-    let firstAt = null;
-    while (Date.now() - startedAt < 400) {
-      classifier.enqueue([1], { reason: 'load' });
-      if (classified.length > 0 && firstAt === null) firstAt = Date.now() - startedAt;
-      await sleep(15);
-    }
-    assert.ok(classified.length >= 2, `flushed ${classified.length} times`);
-    assert.ok(firstAt !== null && firstAt < 300, `first flush after ${firstAt} ms`);
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a refresh waits for stored labels and is never postponed past its cap', async () => {
-  const W = 208;
-  installBrowser(makeTopicTabs(W, 20800, { food: 2 }));
-  let stored = [];
-  const { classifier, refreshes, classified } = recordingClassifier({
-    stored: () => stored,
-    flushDelayMs: 10,
-    flushMaxWaitMs: 20,
-    refreshDelayMs: 100,
-    refreshMaxPostponeMs: 250
-  });
-  try {
-    // Cached-only flushes push nothing.
-    classifier.enqueue([20800], { reason: 'load' });
-    assert.ok(await waitFor(() => classified.length === 1));
-    await sleep(150);
-    assert.equal(refreshes.length, 0);
-
-    // A label stored every ~30 ms would push the refresh forever without the cap.
-    stored = [W];
-    const startedAt = Date.now();
-    while (refreshes.length === 0 && Date.now() - startedAt < 1500) {
-      classifier.enqueue([20800], { reason: 'load' });
-      await sleep(30);
-    }
-    const elapsed = Date.now() - startedAt;
-    assert.equal(refreshes.length, 1);
-    assert.ok(elapsed < 600, `refreshed after ${elapsed} ms`);
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a title-only change re-labels a tab at most once per interval until it navigates', async () => {
-  const W = 209;
-  const tabs = makeTopicTabs(W, 20900, { food: 1 });
-  installBrowser(tabs);
-  const classified = [];
-  const classifier = createBackgroundClassifier({
-    classify: async ids => {
-      classified.push(ids);
-      return { windowIds: [W], storedWindowIds: [], labelledIds: ids, unlabelledIds: [] };
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 5,
-    navigationSettleMs: 0
-  });
-  const tab = tabs[0];
-  try {
-    await classifier.noteTabUpdated(tab.id, { title: 'BTC 61,000' }, tab);
-    assert.ok(await waitFor(() => classified.length === 1));
-    for (let i = 0; i < 5; i++) await classifier.noteTabUpdated(tab.id, { title: `BTC 61,00${i}` }, tab);
-    assert.deepEqual(classifier.pendingTabIds(), []);
-
-    const next = 'https://www.food-site-20900.com/next';
-    await classifier.noteTabUpdated(tab.id, { status: 'loading', url: next }, { ...tab, status: 'loading', url: next });
-    await classifier.noteTabUpdated(tab.id, { title: 'Another page' }, { ...tab, url: next });
-    assert.deepEqual(classifier.pendingTabIds(), [tab.id]);
-    assert.ok(await waitFor(() => classified.length === 2));
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a failed flush re-queues its tabs with back-off and gives up after four attempts until a new page', async () => {
-  installBrowser(makeTopicTabs(210, 21000, { food: 2 }));
-  const attempts = [];
-  const classifier = createBackgroundClassifier({
-    classify: async ids => {
-      attempts.push({ ids, at: Date.now() });
-      throw new Error('HTTP 429');
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 5,
-    retryDelaysMs: [20, 60, 100]
-  });
-  try {
-    classifier.enqueue([21000, 21001]);
-    assert.ok(await waitFor(() => attempts.length === 4, 2000));
-    await sleep(200);
-    assert.equal(attempts.length, 4);
-    for (const attempt of attempts) assert.deepEqual(attempt.ids, [21000, 21001]);
-    const gaps = attempts.slice(1).map((attempt, i) => attempt.at - attempts[i].at);
-    assert.ok(gaps[0] >= 15 && gaps[1] >= 50 && gaps[2] >= 90, `gaps ${gaps}`);
-
-    // Given up: other queueing is ignored until the tab opens a new page.
-    classifier.enqueue([21000, 21001]);
-    assert.deepEqual(classifier.pendingTabIds(), []);
-    const next = 'https://www.food-site-21000.com/next';
-    await classifier.noteTabUpdated(21000, { status: 'loading', url: next }, { id: 21000, status: 'loading', url: next, groupId: -1 });
-    classifier.enqueue([21000, 21001]);
-    assert.deepEqual(classifier.pendingTabIds(), [21000]);
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a given-up tab gets one more attempt when the popup opens or a cleanup places it provisionally', async () => {
-  const W = 222;
-  const tabs = makeTopicTabs(W, 22200, { food: 2 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
-  let availability = 'downloading';
-  const nano = installNanoMock();
-  globalThis.LanguageModel.availability = async () => availability;
-  const ids = tabs.map(tab => tab.id);
-  const classifier = createBackgroundClassifier({
-    refresh: async () => null,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 5,
-    retryDelaysMs: [10, 10, 10]
-  });
-  const settled = () => classifier.pendingTabIds().length === 0;
-  try {
-    // The model is still downloading: four attempts, then the tabs give up.
-    classifier.enqueue(ids);
-    await sleep(250);
-    classifier.enqueue(ids);
-    assert.deepEqual(classifier.pendingTabIds(), [], 'given up');
-
-    // Still failing: a cleanup's provisional tabs try once and give up again at once.
-    classifier.enqueue(ids, { retryGivenUp: true });
-    assert.deepEqual(classifier.pendingTabIds(), ids);
-    assert.ok(await waitFor(settled));
-    await sleep(60);
-    classifier.enqueue(ids);
-    assert.deepEqual(classifier.pendingTabIds(), [], 'given up after one more attempt');
-
-    // Once the model is ready, opening the popup labels them.
-    availability = 'available';
-    resetNanoBases();
-    await classifier.prioritize(W);
-    assert.deepEqual(classifier.pendingTabIds(), ids);
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 2000));
-    assert.ok(nano.labelPrompts.length > 0);
-  } finally {
-    classifier.pause();
-    removeNanoMock();
-  }
-});
-
-test('a partial result re-queues only the unlabelled tabs, from the result or the thrown error', async () => {
-  installBrowser(makeTopicTabs(211, 21100, { food: 3 }));
-  const seen = [];
-  let round = 0;
-  const classifier = createBackgroundClassifier({
-    classify: async ids => {
-      seen.push(ids);
-      round++;
-      if (round === 1) {
-        return { windowIds: [211], storedWindowIds: [], labelledIds: [21100], unlabelledIds: [21101, 21102], error: new Error('batch failed') };
-      }
-      if (round === 2) throw Object.assign(new Error('timeout'), { unlabelledIds: [21102] });
-      return { windowIds: [211], storedWindowIds: [], labelledIds: ids, unlabelledIds: [] };
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 5,
-    retryDelaysMs: [20, 20, 20]
-  });
-  try {
-    classifier.enqueue([21100, 21101, 21102]);
-    assert.ok(await waitFor(() => seen.length === 3, 2000));
-    assert.deepEqual(seen, [[21100, 21101, 21102], [21101, 21102], [21102]]);
-    await sleep(80);
-    assert.equal(seen.length, 3);
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a Nano batch that fails mid-run is retried until every tab is labelled', async () => {
-  const W = 212;
-  const tabs = makeTopicTabs(W, 21200, { food: 14, travel: 14, dev: 12 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
-  let failed = false;
-  const nano = installNanoMock({
-    labelFor: title => {
-      if (!failed && title.includes('Tokyo 5')) {
-        failed = true;
-        throw new Error('UnknownError');
-      }
-      return keyForTitle(title);
-    }
-  });
-  const classifier = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 5, retryDelaysMs: [30, 30, 30] });
-  try {
-    classifier.enqueue(tabs.map(tab => tab.id));
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 3000));
-    assert.ok(failed);
-    assert.ok(nano.labelPrompts.length > 3, `${nano.labelPrompts.length} prompts`);
-  } finally {
-    classifier.pause();
-    removeNanoMock();
-  }
-});
-
-/* ------------------------------------------------------------------------ */
-/* What the background may label                                            */
-/* ------------------------------------------------------------------------ */
-
-test('classifyTabs labels discarded and unloaded tabs and skips loading ones', async () => {
-  const W = 213;
-  const tabs = makeTopicTabs(W, 21300, { food: 3, travel: 3 });
-  tabs[0].status = 'unloaded';
-  tabs[1].status = 'unloaded';
-  tabs[1].discarded = true;
-  tabs[2].status = 'loading';
-  installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
-  const nano = installNanoMock();
-  try {
-    const result = await classifyTabs(tabs.map(tab => tab.id));
-    assert.deepEqual(result.windowIds, [W]);
-    assert.deepEqual(result.storedWindowIds, [W]);
-    assert.deepEqual([...result.labelledIds].sort((a, b) => a - b), [21300, 21301, 21303, 21304, 21305]);
-    assert.ok(nano.labelPrompts.every(text => !text.includes('recipe 2')));
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('background cloud labelling sends one batch at a time', async () => {
-  const W = 214;
-  const tabs = makeTopicTabs(W, 21400, { food: 20, travel: 20, dev: 20 });
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch({ delayMs: 20 });
-  try {
-    const ids = tabs.map(tab => tab.id);
-    const result = await classifyTabs(ids, null, { admission: { freshIds: ids, reasons: ids.map(id => [id, 'load']) } });
-    assert.equal(cloud.requests.length, 3);
-    assert.equal(cloud.peak(), 1);
-    assert.equal(result.labelledIds.length, 60);
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('the shared cloud dispatch requires explicit fresh-page admission and excludes title-only work', async () => {
-  const tabs = makeTopicTabs(228, 22800, { dev: 3 });
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch();
-  const ids = tabs.map(tab => tab.id);
-  try {
-    assert.deepEqual((await classifyTabs(ids)).labelledIds, []);
-    assert.equal(cloud.requests.length, 0);
-    const result = await classifyTabs(ids, null, {
-      admission: { freshIds: ids.slice(1), reasons: [[ids[0], 'load'], [ids[1], 'title'], [ids[2], 'load']] }
-    });
-    assert.deepEqual(result.labelledIds, [ids[2]]);
-    assert.deepEqual(cloud.titles(), [tabs[2].title]);
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('background dispatch uses the local settings admitted before tabs are read', async () => {
-  for (const transition of ['endpoint', 'provider']) {
-    const tabs = makeTopicTabs(229, 22900, { dev: 2 });
-    const { sync } = installBrowser(tabs, { sync: { provider: 'ollama', backgroundPrep: true, autoGroupNewTabs: true } });
-    const cloud = installCloudFetch();
-    const get = chrome.tabs.get;
-    let changed = false;
-    chrome.tabs.get = async id => {
-      if (!changed) {
-        changed = true;
-        if (transition === 'endpoint') sync.ollamaBaseUrl = 'https://remote.example/v1';
-        else Object.assign(sync, { provider: 'openai', openaiApiKey: 'test-only' });
-      }
-      return get(id);
-    };
-    const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000 });
-    try {
-      classifier.enqueue(tabs.map(tab => tab.id));
-      assert.ok(await waitFor(() => cloud.requests.length === 1), transition);
-      await classifier.whenIdle();
-      assert.ok(cloud.requests.every(request => request.url.startsWith('http://localhost:11434/')), transition);
-      assert.equal(cloud.titles().length, 2);
-    } finally {
-      classifier.pause();
-      cloud.restore();
-    }
-  }
-});
-
-test('a reset during background provider labelling discards its old labels and allows a fresh request', async () => {
-  const tabs = makeTopicTabs(230, 23000, { dev: 2 });
-  const { local } = installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch({ delayMs: 60 });
-  const ids = tabs.map(tab => tab.id);
-  const context = { admission: { freshIds: ids, reasons: ids.map(id => [id, 'load']) } };
-  try {
-    const pending = classifyTabs(ids, null, context);
-    assert.ok(await waitFor(() => cloud.requests.length === 1));
-    await LearningCache.resetRules();
-    assert.equal((await pending).aborted, true);
-    assert.ok(!(TabLabelCache.STORAGE_KEY in local));
-    const fresh = await classifyTabs(ids, null, context);
-    assert.deepEqual(fresh.labelledIds, ids);
-    assert.equal(cloud.requests.length, 2);
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('a reset during background Nano naming discards names and the window plan', async () => {
-  const W = 231;
-  const tabs = makeTopicTabs(W, 23100, { food: 3, travel: 3 });
-  const { local } = installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
-  await cacheLabels(tabs);
-  const nano = installNanoMock({ nameDelayMs: 60 });
-  try {
-    const pending = refreshAndAutoGroup(W, null, { autoGroup: false });
-    assert.ok(await waitFor(() => nano.namePrompts.length > 0));
-    await LearningCache.resetRules();
-    assert.equal(await pending, null);
-    assert.ok(!(PlanMemory.STORAGE_KEY in local));
-    assert.equal(await WindowPlanStore.get(W), null);
-    await cacheLabels(tabs);
-    assert.ok(await refreshAndAutoGroup(W, null, { autoGroup: false }));
-    assert.equal(nano.namePrompts.length, 2, 'a reset also retires the old naming-attempt fence');
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('only Nano and Ollama on a loopback address count as on-device', async () => {
-  assert.equal(isOnDeviceEngine({}), true);
-  assert.equal(isOnDeviceEngine({ provider: 'gemini_nano' }), true);
-  assert.equal(isOnDeviceEngine({ provider: 'ollama' }), true);
+test('only Ollama on a loopback address is local', async () => {
+  assert.equal(isLocalOllama({ provider: 'ollama' }), true);
   for (const url of ['http://localhost:11434/v1', 'http://127.0.0.1:11434/v1', 'http://[::1]:11434/v1']) {
-    assert.equal(isOnDeviceEngine({ provider: 'ollama', ollamaBaseUrl: url }), true, url);
+    assert.equal(isLocalOllama({ provider: 'ollama', ollamaBaseUrl: url }), true, url);
   }
-  assert.equal(isOnDeviceEngine({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' }), false);
-  assert.equal(isOnDeviceEngine({ provider: 'ollama', ollamaBaseUrl: 'http://localhost.example.com/v1' }), false);
-  assert.equal(isOnDeviceEngine({ provider: 'openai' }), false);
-  assert.equal(isOnDeviceEngine({ provider: 'offline' }), false);
-
-  assert.deepEqual(await loadBackgroundScope({ provider: 'openai' }), { allowed: false, cleanupFollowUp: false, onDevice: false, autoGroup: false });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'openai', autoGroupNewTabs: true }), { allowed: true, cleanupFollowUp: false, onDevice: false, autoGroup: true });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' }), { allowed: false, cleanupFollowUp: false, onDevice: false, autoGroup: false });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama' }), { allowed: false, cleanupFollowUp: true, onDevice: true, autoGroup: false });
-  assert.deepEqual(await loadBackgroundScope({ provider: 'ollama', backgroundPrep: true }), { allowed: true, cleanupFollowUp: true, onDevice: true, autoGroup: false });
-  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', groupingStrategy: 'site' })).cleanupFollowUp, false);
-  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano' })).allowed, false);
-  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', backgroundPrep: true })).allowed, true);
-  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', autoGroupNewTabs: true })).allowed, true, 'Auto-group needs labels');
-  assert.equal((await loadBackgroundScope({ provider: 'openai', backgroundPrep: true })).allowed, false, 'preparation never opens the cloud');
-  assert.equal((await loadBackgroundScope({ provider: 'offline', backgroundPrep: true })).allowed, false);
-  assert.equal((await loadBackgroundScope({ provider: 'gemini_nano', groupingStrategy: 'site' })).allowed, false);
-});
-
-test('an on-device engine labels and names in the background only with background preparation or Auto-group', async () => {
-  const W = 224;
-  const tabs = makeTopicTabs(W, 22400, { food: 3, travel: 3 });
-  const settings = { provider: 'gemini_nano' };
-  installBrowser(tabs, { sync: settings });
-  const nano = installNanoMock();
-  const refreshed = [];
-  const classifier = createBackgroundClassifier({
-    refresh: async windowId => {
-      refreshed.push(windowId);
-      return null;
-    },
-    flushDelayMs: 5,
-    refreshDelayMs: 5
-  });
-  try {
-    // Off: queued tabs, a popup open and a cleanup's plan refresh never reach the model.
-    classifier.enqueue(tabs.map(tab => tab.id));
-    await classifier.prioritize(W);
-    classifier.scheduleWindowPlanRefresh(W);
-    await sleep(120);
-    assert.equal(nano.labelPrompts.length, 0);
-    assert.equal(nano.creates, 0);
-    assert.deepEqual(refreshed, []);
-    assert.deepEqual(classifier.pendingTabIds(), []);
-
-    // Background preparation on: the same work labels every tab and refreshes the plan.
-    settings.backgroundPrep = true;
-    classifier.enqueue(tabs.map(tab => tab.id));
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).missing.length === 0, 2000));
-    assert.ok(await waitFor(() => refreshed.length === 1));
-  } finally {
-    classifier.pause();
-    removeNanoMock();
-  }
-
-  // Auto-group alone allows it too, because it needs labels.
-  const others = makeTopicTabs(W + 1, 22450, { dev: 2 });
-  installBrowser(others, { sync: { provider: 'gemini_nano', autoGroupNewTabs: true } });
-  const again = installNanoMock();
-  const queue = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 5 });
-  try {
-    await queue.prioritize(W + 1);
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(others)).missing.length === 0, 2000));
-    assert.ok(again.labelPrompts.length > 0);
-  } finally {
-    queue.pause();
-    removeNanoMock();
-  }
-});
-
-test('under the immediately setting the background plan refresh names groups on the model its labelling loaded', async t => {
-  const W = 227;
-  const tabs = makeTopicTabs(W, 22700, { food: 3, travel: 3, dev: 3 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true, modelUnloadAfter: 'immediately' } });
-  const nano = installNanoMock();
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 5_000_000 });
-  // Mocked timers move in steps; setImmediate stays real and lets promise work run.
-  const advance = async ms => {
-    for (let step = 0; step < ms; step += 100) {
-      t.mock.timers.tick(100);
-      for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
-    }
-  };
-  configureOnDeviceMemory({ unloadAfter: 'immediately' });
-  // The real plan refresh delay; only the flush debounce is shortened.
-  const classifier = createBackgroundClassifier({ flushDelayMs: 5 });
-  try {
-    classifier.enqueue(tabs.map(tab => tab.id));
-    await advance(200);
-    assert.ok(nano.labelPrompts.length > 0);
-    assert.equal(nano.namePrompts.length, 0);
-
-    await advance(PLAN_REFRESH_DELAY_MS + 500);
-    assert.equal(nano.namePrompts.length, 1);
-    assert.deepEqual(nano.heldAtCreate, [false, true], 'the name base loads while the label base still holds the model');
-
-    // Right after use still means right after use.
-    await advance(IMMEDIATE_UNLOAD_GRACE_MS);
-    assert.equal(getOnDeviceModelState().loaded, false);
-  } finally {
-    classifier.pause();
-    configureOnDeviceMemory({ unloadAfter: '5m' });
-    removeNanoMock();
-  }
-});
-
-test('clearing the queue stops the running flush and drops queued tabs, retries and plan refreshes', async () => {
-  installBrowser(makeTopicTabs(225, 22500, { food: 3 }));
-  const signals = [];
-  const refreshes = [];
-  const classifier = createBackgroundClassifier({
-    classify: (ids, signal) => {
-      signals.push(signal);
-      if (signals.length === 1) {
-        return Promise.resolve({ windowIds: [225], storedWindowIds: [], labelledIds: [], unlabelledIds: ids });
-      }
-      return new Promise(resolve => signal.addEventListener('abort', () => resolve({ aborted: true }), { once: true }));
-    },
-    refresh: async windowId => {
-      refreshes.push(windowId);
-      return null;
-    },
-    scope: ON_DEVICE,
-    flushDelayMs: 5,
-    refreshDelayMs: 40,
-    retryDelaysMs: [40, 40, 40]
-  });
-  try {
-    // One tab waits for a retry, one is being labelled, one is queued, and a plan refresh is due.
-    classifier.enqueue([22500]);
-    assert.ok(await waitFor(() => signals.length === 1));
-    classifier.enqueue([22501]);
-    assert.ok(await waitFor(() => signals.length === 2));
-    classifier.enqueue([22502]);
-    classifier.scheduleWindowPlanRefresh(225);
-
-    await classifier.clear();
-    assert.equal(signals[1].aborted, true);
-    assert.deepEqual(classifier.pendingTabIds(), []);
-    await sleep(150);
-    assert.equal(signals.length, 2, 'no retry and no returned work runs');
-    assert.deepEqual(refreshes, []);
-
-    // Work queued afterwards runs as usual.
-    classifier.enqueue([22502]);
-    assert.ok(await waitFor(() => signals.length === 3));
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('a cloud engine only receives pages opened after Auto-group was on, never title-only changes', async () => {
-  const W = 215;
-  const tabs = makeTopicTabs(W, 21500, { food: 3, travel: 3 });
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch();
-  const classifier = createBackgroundClassifier({ flushDelayMs: 40, refreshDelayMs: 60000, navigationSettleMs: 0 });
-  const on = { autoGroup: true };
-  try {
-    // Tabs that were already open: popup open, a startup queue, a cleanup's provisional tabs, title changes.
-    await classifier.prioritize(W);
-    classifier.enqueue(tabs.map(tab => tab.id));
-    for (const tab of tabs) {
-      await classifier.noteTabUpdated(tab.id, { title: `${tab.title} (1)` }, tab, on);
-      await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
-    }
-    await sleep(120);
-    assert.equal(cloud.requests.length, 0);
-
-    // Two tabs opened afterwards are sent, and only they.
-    const fresh = makeTopicTabs(W, 21590, { dev: 2 }).map((tab, i) => ({ ...tab, index: tabs.length + i }));
-    tabs.push(...fresh);
-    for (const tab of fresh) await classifier.noteTabCreated({ ...tab, status: 'loading' }, on);
-    for (const tab of fresh) await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
-    assert.ok(await waitFor(() => cloud.requests.length === 1));
-    assert.deepEqual(cloud.titles().sort(), fresh.map(tab => tab.title).sort());
-
-    // A later title-only change on a new tab is not sent.
-    fresh[0].title = 'React hooks reference, edited';
-    await classifier.noteTabUpdated(fresh[0].id, { title: fresh[0].title }, fresh[0], on);
-    await sleep(120);
-    assert.equal(cloud.requests.length, 1);
-  } finally {
-    classifier.pause();
-    cloud.restore();
-  }
-});
-
-test('nonzero navigation settling coalesces cloud counters and preserves one final useful title per page', async () => {
-  const W = 232;
-  const tabs = makeTopicTabs(W, 23200, { dev: 1 });
-  const tab = tabs[0];
-  tab.title = 'BTC 61,000';
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch();
-  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000, navigationSettleMs: 160 });
-  const on = { autoGroup: true };
-  const title = async text => {
-    tab.title = text;
-    await classifier.noteTabUpdated(tab.id, { title: text }, { ...tab }, on);
-  };
-  try {
-    await classifier.noteTabCreated({ ...tab, status: 'loading' }, on);
-    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
-    assert.ok(await waitFor(async () => cloud.requests.length === 1 && (await lookupSelectedLabels(tabs)).missing.length === 0));
-    for (let i = 1; i <= 5; i++) await title(`BTC 61,00${i}`);
-    await sleep(220);
-    assert.equal(cloud.requests.length, 1, 'numeric title churn does not spend a second request');
-
-    tab.url += '/next';
-    tab.title = 'Loading';
-    await classifier.noteTabUpdated(tab.id, { url: tab.url, status: 'loading' }, { ...tab, status: 'loading' }, on);
-    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
-    assert.ok(await waitFor(async () => cloud.requests.length === 2 && (await lookupSelectedLabels(tabs)).missing.length === 0));
-    await title('Cheap flights');
-    await title('Cheap flights to Tokyo');
-    await title('Cheap flights to Tokyo 27');
-    assert.ok(await waitFor(() => cloud.requests.length === 3));
-    assert.equal(cloud.requests[2].rows[0][1], 'Cheap flights to Tokyo 27');
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).labels.get(tab.id)?.c === 'travel'));
-    await title('Cheap flights to Osaka 28');
-    await sleep(220);
-    assert.equal(cloud.requests.length, 3, 'settling is bounded to one useful follow-up');
-  } finally {
-    classifier.pause();
-    cloud.restore();
-  }
-});
-
-test('title settling retains failed-page retries and uses the final title on the successful retry', async () => {
-  const tabs = makeTopicTabs(233, 23300, { dev: 1 });
-  const tab = tabs[0];
-  tab.title = 'Loading';
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  const cloud = installCloudFetch({ failFirst: true });
-  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 60000, navigationSettleMs: 140, retryDelaysMs: [60, 100] });
-  const on = { autoGroup: true };
-  try {
-    await classifier.noteTabCreated({ ...tab, status: 'loading' }, on);
-    await classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
-    assert.ok(await waitFor(() => cloud.requests.length === 1));
-    tab.title = 'React hooks reference';
-    await classifier.noteTabUpdated(tab.id, { title: tab.title }, tab, on);
-    assert.ok(await waitFor(async () => (await lookupSelectedLabels(tabs)).labels.get(tab.id)?.c === 'dev'));
-    await sleep(180);
-    assert.equal(cloud.requests.length, 2);
-    assert.equal(cloud.requests[1].rows[0][1], tab.title);
-  } finally {
-    classifier.pause();
-    cloud.restore();
-  }
-});
-
-test('configuration invalidation aborts immediately, drops old admissions and preserves cleanup pause holds', async () => {
-  const tabs = makeTopicTabs(234, 23400, { dev: 2 });
-  installBrowser(tabs);
-  const signals = [];
-  const classifier = createBackgroundClassifier({
-    classify: async (ids, signal) => {
-      signals.push(signal);
-      if (signals.length === 1) return new Promise(resolve => signal.addEventListener('abort', () => resolve({ aborted: true }), { once: true }));
-      return { labelledIds: ids, unlabelledIds: [] };
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    flushDelayMs: 5
-  });
-  try {
-    classifier.enqueue([tabs[0].id]);
-    assert.ok(await waitFor(() => signals.length === 1));
-    classifier.pause();
-    classifier.invalidate();
-    assert.equal(signals[0].aborted, true);
-    await classifier.whenIdle();
-    classifier.enqueue([tabs[1].id]);
-    await sleep(40);
-    assert.equal(signals.length, 1, 'an existing cleanup hold remains in force');
-    classifier.resume();
-    assert.ok(await waitFor(() => signals.length === 2));
-    assert.deepEqual(classifier.pendingTabIds(), []);
-  } finally {
-    classifier.pause();
-  }
-});
-
-test('clear discards a provider that settles after its bounded idle wait', async () => {
-  const tabs = makeTopicTabs(236, 23600, { dev: 2 });
-  installBrowser(tabs);
-  let release;
-  const gate = new Promise(resolve => { release = resolve; });
-  let attempts = 0;
-  const classifier = createBackgroundClassifier({
-    classify: async ids => {
-      attempts++;
-      if (attempts === 1) await gate;
-      return { labelledIds: [], unlabelledIds: ids };
-    },
-    refresh: async () => null,
-    scope: ON_DEVICE,
-    flushDelayMs: 5,
-    retryDelaysMs: [10]
-  });
-  try {
-    classifier.enqueue([tabs[0].id]);
-    assert.ok(await waitFor(() => attempts === 1));
-    await classifier.clear({ waitMs: 10 });
-    release();
-    await classifier.whenIdle();
-    await sleep(60);
-    assert.equal(attempts, 1);
-    assert.deepEqual(classifier.pendingTabIds(), []);
-  } finally {
-    release();
-    classifier.pause();
-  }
-});
-
-test('an Ollama server off this device is treated like a cloud engine', async () => {
-  const W = 216;
-  const tabs = makeTopicTabs(W, 21600, { food: 3 });
-  const remote = { provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' };
-  installBrowser(tabs, { sync: { ...remote } });
-  const cloud = installCloudFetch();
-  try {
-    const classifier = createBackgroundClassifier({ flushDelayMs: 10, refreshDelayMs: 60000 });
-    await classifier.prioritize(W);
-    await sleep(80);
-    classifier.pause();
-    assert.equal(cloud.requests.length, 0, 'no consent without Auto-group');
-
-    installBrowser(tabs, { sync: { ...remote, autoGroupNewTabs: true } });
-    const consented = createBackgroundClassifier({ flushDelayMs: 10, refreshDelayMs: 60000 });
-    await consented.prioritize(W);
-    await sleep(80);
-    consented.pause();
-    assert.equal(cloud.requests.length, 0, 'tabs already open are not sent');
-  } finally {
-    cloud.restore();
-  }
+  assert.equal(isLocalOllama({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' }), false);
+  assert.equal(isLocalOllama({ provider: 'ollama', ollamaBaseUrl: 'http://localhost.example.com/v1' }), false);
+  for (const provider of [undefined, 'gemini_nano', 'openai', 'offline']) assert.equal(isLocalOllama({ provider }), false, provider);
 });
 
 /* ------------------------------------------------------------------------ */
 /* Pause                                                                    */
 /* ------------------------------------------------------------------------ */
 
-test('an abort stops auto-group before its next Chrome change, and a group it just made keeps its title', async () => {
-  const W = 217;
-  const tabs = makeTopicTabs(W, 21700, { food: 2, travel: 2, dev: 2 });
-  const { calls } = installBrowser(tabs);
-  const group = chrome.tabs.group;
-  chrome.tabs.group = async details => {
-    const id = await group(details);
-    await sleep(30);
-    return id;
-  };
-  const plan = {
-    groups: [
-      { name: 'Food & Recipes', tabIds: [21700, 21701] },
-      { name: 'Travel', tabIds: [21702, 21703] },
-      { name: 'Coding', tabIds: [21704, 21705] }
-    ]
-  };
-  const controller = new AbortController();
-  const run = autoGroupWindow(W, plan, { signal: controller.signal });
-  assert.ok(await waitFor(() => calls.group.length === 1, 1000));
-  controller.abort(new Error('Paused for cleanup'));
-  await assert.rejects(run, /Paused for cleanup/);
-  await sleep(60);
-  assert.equal(calls.group.length, 1);
-  // The group created as the pause arrived is not left unnamed.
-  assert.deepEqual(calls.update.map(update => [update.id, update.title]), [[3000, 'Food & Recipes']]);
-});
-
-test('auto-group re-reads each tab and never moves one grouped meanwhile', async () => {
-  const W = 218;
-  const tabs = makeTopicTabs(W, 21800, { food: 2, travel: 2 });
-  const { calls } = installBrowser(tabs, { chromeGroups: [{ id: 81, windowId: W, title: 'Travel' }] });
-  const group = chrome.tabs.group;
-  chrome.tabs.group = async details => {
-    const id = await group(details);
-    // A cleanup takes a travel tab while the auto-group runs.
-    const taken = tabs.find(tab => tab.id === 21802);
-    if (taken.groupId === -1) taken.groupId = 999;
-    return id;
-  };
-  const plan = {
-    groups: [
-      { name: 'Food & Recipes', tabIds: [21800, 21801] },
-      { name: 'Travel', tabIds: [21802, 21803] }
-    ]
-  };
-  await autoGroupWindow(W, plan);
-  assert.equal(calls.group.length, 2);
-  assert.deepEqual(calls.group[1], { groupId: 81, tabIds: [21803] });
-  assert.equal(tabs.find(tab => tab.id === 21802).groupId, 999);
-});
-
-test('pause aborts a running plan refresh, and nested pauses hold until the last resume', async () => {
+test('nested pauses hold Auto-group until the last resume, and a settings change keeps the hold', async () => {
   const W = 219;
-  installBrowser(makeTopicTabs(W, 21900, { food: 2 }));
-  const signals = [];
-  const classifier = createBackgroundClassifier({
-    classify: async () => ({ windowIds: [], storedWindowIds: [], labelledIds: [], unlabelledIds: [] }),
-    refresh: async (_windowId, signal) => {
-      signals.push(signal);
-      await sleep(40);
-      signal.throwIfAborted();
-    },
-    scope: ON_DEVICE,
-    tracker: createNewTabTracker(),
-    flushDelayMs: 5,
-    refreshDelayMs: 5
-  });
+  const tabs = makeTopicTabs(W, 21900, { food: 2 });
+  installBrowser(tabs);
+  const { classifier, tracker, attached } = recordingClassifier();
+  const on = { autoGroup: true };
+  const [tab] = tabs;
+  const load = () => classifier.noteTabUpdated(tab.id, { status: 'complete' }, tab, on);
   try {
-    classifier.scheduleWindowPlanRefresh(W);
-    assert.ok(await waitFor(() => signals.length === 1));
+    await tracker.markNew(tab.id);
     classifier.pause();
     classifier.pause();
-    assert.equal(signals[0].aborted, true);
+    await load();
+    classifier.resume();
+    await load();
+    assert.deepEqual(attached, [], 'still paused');
+    classifier.resume();
+    await load();
+    assert.deepEqual(attached, [tab.id]);
+
+    // A settings change retires old admissions and leaves a cleanup hold in force.
+    classifier.pause();
+    classifier.invalidate();
     await classifier.whenIdle();
+    await tracker.markNew(tab.id);
+    await load();
+    assert.deepEqual(attached, [tab.id], 'an existing cleanup hold remains in force');
     classifier.resume();
-    await sleep(60);
-    assert.equal(signals.length, 1, 'still paused');
-    classifier.resume();
-    assert.ok(await waitFor(() => signals.length === 2), 'the aborted refresh runs again');
+    await load();
+    assert.deepEqual(attached, [tab.id, tab.id]);
   } finally {
     classifier.pause();
   }
+});
+
+/* ------------------------------------------------------------------------ */
+/* Auto-group consent: an attach in flight                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A window with a Coding group of three React tabs and one new React tab
+ * whose attach stops at its first tabGroups.query until released. `during`
+ * runs while it waits. Returns the tabs.group calls made.
+ */
+async function attachInFlight(W, during, { gateAt = 1 } = {}) {
+  const tabs = makeTopicTabs(W, W * 100, { dev: 4 });
+  tabs.slice(0, 3).forEach(item => { item.groupId = 81; });
+  const fresh = tabs[3];
+  const sync = { autoGroupNewTabs: true, groupingStrategy: 'task' };
+  const browser = installBrowser(tabs, { sync, chromeGroups: [{ id: 81, windowId: W, title: 'Coding' }] });
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let reached;
+  const atGate = new Promise(resolve => { reached = resolve; });
+  const query = chrome.tabGroups.query;
+  let calls = 0;
+  chrome.tabGroups.query = async details => {
+    if (++calls < gateAt) return query(details);
+    chrome.tabGroups.query = query;
+    reached();
+    await gate;
+    return query(details);
+  };
+  const { classifier, tracker } = recordingClassifier({ attach: attachNewTab });
+  try {
+    await tracker.markNew(fresh.id);
+    const event = classifier.noteTabUpdated(fresh.id, { status: 'complete' }, { ...fresh }, { autoGroup: true });
+    await atGate;
+    await during({ classifier, tabs, fresh, sync, browser });
+    release();
+    await event;
+    await classifier.whenIdle();
+    await sleep(20);
+  } finally {
+    classifier.pause();
+  }
+  return browser.calls.group;
+}
+
+test('a cleanup pause or a settings change cancels an Auto-group attach in flight, and whenIdle waits for it', async () => {
+  assert.deepEqual(await attachInFlight(240, async () => {}), [{ groupId: 81, tabIds: [24003] }], 'control: an undisturbed attach groups');
+
+  let idle = false;
+  const paused = await attachInFlight(241, async ({ classifier }) => {
+    classifier.pause();
+    classifier.whenIdle().then(() => { idle = true; });
+    await sleep(20);
+    assert.equal(idle, false, 'whenIdle waits for the attach in flight');
+  });
+  assert.equal(idle, true);
+  assert.deepEqual(paused, [], 'nothing grouped after a cleanup pause');
+
+  const off = await attachInFlight(242, async ({ classifier, sync }) => {
+    sync.autoGroupNewTabs = false;
+    classifier.invalidate();
+  });
+  assert.deepEqual(off, [], 'nothing grouped once Auto-group is turned off');
+
+  const offOnly = await attachInFlight(243, async ({ sync }) => { sync.autoGroupNewTabs = false; });
+  assert.deepEqual(offOnly, [], 'the setting is re-read before the move');
+});
+
+test('an Auto-group attach in flight rechecks the live tab and target group before it moves the tab', async () => {
+  const cases = {
+    'grouped and dragged out by hand': async ({ classifier, fresh }) => {
+      fresh.groupId = 77;
+      await classifier.noteTabUpdated(fresh.id, { groupId: 77 }, { ...fresh }, { autoGroup: true });
+      fresh.groupId = -1;
+      await classifier.noteTabUpdated(fresh.id, { groupId: -1 }, { ...fresh }, { autoGroup: true });
+    },
+    'navigated to another page': async ({ fresh }) => {
+      Object.assign(fresh, { url: 'https://www.elsewhere.com/sourdough', title: 'Sourdough starter' });
+    },
+    'retitled': async ({ fresh }) => { fresh.title = 'Sourdough starter'; },
+    'target group closed': async ({ tabs, browser }) => {
+      browser.groups.splice(0, 1);
+      tabs.slice(0, 3).forEach(item => { item.groupId = -1; });
+    },
+    'moved to another window': async ({ fresh }) => { fresh.windowId += 1000; },
+    'pinned': async ({ fresh }) => { fresh.pinned = true; },
+    'closed': async ({ tabs, fresh }) => { tabs.splice(tabs.indexOf(fresh), 1); }
+  };
+  let W = 244;
+  for (const [label, during] of Object.entries(cases)) {
+    assert.deepEqual(await attachInFlight(W++, during), [], label);
+  }
+});
+
+test('a retitle or navigation delivered while Auto-group queries its target group stops the move', async () => {
+  assert.deepEqual(await attachInFlight(180, async () => {}, { gateAt: 2 }), [{ groupId: 81, tabIds: [18003] }], 'control');
+  assert.deepEqual(await attachInFlight(181, async ({ fresh }) => { fresh.title = 'Sourdough starter'; }, { gateAt: 2 }), [], 'retitled');
+  assert.deepEqual(await attachInFlight(182, async ({ fresh }) => {
+    Object.assign(fresh, { url: 'https://www.elsewhere.com/sourdough', title: 'Sourdough starter' });
+  }, { gateAt: 2 }), [], 'navigated');
+});
+
+test('Auto-group knows a Socials, rules or Review Later group by its members and stored plan, never by its title', async () => {
+  const W = 260;
+  const page = (id, title, url, groupId = -1) => ({
+    id, windowId: W, index: id - 26000, active: false, pinned: false, incognito: false, status: 'complete', groupId, title, url
+  });
+  const tabs = [
+    // The real Socials group, renamed by the user.
+    page(26000, 'Kyoto hotel tips | Facebook', 'https://www.facebook.com/groups/kyoto', 61),
+    page(26001, 'Kyoto hotel reviews | Facebook', 'https://www.facebook.com/groups/ryokan', 61),
+    // A hand-made group that carries the name Socials, with no social member.
+    page(26002, 'Garden shed plans', 'https://www.sheds.com/plans', 62),
+    page(26003, 'Garden shed roofing', 'https://www.sheds.com/roof', 62),
+    // Review Later, renamed by the user; the stored plan knows its members.
+    page(26004, 'Sourdough starter hydration', 'https://www.bread.com/a', 63),
+    page(26005, 'Sourdough starter feeding', 'https://www.bread.com/b', 63)
+  ];
+  const browser = installBrowser(tabs, {
+    sync: { autoGroupNewTabs: true, groupingStrategy: 'task' },
+    chromeGroups: [
+      { id: 61, windowId: W, title: 'My Feeds' },
+      { id: 62, windowId: W, title: 'Socials' },
+      { id: 63, windowId: W, title: 'My Reading Queue' }
+    ]
+  });
+  await WindowPlanStore.put(W, { groups: [{ name: 'Review Later', kind: 'review', tabIds: [26004, 26005] }] });
+  const attachLoose = async (id, title, url) => {
+    tabs.push(page(id, title, url));
+    return (await attachNewTab(id)).groupId ?? null;
+  };
+
+  assert.equal(await attachLoose(26010, 'Kyoto hotel deals', 'https://www.travel.com/kyoto'), null,
+    'an ordinary tab never joins the renamed Socials group');
+  assert.equal(await attachLoose(26011, 'Garden shed tour | Facebook', 'https://www.facebook.com/watch/shed'), 61,
+    'a social tab joins the group of social tabs, never a hand-made group that is only called Socials');
+  assert.equal(await attachLoose(26012, 'Kyoto hotel offers | Facebook', 'https://www.facebook.com/groups/offers'), 61,
+    'a social tab joins the group its social members are in, whatever its name');
+  assert.equal(await attachLoose(26013, 'Garden shed foundations', 'https://www.sheds.com/base'), 62,
+    'the hand-made group called Socials is an ordinary group');
+  assert.equal(await attachLoose(26014, 'Sourdough starter rye', 'https://www.bread.com/c'), null,
+    'a renamed Review Later receives no lexical attach');
+
+  // Mixed: a social tab and an ordinary tab together in one hand-made group.
+  tabs.push(page(26006, 'Chess openings | Facebook', 'https://www.facebook.com/groups/chess', 64),
+    page(26007, 'Chess openings repertoire', 'https://www.chess.com/openings', 64));
+  browser.groups.push({ id: 64, windowId: W, title: 'Chess' });
+  assert.equal(await attachLoose(26015, 'Chess openings for black', 'https://www.chess.com/black'), null,
+    'mixed evidence: left alone');
+  assert.equal(await attachLoose(26016, 'Chess club | Facebook', 'https://www.facebook.com/groups/club'), null,
+    'mixed evidence: social tabs in two groups, so a social tab is left alone as well');
+  assert.deepEqual(browser.calls.group, [{ groupId: 61, tabIds: [26011] }, { groupId: 61, tabIds: [26012] }, { groupId: 62, tabIds: [26013] }]);
 });
 
 /* ------------------------------------------------------------------------ */
@@ -1378,45 +562,6 @@ function installWorkerEvents() {
   return listeners;
 }
 
-test('the worker aborts allowed endpoint and provider changes before rereading settings and drops existing tabs', async () => {
-  const W = 235;
-  const tabs = makeTopicTabs(W, 23500, { dev: 60 });
-  const { sync, session } = installBrowser(tabs, { sync: { provider: 'ollama', backgroundPrep: true, autoGroupNewTabs: true } });
-  session.foldnex_session_started_v1 = true;
-  const listeners = installWorkerEvents();
-  const cloud = installCloudFetch({ delayMs: 120 });
-  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
-  const change = (key, newValue) => {
-    const oldValue = sync[key];
-    sync[key] = newValue;
-    listeners.storageChanged({ [key]: { oldValue, newValue } }, 'sync');
-  };
-  try {
-    await import('../background.js?allowed-configuration-invalidation');
-    await message({ type: 'PREPARE_GROUPING', windowId: W });
-    assert.ok(await waitFor(() => cloud.requests.length === 1));
-    change('ollamaBaseUrl', 'https://remote.example/v1');
-    assert.equal(cloud.requests[0].signal.aborted, true, 'endpoint changes abort in the event callback');
-    await sleep(180);
-    assert.equal(cloud.requests.length, 1, 'later local batches and existing-page admissions are dropped');
-
-    const fresh = { ...makeTopicTabs(W, 23590, { food: 1 })[0], index: tabs.length };
-    tabs.push(fresh);
-    await listeners.tabCreated({ ...fresh, status: 'loading' });
-    await listeners.tabUpdated(fresh.id, { status: 'complete' }, fresh);
-    assert.ok(await waitFor(() => cloud.requests.length === 2));
-    assert.ok(cloud.requests[1].url.startsWith('https://remote.example/'));
-    change('provider', 'openai');
-    assert.equal(cloud.requests[1].signal.aborted, true, 'allowed-to-allowed provider changes also abort immediately');
-    await sleep(180);
-    assert.equal(cloud.requests.length, 2);
-  } finally {
-    change('groupingStrategy', 'site');
-    await sleep(140);
-    cloud.restore();
-  }
-});
-
 test('retiring configuration admissions preserves explicit ungroup choices and accepts later fresh pages', async () => {
   installBrowser([]);
   const tracker = createNewTabTracker();
@@ -1432,54 +577,6 @@ test('retiring configuration admissions preserves explicit ungroup choices and a
   assert.deepEqual(await tracker.candidateIds(), [23803]);
   await tracker.markNew(23804, { isCurrent: () => false });
   assert.deepEqual(await tracker.freshIds(), [23803], 'delayed stale admissions are rejected inside the tracker');
-});
-
-test('a pending local window priority read cannot re-admit old fresh tabs after switching to cloud', async () => {
-  const W = 238;
-  const tabs = makeTopicTabs(W, 23800, { dev: 1 });
-  const { sync } = installBrowser(tabs, { sync: { provider: 'ollama', autoGroupNewTabs: true, backgroundPrep: true } });
-  const classifier = createBackgroundClassifier({ flushDelayMs: 5, refreshDelayMs: 10000 });
-  const cloud = installCloudFetch();
-  let release, reached;
-  const gate = new Promise(resolve => { release = resolve; });
-  const queried = new Promise(resolve => { reached = resolve; });
-  const originalQuery = chrome.tabs.query;
-  try {
-    await classifier.noteTabCreated({ ...tabs[0], status: 'loading' }, { autoGroup: true });
-    chrome.tabs.query = async query => {
-      if (query.windowId === W) { reached(); await gate; }
-      return originalQuery(query);
-    };
-    const prioritizing = classifier.prioritize(W);
-    await queried;
-    sync.provider = 'openai';
-    sync.openaiApiKey = 'synthetic-boundary-key';
-    classifier.invalidate();
-    release();
-    await prioritizing;
-    chrome.tabs.query = originalQuery;
-    await sleep(30);
-    await classifier.whenIdle();
-    assert.equal(cloud.requests.length, 0, 'old local reads cannot refill the cloud queue');
-    await classifier.noteTabUpdated(tabs[0].id, { status: 'complete' }, tabs[0], { autoGroup: true });
-    await sleep(30);
-    await classifier.whenIdle();
-    assert.equal(cloud.requests.length, 0, 'the old fresh-page admission is retired');
-    const fresh = { ...makeTopicTabs(W, 23810, { food: 1 })[0], index: 1 };
-    tabs.push(fresh);
-    await classifier.noteTabCreated({ ...fresh, status: 'loading' }, { autoGroup: true });
-    await classifier.noteTabUpdated(fresh.id, { status: 'complete' }, fresh, { autoGroup: true });
-    assert.ok(await waitFor(() => cloud.requests.length === 1));
-    await classifier.whenIdle();
-    assert.equal(cloud.requests.length, 1, 'a newly admitted cloud page still works');
-    assert.equal(cloud.requests[0].rows.length, 1);
-    assert.equal(cloud.requests[0].rows[0][1], fresh.title);
-  } finally {
-    release();
-    chrome.tabs.query = originalQuery;
-    classifier.pause();
-    cloud.restore();
-  }
 });
 
 test('the worker resolves private group members before reading or writing group-title state', async () => {
@@ -1518,163 +615,60 @@ test('the first worker run of a browser session treats early tab events as resto
   }
 });
 
-test('the service worker keeps cloud labelling to new tabs and lets an on-device engine prepare the window', async () => {
-  const W = 220;
-  const tabs = makeTopicTabs(W, 22000, { food: 3, travel: 3 });
-  const { sync, session } = installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  // A worker woken later in the browser session.
-  session.foldnex_session_started_v1 = true;
-  const listeners = installWorkerEvents();
-  const cloud = installCloudFetch();
-  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
-  const newTab = async id => {
-    const tab = { ...makeTopicTabs(W, id, { dev: 1 })[0], index: tabs.length };
-    tabs.push(tab);
-    await listeners.tabCreated({ ...tab, status: 'loading' });
-    await listeners.tabUpdated(tab.id, { status: 'complete' }, tab);
-    return tab;
-  };
-  try {
-    await import('../background.js?service-worker-wiring');
+const QUIET_ENGINES = [
+  ['a profile still saved on Gemini Nano', { provider: 'gemini_nano', setupChoice: 'nano', backgroundPrep: true }, true],
+  ['Offline smart mode', { provider: 'offline', setupChoice: 'offline', backgroundPrep: true }, true],
+  ['Ollama on this device', { provider: 'ollama', setupChoice: 'offline', backgroundPrep: true }, false],
+  ['a cloud engine with a key', { provider: 'openai', openaiApiKey: 'test-only', setupChoice: 'cloud', backgroundPrep: true }, false]
+];
 
-    // Popup open and title changes on open tabs send nothing to the cloud.
-    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
-    await listeners.tabUpdated(22000, { title: 'Easy ramen recipe 0 (2)' }, { ...tabs[0], title: 'Easy ramen recipe 0 (2)' });
-    await sleep(1800);
-    assert.equal(cloud.requests.length, 0);
-
-    // A tab opened with Auto-group on is sent.
-    const opened = await newTab(22090);
-    assert.ok(await waitFor(() => cloud.requests.length === 1, 3000));
-    assert.deepEqual(cloud.titles(), [opened.title]);
-
-    // After a browser start, restored and already-open tabs are not.
-    await listeners.startup();
-    await newTab(22091);
-    await sleep(1800);
-    assert.equal(cloud.requests.length, 1);
-
-    // An on-device engine labels the whole window when the popup opens.
-    sync.provider = 'ollama';
-    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
-    assert.ok(await waitFor(() => cloud.requests.length === 2, 3000));
-    assert.ok(cloud.requests[1].url.startsWith('http://localhost:11434/'));
-    assert.ok(cloud.titles().includes('Easy ramen recipe 1'));
-  } finally {
-    // The worker's pending plan refresh must not reach a real Ollama server after the test.
-    sync.groupingStrategy = 'site';
-    cloud.restore();
-  }
-});
-
-test('the service worker prepares an on-device engine only when asked and lets go of Nano on request or an engine switch', async () => {
-  const W = 226;
-  const tabs = makeTopicTabs(W, 22600, { food: 3, travel: 3 });
-  const { sync, session } = installBrowser(tabs, { sync: { provider: 'gemini_nano', setupChoice: 'nano' } });
-  session.foldnex_session_started_v1 = true;
-  const listeners = installWorkerEvents();
-  const nano = installNanoMock();
-  let availability = 'downloading';
-  globalThis.LanguageModel.availability = async () => availability;
-  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
-  const state = () => message({ type: 'GET_ON_DEVICE_MODEL_STATE' });
-  const change = values => {
-    const changes = {};
-    for (const [key, newValue] of Object.entries(values)) {
-      changes[key] = { oldValue: sync[key], newValue };
-      sync[key] = newValue;
+for (const [label, saved, click] of QUIET_ENGINES) {
+  test(`the worker sends and prepares nothing in the background on ${label}`, async () => {
+    const W = 226;
+    const tabs = makeTopicTabs(W, 22600, { food: 3, travel: 3 });
+    const { sync, session, local } = installBrowser(tabs, { sync: { groupingStrategy: 'task', autoGroupNewTabs: true, ...saved } });
+    session.foldnex_session_started_v1 = true;
+    const listeners = installWorkerEvents();
+    const original = globalThis.fetch;
+    const fetches = [];
+    globalThis.fetch = async url => {
+      fetches.push(String(url));
+      throw new Error('No request may be sent');
+    };
+    let promptApi = 0;
+    Object.defineProperty(globalThis, 'LanguageModel', { configurable: true, get() { promptApi++; return {}; } });
+    const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
+    try {
+      await import(`../background.js?quiet-${saved.provider}`);
+      await listeners.installed({ reason: 'update' });
+      await listeners.startup();
+      const opened = { ...makeTopicTabs(W, 22680, { travel: 1 })[0], index: tabs.length };
+      tabs.push(opened);
+      await listeners.tabCreated(opened);
+      await listeners.tabUpdated(opened.id, { status: 'complete' }, opened);
+      await listeners.tabUpdated(tabs[0].id, { title: 'Ramen recipe, updated' }, { ...tabs[0], title: 'Ramen recipe, updated' });
+      // An older popup's preparation request finds no handler and starts nothing.
+      assert.equal(listeners.message({ type: 'PREPARE_GROUPING', windowId: W }, {}, () => {}), undefined);
+      listeners.storageChanged({ backgroundPrep: { oldValue: false, newValue: true }, autoGroupNewTabs: { oldValue: false, newValue: true } }, 'sync');
+      if (click) {
+        const result = await message({ type: 'TRIGGER_GROUPING', windowId: W });
+        assert.equal(result.success, true);
+        assert.equal(result.result.source, 'offline');
+        assert.equal(Object.hasOwn(result.result, 'provisionalTabs'), false);
+        assert.equal(Object.hasOwn(result.result, 'provisionalInBackground'), false);
+      }
+      await sleep(1800);
+      assert.deepEqual(fetches, []);
+      assert.equal(promptApi, 0);
+      assert.equal(Object.keys(local).some(key => /label/i.test(key)), false, 'no label is stored');
+    } finally {
+      globalThis.fetch = original;
+      delete globalThis.LanguageModel;
+      // The worker's pending work must not reach later tests.
+      sync.groupingStrategy = 'site';
     }
-    listeners.storageChanged(changes, 'sync');
-  };
-  const missing = async list => (await lookupSelectedLabels(list)).missing.length;
-  try {
-    await import('../background.js?on-device-preparation');
-
-    // Without background preparation, a browser start and page loads label nothing.
-    await listeners.startup();
-    await listeners.tabUpdated(tabs[0].id, { status: 'complete' }, tabs[0]);
-    await sleep(1800);
-    assert.equal(nano.labelPrompts.length, 0);
-    // A cleanup while the model is not ready places tabs by address. Without
-    // preparation, an on-device engine still finishes those tabs, then stops.
-    const first = await message({ type: 'TRIGGER_GROUPING', windowId: W });
-    assert.ok(first.result.provisionalTabs > 0);
-    assert.equal(first.result.provisionalInBackground, true);
-    assert.equal(nano.creates, 0);
-    assert.deepEqual(await state(), { ok: true, loaded: false, idleMs: null, unloadAfter: '5m' });
-
-    // Nothing warms the model before the setup card is answered.
-    availability = 'available';
-    delete sync.setupChoice;
-    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
-    await sleep(50);
-    assert.equal(nano.creates, 0);
-
-    // Then opening the popup warms Nano for the click that usually follows.
-    change({ setupChoice: 'nano' });
-    assert.deepEqual(await message({ type: 'PREPARE_GROUPING', windowId: W }), { ok: true });
-    assert.ok(await waitFor(() => nano.creates >= 1));
-    const warm = await state();
-    assert.equal(warm.loaded, true);
-    assert.equal(typeof warm.idleMs, 'number');
-    assert.ok(await waitFor(async () => await missing(tabs) === 0, 9000), 'the cleanup follow-up labels its tabs');
-
-    // A page loaded without preparation waits; turning preparation on queues it.
-    const extra = { ...makeTopicTabs(W, 22680, { travel: 1 })[0], index: tabs.length };
-    tabs.push(extra);
-    await listeners.tabUpdated(extra.id, { status: 'complete' }, extra);
-    await sleep(1800);
-    assert.equal(await missing([extra]), 1);
-    change({ backgroundPrep: true });
-    assert.ok(await waitFor(async () => await missing(tabs) === 0, 4000));
-
-    // Unload now releases the sessions; a second request finds nothing to release.
-    assert.deepEqual(await message({ type: 'UNLOAD_ON_DEVICE_MODEL' }), { ok: true, released: true });
-    assert.equal((await state()).loaded, false);
-    assert.deepEqual(await message({ type: 'UNLOAD_ON_DEVICE_MODEL' }), { ok: true, released: false });
-
-    // A click that finds the model cold hands its provisional tabs to the background.
-    const later = makeTopicTabs(W, 22690, { dev: 2 }).map((tab, i) => ({ ...tab, index: tabs.length + i }));
-    tabs.push(...later);
-    nano.createDelayMs = 2000;
-    const cold = await message({ type: 'TRIGGER_GROUPING', windowId: W });
-    assert.equal(cold.result.fallbackCode, 'nano_loading');
-    assert.equal(cold.result.provisionalInBackground, true);
-    assert.ok(await waitFor(async () => await missing(later) === 0, 5000));
-    nano.createDelayMs = 0;
-
-    // Turning preparation off stops background labelling again.
-    change({ backgroundPrep: false });
-    await sleep(50);
-    const prompts = nano.labelPrompts.length;
-    const opened = { ...makeTopicTabs(W, 22695, { food: 1 })[0], index: tabs.length };
-    tabs.push(opened);
-    await listeners.tabUpdated(opened.id, { status: 'complete' }, opened);
-    await sleep(1800);
-    assert.equal(nano.labelPrompts.length, prompts);
-
-    // 'immediately' never warms a model it would release 6 s later.
-    change({ modelUnloadAfter: 'immediately' });
-    await message({ type: 'UNLOAD_ON_DEVICE_MODEL' });
-    const creates = nano.creates;
-    await message({ type: 'PREPARE_GROUPING', windowId: W });
-    await sleep(100);
-    assert.equal(nano.creates, creates);
-
-    // The unload setting is reported, and switching engine lets go of Nano.
-    change({ modelUnloadAfter: '15m' });
-    await message({ type: 'PREPARE_GROUPING', windowId: W });
-    assert.ok(await waitFor(async () => (await state()).loaded));
-    assert.equal((await state()).unloadAfter, '15m');
-    change({ provider: 'offline' });
-    assert.ok(await waitFor(async () => !(await state()).loaded, 2000));
-  } finally {
-    // The worker's pending work must not reach later tests.
-    sync.groupingStrategy = 'site';
-    configureOnDeviceMemory({ unloadAfter: '5m' });
-    removeNanoMock();
-  }
-});
+  });
+}
 
 test('Run from toolbar keeps the popup until the setup card is answered', async () => {
   const tabs = makeTopicTabs(227, 22700, { food: 1 });
@@ -1689,4 +683,118 @@ test('Run from toolbar keeps the popup until the setup card is answered', async 
   sync.setupChoice = 'cloud';
   listeners.storageChanged({ setupChoice: { newValue: 'cloud' } }, 'sync');
   assert.ok(await waitFor(() => popups.at(-1) === ''));
+});
+
+test('the worker refuses a second cleanup as an error and serves and applies a stored plan offer', async () => {
+  const W = 228;
+  const tabs = makeTopicTabs(W, 22800, { food: 3, travel: 3 });
+  const { sync, session } = installBrowser(tabs, { sync: { provider: 'openai', setupChoice: 'cloud' } });
+  session.foldnex_session_started_v1 = true;
+  const listeners = installWorkerEvents();
+  const announced = [];
+  chrome.runtime.sendMessage = async message => { announced.push(message); };
+  const original = globalThis.fetch;
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  globalThis.fetch = async (url, options) => {
+    await held;
+    const user = JSON.parse(options.body).messages.at(-1).content;
+    const rows = JSON.parse(user.slice(user.indexOf('{"tabs":'))).tabs;
+    const content = JSON.stringify({ folders: [{ name: 'Ramen Nights', ids: rows.slice(0, 3).map(row => row[0]) },
+      { name: 'Tokyo Getaway', ids: rows.slice(3).map(row => row[0]) }] });
+    return { ok: true, async json() { return { choices: [{ message: { content } }] }; } };
+  };
+  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
+  try {
+    await import('../background.js?plan-offer-messages');
+    await chrome.storage.local.set({ openaiApiKey: 'test-only' });
+
+    // A cleanup already running: the second is refused as an error.
+    const first = message({ type: 'TRIGGER_GROUPING', windowId: W });
+    await sleep(20);
+    assert.deepEqual(await message({ type: 'TRIGGER_GROUPING', windowId: W }), { success: false, error: 'Grouping already in progress' });
+    release();
+    const done = await first;
+    assert.equal(done.success, true);
+    assert.equal(done.result.source, 'cloud-plan');
+
+    // A stored offer for the unchanged window is served and applied once.
+    const groupable = getGroupableTabs(await chrome.tabs.query({ windowId: W }));
+    const groups = [{ name: 'Food Plan', color: 'red', tabIds: groupable.slice(0, 3).map(tab => tab.id), kind: 'folder' },
+      { name: 'Trip Plan', color: 'blue', tabIds: groupable.slice(3).map(tab => tab.id), kind: 'folder' }];
+    // An offer bound to the window as the worker sees it: tab set, engine scope, locked partition and membership.
+    const binding = {
+      signature: await tabSetSignature(groupable),
+      scope: getRunScope(await loadGroupingSettings()).cacheScope,
+      locked: lockedPartitionKey((await buildLockedGroups(groupable)).locked),
+      membership: groupable.map(tab => [tab.id, Number.isInteger(tab.groupId) ? tab.groupId : -1]).sort((a, b) => a[0] - b[0])
+    };
+    await PlanOfferStore.put(W, { ...binding, groups }, { epoch: await readResetEpoch() });
+    const offered = await message({ type: 'GET_PLAN_OFFER', windowId: W });
+    assert.equal(offered.offer.windowId, W);
+    const applied = await message({ type: 'APPLY_PLAN_OFFER', windowId: W });
+    assert.equal(applied.success, true);
+    assert.equal(applied.result.success, true);
+    assert.deepEqual(applied.result.groups.map(group => group.name), ['Food Plan', 'Trip Plan']);
+    assert.deepEqual(await message({ type: 'GET_PLAN_OFFER', windowId: W }), { ok: true, offer: null });
+
+    // A changed window: the offer is not served.
+    await PlanOfferStore.put(W, { ...binding, signature: 'stale', groups }, { epoch: await readResetEpoch() });
+    assert.deepEqual(await message({ type: 'GET_PLAN_OFFER', windowId: W }), { ok: true, offer: null });
+    assert.equal(await PlanOfferStore.get(W), null);
+  } finally {
+    globalThis.fetch = original;
+    sync.groupingStrategy = 'site';
+  }
+});
+
+test('the worker serialises Ungroup with cleanup and Apply, cancels a closed window\'s late plan and reports a failed one', async () => {
+  const W = 229;
+  const tabs = makeTopicTabs(W, 22900, { food: 3, travel: 3 });
+  const { sync, session } = installBrowser(tabs, { sync: { provider: 'openai', setupChoice: 'cloud' } });
+  session.foldnex_session_started_v1 = true;
+  const listeners = installWorkerEvents();
+  const announced = [];
+  chrome.runtime.sendMessage = async message => { announced.push(message); };
+  const original = globalThis.fetch;
+  let release;
+  let fail = false;
+  globalThis.fetch = async (url, options) => {
+    await new Promise(resolve => { release = resolve; });
+    if (fail) return { ok: false, status: 500, async json() { return { error: { message: 'Upstream failure' } }; } };
+    const user = JSON.parse(options.body).messages.at(-1).content;
+    const rows = JSON.parse(user.slice(user.indexOf('{"tabs":'))).tabs;
+    const content = JSON.stringify({ folders: [{ name: 'Ramen Nights', ids: rows.slice(0, 3).map(row => row[0]) },
+      { name: 'Tokyo Getaway', ids: rows.slice(3).map(row => row[0]) }] });
+    return { ok: true, async json() { return { choices: [{ message: { content } }] }; } };
+  };
+  const message = body => new Promise(resolve => listeners.message(body, {}, resolve));
+  try {
+    await import('../background.js?plan-offer-lock');
+    await chrome.storage.local.set({ openaiApiKey: 'test-only' });
+
+    // Ungroup waits its turn: refused while a cleanup holds the lock.
+    const cleanup = message({ type: 'TRIGGER_GROUPING', windowId: W });
+    await sleep(20);
+    assert.deepEqual(await message({ type: 'UNGROUP_ALL' }), { success: false, error: 'Grouping already in progress' });
+    // The cleanup misses its deadline (6 s); the plan is still out when the window closes.
+    const done = await cleanup;
+    assert.equal(done.result.source, 'plan-pending');
+    listeners.windowRemoved(W);
+    release();
+    await sleep(50);
+    assert.ok(!announced.some(item => item.type === 'PLAN_OFFER_READY'), 'a closed window gets no offer');
+    assert.equal(await PlanOfferStore.get(W), null);
+
+    // A late plan that fails is reported, so the popup stops promising it.
+    fail = true;
+    tabs.forEach(tab => { tab.title += ' again'; });
+    const second = await message({ type: 'TRIGGER_GROUPING', windowId: W });
+    assert.equal(second.result.source, 'plan-pending');
+    release();
+    assert.ok(await waitFor(() => announced.some(item => item.type === 'PLAN_OFFER_FAILED' && item.windowId === W)));
+  } finally {
+    globalThis.fetch = original;
+    sync.groupingStrategy = 'site';
+  }
 });

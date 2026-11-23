@@ -1,5 +1,6 @@
 {
   "generatedAt": "2026-09-22",
+  "generatedAtNote": "Date of the original asset set; the screenshot replacements are dated by screenshotsUpdatedAt and each capturedAt.",
   "product": "Foldnex - Tab Organizer",
   "assets": [
     {
@@ -12,46 +13,46 @@
       "file": "screenshots/01-grouping-engines.png",
       "dimensions": "1280x800",
       "source": "source-captures/01-grouping-engines.png",
-      "sourceDimensions": "2004x1816",
-      "suppliedAt": "2026-10-06",
-      "subject": "Expanded grouping-engine chooser",
-      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
+      "sourceDimensions": "2560x1600",
+      "subject": "Expanded grouping-engine chooser with Offline smart mode selected",
+      "method": "Automated headless capture of the unpacked 2.1.0 extension (Chrome for Testing 158, fresh profile, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-23, from the release-candidate tree; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits).",
+      "capturedAt": "2026-11-23"
     },
     {
       "file": "screenshots/02-provider-usage.png",
       "dimensions": "1280x800",
       "source": "source-captures/02-provider-usage.png",
-      "sourceDimensions": "1956x1704",
-      "suppliedAt": "2026-10-06",
+      "sourceDimensions": "2560x1600",
       "subject": "Provider inference usage report",
-      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
+      "method": "Automated headless capture of the unpacked 2.1.0 extension (Chrome for Testing 158, fresh profile, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-23, from the release-candidate tree; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). Usage totals were seeded in local storage with example figures; no provider was called.",
+      "capturedAt": "2026-11-23"
     },
     {
       "file": "screenshots/03-behaviour.png",
       "dimensions": "1280x800",
       "source": "source-captures/03-behaviour.png",
-      "sourceDimensions": "2532x1904",
-      "suppliedAt": "2026-10-06",
+      "sourceDimensions": "2560x1600",
       "subject": "Behaviour settings and last-cleanup section",
-      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
+      "method": "Automated headless capture of the unpacked 2.1.0 extension (Chrome for Testing 158, fresh profile, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-23, from the release-candidate tree; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits).",
+      "capturedAt": "2026-11-23"
     },
     {
       "file": "screenshots/04-rules-and-memory.png",
       "dimensions": "1280x800",
       "source": "source-captures/04-rules-and-memory.png",
-      "sourceDimensions": "2724x1902",
-      "suppliedAt": "2026-10-06",
+      "sourceDimensions": "2560x1600",
       "subject": "Rules and memory controls",
-      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
+      "method": "Automated headless capture of the unpacked 2.1.0 extension (Chrome for Testing 158, fresh profile, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-23, from the release-candidate tree; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits).",
+      "capturedAt": "2026-11-23"
     },
     {
       "file": "screenshots/05-on-device-memory.png",
       "dimensions": "1280x800",
       "source": "source-captures/05-on-device-memory.png",
-      "sourceDimensions": "2704x1896",
-      "suppliedAt": "2026-10-06",
-      "subject": "Gemini Nano background preparation and memory controls",
-      "method": "Owner-supplied actual UI capture, proportional Lanczos resize and top-aligned 16:10 crop; full bleed RGB PNG, no padding or content edits. Prepared with scripts/prepare-store-screenshots.py; not a fresh automated browser capture."
+      "sourceDimensions": "2560x1600",
+      "subject": "Ollama on this device: configuration and model memory",
+      "method": "Automated headless capture of the unpacked 2.1.0 extension (Chrome for Testing 158, fresh profile, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-23, from the release-candidate tree; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). A loopback stand-in on port 11434 answered the model-list request with three example model names (llama3.2:3b selected); no model ran.",
+      "capturedAt": "2026-11-23"
     },
     {
       "file": "small-promo-440x280.png",
@@ -66,6 +67,6 @@
       "method": "Playwright browser capture composed in a deterministic store frame"
     }
   ],
-  "notes": "Screenshots refreshed from owner-supplied v2.0.0 UI captures. Original captures are retained in source-captures; upload only the derived 1280x800 screenshots. Earlier icon and promotional assets retain their original provenance and were not regenerated. Captured model availability and usage are example states, not performance or billing guarantees. No provider credentials appear in the captures.",
-  "screenshotsUpdatedAt": "2026-10-06"
+  "notes": "Screenshots 01, 02, 03 and 05 are automated headless captures of the unpacked 2.1.0 extension (23 November 2026); 02 uses seeded usage totals and 05 a loopback catalogue fixture with no inference. 04 is a retained crop of the owner-supplied 2.0.0 capture of 6 October 2026. The documents review corrections of 23 November 2026 changed Settings copy visible in all five (provider pills, key help, Priority, Behaviour and usage descriptions, the rule-pattern label); recapture them from the corrected build before upload. Source captures are retained in source-captures; upload only the derived 1280x800 screenshots. Earlier icon and promotional assets retain their original provenance and were not regenerated. Usage figures are example states, not performance or billing guarantees. No provider credentials appear in the captures.",
+  "screenshotsUpdatedAt": "2026-11-23"
 }

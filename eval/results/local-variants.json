@@ -1,0 +1,2275 @@
+{
+  "windows": {
+    "words": {
+      "baseline": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        }
+      },
+      "A": {
+        "all": 0.344,
+        "tasked": 0.3617,
+        "reviewMean": 0.3234,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 10,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1908,
+            "tasked": 0.2018,
+            "review": 0.4286,
+            "largest": 0.1587,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2361,
+            "tasked": 0.2748,
+            "review": 0.2778,
+            "largest": 0.2778,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.2055,
+            "tasked": 0.2281,
+            "review": 0.2364,
+            "largest": 0.1818,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.5091,
+            "tasked": 0.5204,
+            "review": 0.3226,
+            "largest": 0.1613,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "B+0.05": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        }
+      },
+      "B+0.1": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        }
+      },
+      "B+0.2": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        }
+      },
+      "bestB": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        },
+        "delta": 0.05
+      },
+      "looB": {
+        "all": 0.3415,
+        "tasked": 0.3591,
+        "reviewMean": 0.348,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 9.5,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1924,
+            "tasked": 0.2037,
+            "review": 0.4762,
+            "largest": 0.1587,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2244,
+            "tasked": 0.2615,
+            "review": 0.3519,
+            "largest": 0.2778,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.1965,
+            "tasked": 0.2188,
+            "review": 0.3455,
+            "largest": 0.1818,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.4981,
+            "tasked": 0.5095,
+            "review": 0.3871,
+            "largest": 0.1613,
+            "groups": 9,
+            "realGroups": 8
+          }
+        },
+        "deltas": {
+          "a-designer": 0.05,
+          "a-hoarder": 0.05,
+          "a-household": 0.05,
+          "a-oncall": 0.05,
+          "a-student": 0.05,
+          "b-academic": 0.05,
+          "b-expat": 0.05,
+          "b-messy": 0.05,
+          "b-move": 0.05,
+          "b-shop": 0.05,
+          "dev": 0.05,
+          "life": 0.05
+        }
+      },
+      "AB": {
+        "all": 0.344,
+        "tasked": 0.3617,
+        "reviewMean": 0.3234,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 10,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1908,
+            "tasked": 0.2018,
+            "review": 0.4286,
+            "largest": 0.1587,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2361,
+            "tasked": 0.2748,
+            "review": 0.2778,
+            "largest": 0.2778,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.2055,
+            "tasked": 0.2281,
+            "review": 0.2364,
+            "largest": 0.1818,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.5091,
+            "tasked": 0.5204,
+            "review": 0.3226,
+            "largest": 0.1613,
+            "groups": 10,
+            "realGroups": 9
+          }
+        },
+        "delta": 0.05
+      },
+      "ABloo": {
+        "all": 0.344,
+        "tasked": 0.3617,
+        "reviewMean": 0.3234,
+        "reviewMax": 0.5079,
+        "largestMean": 0.1662,
+        "largestMax": 0.2778,
+        "groups": 10,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4773,
+            "tasked": 0.4773,
+            "review": 0.2576,
+            "largest": 0.197,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3095,
+            "tasked": 0.3148,
+            "review": 0.42,
+            "largest": 0.13,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.1908,
+            "tasked": 0.2018,
+            "review": 0.4286,
+            "largest": 0.1587,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3176,
+            "tasked": 0.3231,
+            "review": 0.4146,
+            "largest": 0.1463,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.3137,
+            "tasked": 0.3353,
+            "review": 0.3125,
+            "largest": 0.1563,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3807,
+            "tasked": 0.3964,
+            "review": 0.3333,
+            "largest": 0.1304,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-expat": {
+            "all": 0.2361,
+            "tasked": 0.2748,
+            "review": 0.2778,
+            "largest": 0.2778,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-messy": {
+            "all": 0.4926,
+            "tasked": 0.5447,
+            "review": 0.2027,
+            "largest": 0.2297,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.4516,
+            "tasked": 0.4807,
+            "review": 0.1667,
+            "largest": 0.1296,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.2055,
+            "tasked": 0.2281,
+            "review": 0.2364,
+            "largest": 0.1818,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "dev": {
+            "all": 0.2432,
+            "tasked": 0.2432,
+            "review": 0.5079,
+            "largest": 0.0952,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.5091,
+            "tasked": 0.5204,
+            "review": 0.3226,
+            "largest": 0.1613,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      }
+    },
+    "vectors": {
+      "baseline": {
+        "all": 0.3896,
+        "tasked": 0.4192,
+        "reviewMean": 0.111,
+        "reviewMax": 0.305,
+        "largestMean": 0.3654,
+        "largestMax": 0.9074,
+        "groups": 8.6667,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2396,
+            "tasked": 0.2651,
+            "review": 0.0476,
+            "largest": 0.8413,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2033,
+            "tasked": 0.2652,
+            "review": 0.0556,
+            "largest": 0.9074,
+            "groups": 3,
+            "realGroups": 2
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "A": {
+        "all": 0.3895,
+        "tasked": 0.4192,
+        "reviewMean": 0.1088,
+        "reviewMax": 0.305,
+        "largestMean": 0.3654,
+        "largestMax": 0.9074,
+        "groups": 8.75,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2396,
+            "tasked": 0.2651,
+            "review": 0.0476,
+            "largest": 0.8413,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2033,
+            "tasked": 0.2652,
+            "review": 0.0556,
+            "largest": 0.9074,
+            "groups": 3,
+            "realGroups": 2
+          },
+          "b-messy": {
+            "all": 0.5803,
+            "tasked": 0.6224,
+            "review": 0.0405,
+            "largest": 0.2432,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "B+0.05": {
+        "all": 0.3882,
+        "tasked": 0.4174,
+        "reviewMean": 0.111,
+        "reviewMax": 0.305,
+        "largestMean": 0.3425,
+        "largestMax": 0.8704,
+        "groups": 9,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2303,
+            "tasked": 0.2511,
+            "review": 0.0476,
+            "largest": 0.6032,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.1962,
+            "tasked": 0.2581,
+            "review": 0.0556,
+            "largest": 0.8704,
+            "groups": 4,
+            "realGroups": 3
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "B+0.1": {
+        "all": 0.3926,
+        "tasked": 0.4193,
+        "reviewMean": 0.1236,
+        "reviewMax": 0.305,
+        "largestMean": 0.3169,
+        "largestMax": 0.7222,
+        "groups": 9.25,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2622,
+            "tasked": 0.2752,
+            "review": 0.1429,
+            "largest": 0.4444,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2165,
+            "tasked": 0.2571,
+            "review": 0.1111,
+            "largest": 0.7222,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "B+0.2": {
+        "all": 0.3885,
+        "tasked": 0.4138,
+        "reviewMean": 0.145,
+        "reviewMax": 0.381,
+        "largestMean": 0.2792,
+        "largestMax": 0.5556,
+        "groups": 9.5833,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2428,
+            "tasked": 0.2478,
+            "review": 0.381,
+            "largest": 0.1587,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.1871,
+            "tasked": 0.2176,
+            "review": 0.1296,
+            "largest": 0.5556,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      },
+      "bestB": {
+        "all": 0.3926,
+        "tasked": 0.4193,
+        "reviewMean": 0.1236,
+        "reviewMax": 0.305,
+        "largestMean": 0.3169,
+        "largestMax": 0.7222,
+        "groups": 9.25,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2622,
+            "tasked": 0.2752,
+            "review": 0.1429,
+            "largest": 0.4444,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2165,
+            "tasked": 0.2571,
+            "review": 0.1111,
+            "largest": 0.7222,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        },
+        "delta": 0.1
+      },
+      "looB": {
+        "all": 0.3926,
+        "tasked": 0.4193,
+        "reviewMean": 0.1236,
+        "reviewMax": 0.305,
+        "largestMean": 0.3169,
+        "largestMax": 0.7222,
+        "groups": 9.25,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2622,
+            "tasked": 0.2752,
+            "review": 0.1429,
+            "largest": 0.4444,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2165,
+            "tasked": 0.2571,
+            "review": 0.1111,
+            "largest": 0.7222,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "b-messy": {
+            "all": 0.5811,
+            "tasked": 0.6224,
+            "review": 0.0676,
+            "largest": 0.2432,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        },
+        "deltas": {
+          "a-designer": 0.1,
+          "a-hoarder": 0.1,
+          "a-household": 0.1,
+          "a-oncall": 0.1,
+          "a-student": 0.1,
+          "b-academic": 0.1,
+          "b-expat": 0.1,
+          "b-messy": 0.1,
+          "b-move": 0.1,
+          "b-shop": 0.1,
+          "dev": 0.1,
+          "life": 0.1
+        }
+      },
+      "AB": {
+        "all": 0.3925,
+        "tasked": 0.4193,
+        "reviewMean": 0.1214,
+        "reviewMax": 0.305,
+        "largestMean": 0.3169,
+        "largestMax": 0.7222,
+        "groups": 9.3333,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2622,
+            "tasked": 0.2752,
+            "review": 0.1429,
+            "largest": 0.4444,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2165,
+            "tasked": 0.2571,
+            "review": 0.1111,
+            "largest": 0.7222,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "b-messy": {
+            "all": 0.5803,
+            "tasked": 0.6224,
+            "review": 0.0405,
+            "largest": 0.2432,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        },
+        "delta": 0.1
+      },
+      "ABloo": {
+        "all": 0.3925,
+        "tasked": 0.4193,
+        "reviewMean": 0.1214,
+        "reviewMax": 0.305,
+        "largestMean": 0.3169,
+        "largestMax": 0.7222,
+        "groups": 9.3333,
+        "perWindow": {
+          "a-designer": {
+            "all": 0.4978,
+            "tasked": 0.5127,
+            "review": 0.1818,
+            "largest": 0.1667,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-hoarder": {
+            "all": 0.3138,
+            "tasked": 0.3412,
+            "review": 0.305,
+            "largest": 0.215,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-household": {
+            "all": 0.2622,
+            "tasked": 0.2752,
+            "review": 0.1429,
+            "largest": 0.4444,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-oncall": {
+            "all": 0.3148,
+            "tasked": 0.3205,
+            "review": 0.0732,
+            "largest": 0.4268,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "a-student": {
+            "all": 0.4379,
+            "tasked": 0.4664,
+            "review": 0.125,
+            "largest": 0.25,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-academic": {
+            "all": 0.3363,
+            "tasked": 0.3762,
+            "review": 0.029,
+            "largest": 0.3478,
+            "groups": 9,
+            "realGroups": 8
+          },
+          "b-expat": {
+            "all": 0.2165,
+            "tasked": 0.2571,
+            "review": 0.1111,
+            "largest": 0.7222,
+            "groups": 5,
+            "realGroups": 4
+          },
+          "b-messy": {
+            "all": 0.5803,
+            "tasked": 0.6224,
+            "review": 0.0405,
+            "largest": 0.2432,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-move": {
+            "all": 0.3938,
+            "tasked": 0.4242,
+            "review": 0.0741,
+            "largest": 0.2222,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "b-shop": {
+            "all": 0.3469,
+            "tasked": 0.3767,
+            "review": 0.0364,
+            "largest": 0.2545,
+            "groups": 8,
+            "realGroups": 7
+          },
+          "dev": {
+            "all": 0.4102,
+            "tasked": 0.444,
+            "review": 0.0794,
+            "largest": 0.3651,
+            "groups": 10,
+            "realGroups": 9
+          },
+          "life": {
+            "all": 0.6,
+            "tasked": 0.6154,
+            "review": 0.2581,
+            "largest": 0.1452,
+            "groups": 10,
+            "realGroups": 9
+          }
+        }
+      }
+    }
+  },
+  "deltas": [
+    0.05,
+    0.1,
+    0.2
+  ],
+  "sizes": [
+    8,
+    15,
+    25
+  ],
+  "subsets": 20,
+  "rulesWindows": {
+    "all": 0.1902,
+    "tasked": 0.2015,
+    "reviewMean": 0.4463,
+    "reviewMax": 0.7143,
+    "largestMean": 0.1529,
+    "largestMax": 0.2857,
+    "groups": 9.5,
+    "perWindow": {
+      "a-designer": {
+        "all": 0.2743,
+        "tasked": 0.2883,
+        "review": 0.3939,
+        "largest": 0.1061,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "a-hoarder": {
+        "all": 0.2057,
+        "tasked": 0.2361,
+        "review": 0.405,
+        "largest": 0.225,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "a-household": {
+        "all": 0.0301,
+        "tasked": 0.0308,
+        "review": 0.7143,
+        "largest": 0.0794,
+        "groups": 8,
+        "realGroups": 7
+      },
+      "a-oncall": {
+        "all": 0.2259,
+        "tasked": 0.2374,
+        "review": 0.4268,
+        "largest": 0.1463,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "a-student": {
+        "all": 0.1844,
+        "tasked": 0.2006,
+        "review": 0.3125,
+        "largest": 0.1406,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "b-academic": {
+        "all": 0.1415,
+        "tasked": 0.1484,
+        "review": 0.4203,
+        "largest": 0.1014,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "b-expat": {
+        "all": 0.2017,
+        "tasked": 0.2069,
+        "review": 0.5,
+        "largest": 0.1667,
+        "groups": 8,
+        "realGroups": 7
+      },
+      "b-messy": {
+        "all": 0.1538,
+        "tasked": 0.161,
+        "review": 0.5541,
+        "largest": 0.1216,
+        "groups": 8,
+        "realGroups": 7
+      },
+      "b-move": {
+        "all": 0.1319,
+        "tasked": 0.1379,
+        "review": 0.537,
+        "largest": 0.1111,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "b-shop": {
+        "all": 0.2188,
+        "tasked": 0.2303,
+        "review": 0.2909,
+        "largest": 0.2545,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "dev": {
+        "all": 0.3149,
+        "tasked": 0.3333,
+        "review": 0.3333,
+        "largest": 0.2857,
+        "groups": 10,
+        "realGroups": 9
+      },
+      "life": {
+        "all": 0.1991,
+        "tasked": 0.2075,
+        "review": 0.4677,
+        "largest": 0.0968,
+        "groups": 10,
+        "realGroups": 9
+      }
+    }
+  },
+  "small": {
+    "8": {
+      "subsets": 240,
+      "noGoldPair": 0.0125,
+      "words": {
+        "baseline": {
+          "all": 0.2369,
+          "tasked": 0.2586,
+          "reviewMean": 0.7714,
+          "reviewMax": 1,
+          "largestMean": 0.1943,
+          "largestMax": 0.625,
+          "groups": 1.7833,
+          "degenerate": 0.8667,
+          "allReview": 0.3542
+        },
+        "A": {
+          "all": 0.2743,
+          "tasked": 0.338,
+          "reviewMean": 0.5688,
+          "reviewMax": 1,
+          "largestMean": 0.2854,
+          "largestMax": 0.625,
+          "groups": 2.4875,
+          "degenerate": 0.5125,
+          "allReview": 0.0833
+        }
+      },
+      "vectors": {
+        "baseline": {
+          "all": 0.3352,
+          "tasked": 0.5493,
+          "reviewMean": 0.2708,
+          "reviewMax": 0.75,
+          "largestMean": 0.488,
+          "largestMax": 1,
+          "groups": 2.8,
+          "degenerate": 0.3,
+          "allReview": 0
+        },
+        "A": {
+          "all": 0.335,
+          "tasked": 0.5545,
+          "reviewMean": 0.2448,
+          "reviewMax": 0.625,
+          "largestMean": 0.4885,
+          "largestMax": 1,
+          "groups": 2.8792,
+          "degenerate": 0.2583,
+          "allReview": 0
+        }
+      },
+      "rules": {
+        "all": 0.1202,
+        "tasked": 0.1476,
+        "reviewMean": 0.4969,
+        "reviewMax": 1,
+        "largestMean": 0.2516,
+        "largestMax": 0.625,
+        "groups": 3.6833,
+        "degenerate": 0.0958,
+        "allReview": 0.0083
+      }
+    },
+    "15": {
+      "subsets": 240,
+      "noGoldPair": 0,
+      "words": {
+        "baseline": {
+          "all": 0.3026,
+          "tasked": 0.3296,
+          "reviewMean": 0.6167,
+          "reviewMax": 1,
+          "largestMean": 0.2181,
+          "largestMax": 0.6,
+          "groups": 3.1,
+          "degenerate": 0.2625,
+          "allReview": 0.0458
+        },
+        "A": {
+          "all": 0.3286,
+          "tasked": 0.3802,
+          "reviewMean": 0.4114,
+          "reviewMax": 0.8667,
+          "largestMean": 0.2467,
+          "largestMax": 0.6,
+          "groups": 4.4,
+          "degenerate": 0.0333,
+          "allReview": 0
+        }
+      },
+      "vectors": {
+        "baseline": {
+          "all": 0.3371,
+          "tasked": 0.433,
+          "reviewMean": 0.1806,
+          "reviewMax": 0.4667,
+          "largestMean": 0.4419,
+          "largestMax": 1,
+          "groups": 4.125,
+          "degenerate": 0.1042,
+          "allReview": 0
+        },
+        "A": {
+          "all": 0.3387,
+          "tasked": 0.4372,
+          "reviewMean": 0.1517,
+          "reviewMax": 0.4667,
+          "largestMean": 0.4419,
+          "largestMax": 1,
+          "groups": 4.3125,
+          "degenerate": 0.1,
+          "allReview": 0
+        }
+      },
+      "rules": {
+        "all": 0.1542,
+        "tasked": 0.1784,
+        "reviewMean": 0.5094,
+        "reviewMax": 0.8667,
+        "largestMean": 0.2267,
+        "largestMax": 0.5333,
+        "groups": 4.7542,
+        "degenerate": 0.0083,
+        "allReview": 0
+      }
+    },
+    "25": {
+      "subsets": 240,
+      "noGoldPair": 0,
+      "words": {
+        "baseline": {
+          "all": 0.3331,
+          "tasked": 0.351,
+          "reviewMean": 0.5058,
+          "reviewMax": 0.88,
+          "largestMean": 0.204,
+          "largestMax": 0.44,
+          "groups": 4.8167,
+          "degenerate": 0.0167,
+          "allReview": 0
+        },
+        "A": {
+          "all": 0.352,
+          "tasked": 0.384,
+          "reviewMean": 0.3075,
+          "reviewMax": 0.76,
+          "largestMean": 0.2157,
+          "largestMax": 0.44,
+          "groups": 6.7042,
+          "degenerate": 0,
+          "allReview": 0
+        }
+      },
+      "vectors": {
+        "baseline": {
+          "all": 0.3627,
+          "tasked": 0.4131,
+          "reviewMean": 0.1093,
+          "reviewMax": 0.4,
+          "largestMean": 0.4155,
+          "largestMax": 1,
+          "groups": 5.7958,
+          "degenerate": 0.0708,
+          "allReview": 0
+        },
+        "A": {
+          "all": 0.3626,
+          "tasked": 0.414,
+          "reviewMean": 0.0907,
+          "reviewMax": 0.4,
+          "largestMean": 0.4155,
+          "largestMax": 1,
+          "groups": 6,
+          "degenerate": 0.0708,
+          "allReview": 0
+        }
+      },
+      "rules": {
+        "all": 0.176,
+        "tasked": 0.1924,
+        "reviewMean": 0.4717,
+        "reviewMax": 0.92,
+        "largestMean": 0.1837,
+        "largestMax": 0.32,
+        "groups": 6.5042,
+        "degenerate": 0.0042,
+        "allReview": 0
+      }
+    }
+  }
+}

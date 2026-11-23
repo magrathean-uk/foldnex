@@ -3,7 +3,7 @@
  * Provides instant 0ms local classification using learned URL pattern memory.
  */
 
-import { CATEGORY_KEYS, GROUP_NAME_LIMIT, LABEL_VOCAB_VERSION, REVIEW_GROUP_NAME } from './label-vocabulary.js';
+import { CATEGORY_KEYS, GROUP_NAME_LIMIT, REVIEW_GROUP_NAME } from './label-vocabulary.js';
 
 // Strict allowlist: Only retain non-sensitive semantic parameters relevant for grouping
 const ALLOWED_SEMANTIC_PARAMS = new Set([
@@ -24,9 +24,9 @@ const MAX_GROUP_PREFERENCES = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Dev-only key from the unshipped TabAssignmentCache; removed, never read.
 const LEGACY_TAB_ASSIGNMENTS_KEY = 'foldnex_tab_assignments_v1';
+// The retired per-tab label cache: removed on update (settings.js); Reset
+// still clears a leftover.
 const TAB_LABELS_KEY = 'foldnex_tab_labels_v1';
-const TAB_LABEL_TTL_MS = 7 * DAY_MS;
-const MAX_TAB_LABELS = 3000;
 const PLAN_MEMORY_KEY = 'foldnex_plan_memory_v1';
 const PLAN_MEMORY_VERSION = 1;
 const USER_NAME_TTL_MS = 90 * DAY_MS;
@@ -42,6 +42,8 @@ const MODEL_NAME_SOURCES = new Set(['cloud', 'nano']);
 const RESET_EPOCH_KEY = 'foldnex_reset_epoch';
 const WINDOW_PLAN_PREFIX = 'foldnex_window_plan_v1:';
 const WINDOW_PLAN_VERSION = 1;
+const PLAN_OFFER_PREFIX = 'foldnex_plan_offer_v1:';
+const PLAN_OFFER_VERSION = 1;
 // Mirrors CHROME_GROUP_COLORS in ai-engine.js; importing it here would create an import cycle.
 const CHROME_COLORS = new Set(['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange']);
 const CATEGORY_KEY_SET = new Set(CATEGORY_KEYS);
@@ -69,7 +71,7 @@ function settledWrites() {
  * resetRules runs on the options page, whose module instance has its own write
  * chain, so it cannot wait for the service worker's writes. It bumps this epoch
  * instead. Every read-modify-write reads the epoch with its record and drops its
- * write when the epoch moved. Labels, plan memory, group preferences and exact
+ * write when the epoch moved. Plan memory, group preferences and exact
  * results and session window plans are stamped with the epoch (g), so a write
  * that still lands just after a reset reads as empty. Learned rules are a plain
  * array the options page writes directly, so they only get the check.
@@ -632,7 +634,7 @@ export class LearningCache {
       const filtered = rules.filter(r => r.pattern.toLowerCase() !== pattern.toLowerCase());
       if (!await setUnlessReset(epoch, { [this.STORAGE_KEY]: filtered })) return;
       if (await readResetEpoch() !== epoch) return;
-      // Labels and plan memory do not depend on rules: rules are applied as
+      // Plan memory does not depend on rules: rules are applied as
       // locked groups at plan time, so only whole cached results go stale.
       await chrome.storage.local.remove(EXACT_RESULTS_KEY);
     });
@@ -802,119 +804,8 @@ export class ExactResultCache {
   }
 }
 
-/**
- * Fresh label entries with a known category key, keyed by tab fingerprint,
- * and the reset epoch they were read at.
- */
-async function readLabelEntries(now) {
-  const data = await chrome.storage.local.get([TAB_LABELS_KEY, RESET_EPOCH_KEY]);
-  const epoch = resetEpochOf(data);
-  const record = data[TAB_LABELS_KEY];
-  const entries = new Map();
-  // A vocabulary change makes every stored key meaningless, and a record
-  // stamped before the last reset was cleared, so either reads as empty.
-  if (!record || record.v !== LABEL_VOCAB_VERSION || epochOf(record.g) !== epoch
-    || !record.entries || typeof record.entries !== 'object') {
-    return { entries, epoch };
-  }
-  for (const [fingerprint, entry] of Object.entries(record.entries)) {
-    if (entry && CATEGORY_KEY_SET.has(entry.c) && now - Number(entry.t || 0) <= TAB_LABEL_TTL_MS) {
-      entries.set(fingerprint, entry);
-    }
-  }
-  return { entries, epoch };
-}
-
-/**
- * Remembers model categories within a semantic engine scope. Separate scope
- * keys preserve an earlier engine's labels when another engine is selected
- * and prevent a late old request from overwriting a newer engine's result.
- */
-export class TabLabelCache {
-  static STORAGE_KEY = TAB_LABELS_KEY;
-
-  /** Fresh entries as {[fingerprint]: {c, t, e}}. */
-  static async read() {
-    await settledWrites();
-    return Object.fromEntries((await readLabelEntries(Date.now())).entries);
-  }
-
-  /**
-   * Split tabs into cached labels and tabs that still need a model.
-   * Runtime callers supply scope; legacy unscoped labels then miss. The
-   * optional engine filter remains available for unscoped cache consumers.
-   * @returns {Promise<{labels: Map<number, {c: string, e: string|null}>, missing: object[], fingerprintById: Map<number, string>}>}
-   */
-  static async lookup(tabs, { acceptEngines = null, scope = null } = {}) {
-    const list = Array.isArray(tabs) ? tabs : [];
-    const accepted = acceptEngines == null
-      ? null
-      : new Set(typeof acceptEngines === 'string' ? [acceptEngines] : acceptEngines);
-    await settledWrites();
-    // Incognito tabs get no fingerprint, so they can be neither read nor stored.
-    const [{ entries }, fingerprints] = await Promise.all([
-      readLabelEntries(Date.now()),
-      Promise.all(list.map(tab => (tab?.incognito ? null : fingerprintTab(tab))))
-    ]);
-    const labels = new Map();
-    const missing = [];
-    const fingerprintById = new Map();
-    list.forEach((tab, index) => {
-      const fingerprint = fingerprints[index];
-      if (fingerprint) fingerprintById.set(tab.id, fingerprint);
-      const entry = fingerprint ? entries.get(labelEntryKey(fingerprint, scope)) : null;
-      if (entry && (accepted === null || accepted.has(entry.e))) {
-        labels.set(tab.id, { c: entry.c, e: entry.e ?? null });
-      } else {
-        missing.push(tab);
-      }
-    });
-    return { labels, missing, fingerprintById };
-  }
-
-  /**
-   * Store model labels only (never provisional or locally inferred ones).
-   * @param {Map<number, string>} labelsById category key per tab ID
-   * @param {Map<number, string>} fingerprintById from lookup()
-   * @param {string} engine provider ID that produced the labels
-   */
-  static async store(labelsById, fingerprintById, engine, options) {
-    if (!(labelsById instanceof Map) || !(fingerprintById instanceof Map)) return;
-    const fresh = [];
-    for (const [id, c] of labelsById) {
-      const fingerprint = fingerprintById.get(id);
-      if (fingerprint && CATEGORY_KEY_SET.has(c)) fresh.push([fingerprint, c]);
-    }
-    if (fresh.length === 0) return;
-    const e = typeof engine === 'string' && engine ? engine : null;
-    const origin = await writeOrigin(options);
-
-    await serializeWrite(async () => {
-      const now = Date.now();
-      const { entries, epoch } = await readLabelEntries(now);
-      if (epoch !== origin) return;
-      for (const [fingerprint, c] of fresh) entries.set(labelEntryKey(fingerprint, options?.scope), { c, t: now, e });
-      const kept = [...entries]
-        .sort((a, b) => Number(b[1].t) - Number(a[1].t))
-        .slice(0, MAX_TAB_LABELS);
-      await setUnlessReset(epoch, {
-        [TAB_LABELS_KEY]: { v: LABEL_VOCAB_VERSION, g: epoch, entries: Object.fromEntries(kept) }
-      });
-    });
-  }
-
-  static async clear() {
-    await serializeWrite(() => chrome.storage.local.remove(TAB_LABELS_KEY));
-  }
-}
-
 function semanticScope(value) {
   return typeof value === 'string' && value.length > 0 && value.length <= 128 ? value : null;
-}
-
-function labelEntryKey(fingerprint, scope) {
-  const selected = semanticScope(scope);
-  return selected ? `${selected}:${fingerprint}` : fingerprint;
 }
 
 const TOKEN_HASH_PATTERN = /^[0-9a-f]{8}$/;
@@ -1021,18 +912,6 @@ function normalizeNameRecord(raw) {
 
 function isFreshNameRecord(record, now) {
   return now - record.t <= (record.s === 'user' ? USER_NAME_TTL_MS : MODEL_NAME_TTL_MS);
-}
-
-function setJaccard(a, b) {
-  if (a.length === 0 && b.length === 0) return 1;
-  const other = new Set(b);
-  const shared = a.filter(value => other.has(value)).length;
-  return shared / (a.length + b.length - shared);
-}
-
-/** A newer model name for the same group replaces the older one. */
-function sameModelGroup(a, b) {
-  return a.p === b.p && a.k.join('|') === b.k.join('|') && setJaccard(a.w, b.w) >= 0.5;
 }
 
 /** A newer rename of the same tabs replaces the older one (the transfer rule's 50% overlap). */
@@ -1142,69 +1021,6 @@ export class PlanMemory {
   }
 
   /**
-   * Remember model names ({k, w, n, c, s: 'cloud' | 'nano'}). User renames go
-   * through recordUserRename instead, so any other source is stored as 'cloud'.
-   */
-  static async putNames(records, options) {
-    const now = Date.now();
-    const incoming = toList(records)
-      .map(record => normalizeNameRecord({
-        ...record,
-        p: semanticScope(options?.scope) || record?.p,
-        s: MODEL_NAME_SOURCES.has(record?.s) ? record.s : 'cloud',
-        t: now
-      }))
-      .filter(Boolean);
-    if (incoming.length === 0) return;
-    const origin = await writeOrigin(options);
-
-    await serializeWrite(async () => {
-      const { memory, epoch } = await readPlanMemoryState(now);
-      if (epoch !== origin) return;
-      let names = memory.names;
-      for (const record of incoming) {
-        names = names.filter(old => old.s === 'user' || !sameModelGroup(old, record));
-        names.unshift(record);
-      }
-      memory.names = capNameRecords(names);
-      await writePlanMemory(memory, epoch);
-    });
-  }
-
-  /**
-   * Merge cloud consolidation advice {candidateKey: anchorKey} (a Map, an
-   * object or [candidate, anchor] pairs). Newer advice wins, a newer pair in
-   * the opposite direction retires the old one, and a self-pair clears the
-   * candidate's stored advice.
-   */
-  static async putAdvice(pairs, options) {
-    const incoming = adviceEntries(pairs);
-    if (incoming.size === 0) return;
-    const origin = await writeOrigin(options);
-
-    await serializeWrite(async () => {
-      const now = Date.now();
-      const { memory, epoch } = await readPlanMemoryState(now);
-      if (epoch !== origin) return;
-      const next = new Map();
-      for (const [candidate, anchor] of incoming) {
-        if (candidate !== anchor) next.set(candidate, anchor);
-      }
-      const scope = semanticScope(options?.scope);
-      const previous = scope ? memory.advice.scopes?.[scope] : memory.advice;
-      for (const [candidate, anchor] of Object.entries(previous?.cloud || {})) {
-        if (incoming.has(candidate) || next.get(anchor) === candidate) continue;
-        next.set(candidate, anchor);
-      }
-      const updated = { cloud: Object.fromEntries([...next].slice(0, MAX_ADVICE_PAIRS)), t: now };
-      memory.advice = normalizeAdvice(scope
-        ? { ...memory.advice, scopes: { ...memory.advice.scopes, [scope]: updated } }
-        : { ...updated, ...(memory.advice.scopes ? { scopes: memory.advice.scopes } : {}) }, now);
-      await writePlanMemory(memory, epoch);
-    });
-  }
-
-  /**
    * Remember a user rename for the tabs it covered. The record matches a later
    * group whose fingerprints overlap it by at least half of the smaller set.
    */
@@ -1249,6 +1065,32 @@ function toWindowId(windowId) {
   return Number.isInteger(id) && id >= 0 ? id : null;
 }
 
+/** Copy only the listed fields so no title, URL or token rides along. */
+function copyWindowPlanGroups(groups) {
+  return groups.map(group => ({
+    name: typeof group?.name === 'string' ? group.name : '',
+    color: CHROME_COLORS.has(group?.color) ? group.color : null,
+    ...planGroupMetadata(group),
+    keys: planKeyList(group?.keys, MAX_NAME_KEYS),
+    tabIds: toList(group?.tabIds).filter(Number.isInteger),
+    dominant: CATEGORY_KEY_SET.has(group?.dominant) ? group.dominant : null,
+    kind: planGroupMetadata(group).kind || null
+  }));
+}
+
+/**
+ * The last model plan a window's upkeep counts against: each unlocked tab it
+ * covered as [tabId, digest of title and address] and its groups. Digests
+ * only, never a title or URL.
+ */
+function copyPlanBase(base) {
+  if (!base || typeof base.scope !== 'string' || !Array.isArray(base.tabs) || !Array.isArray(base.groups)) return null;
+  const tabs = base.tabs
+    .filter(pair => Array.isArray(pair) && Number.isInteger(pair[0]) && typeof pair[1] === 'string' && /^[0-9a-z-]{1,64}$/.test(pair[1]))
+    .map(([tabId, digest]) => [tabId, digest]);
+  return { scope: base.scope, tabs, groups: copyWindowPlanGroups(base.groups) };
+}
+
 /**
  * The latest plan for each window, in storage.session: tab IDs, names and
  * semantic metadata only, cleared when the browser restarts. Used by auto-grouping, by the
@@ -1277,6 +1119,15 @@ export class WindowPlanStore {
     return record;
   }
 
+  /**
+   * `plan.applied` is the applied plan an unchanged window may reuse:
+   * {tabSet, scope, locked, groups}, the tab-set signature, engine scope and
+   * locked partition it is bound to. `plan.base` is the last model plan that
+   * upkeep counts new tabs against, with its engine scope (copyPlanBase); it
+   * is kept apart from `applied`, so a later local result does not end it.
+   * null clears either; leaving one out (the Auto-group refresh) keeps the
+   * one already stored for this epoch.
+   */
   static async put(windowId, plan, options) {
     const area = sessionArea();
     const id = toWindowId(windowId);
@@ -1289,21 +1140,120 @@ export class WindowPlanStore {
       updatedAt: Date.now(),
       K: Number.isFinite(plan.K) ? plan.K : null,
       signature: typeof plan.signature === 'string' ? plan.signature : '',
+      groups: copyWindowPlanGroups(plan.groups)
+    };
+    const applied = plan.applied;
+    if (applied && typeof applied.tabSet === 'string' && typeof applied.scope === 'string'
+      && typeof applied.locked === 'string' && Array.isArray(applied.groups)) {
+      record.applied = { tabSet: applied.tabSet, scope: applied.scope, locked: applied.locked, groups: copyWindowPlanGroups(applied.groups) };
+    }
+    const base = copyPlanBase(plan.base);
+    if (base) record.base = base;
+    const key = this.keyFor(id);
+    await serializeWrite(async () => {
+      if (await readResetEpoch() !== origin) return;
+      if (applied === undefined || plan.base === undefined) {
+        const previous = (await area.get(key))[key];
+        if (previous?.v === WINDOW_PLAN_VERSION && epochOf(previous.g) === origin && previous.windowId === id) {
+          if (applied === undefined && previous.applied) record.applied = previous.applied;
+          if (plan.base === undefined && previous.base) record.base = previous.base;
+        }
+      }
+      await setUnlessReset(origin, { [key]: record }, area);
+    });
+  }
+
+  static async remove(windowId) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null) return;
+    await area.remove(this.keyFor(id));
+  }
+}
+
+/** A navigation the tab has not committed yet, when it leads elsewhere. */
+function pendingNavigation(tab) {
+  const pending = String(tab?.pendingUrl || '');
+  return pending && pending !== String(tab?.url || '') ? `\n${pending}` : '';
+}
+
+/**
+ * Identity of a window's tab set: each tab ID with a local digest of its full
+ * URL (fragment included), a pending navigation to another URL and its
+ * title. Tab order does not matter. Only the digest is ever stored; no URL or
+ * title is kept in clear.
+ */
+export async function tabSetSignature(tabs) {
+  const list = tabs || [];
+  const digests = await Promise.all(list.map(tab =>
+    digestText(`${normalizeCompleteTitle(tab?.title)}\n${String(tab?.url || tab?.pendingUrl || '')}${pendingNavigation(tab)}`)));
+  return digestText(list.map((tab, index) => `${tab?.id}:${digests[index]}`).sort().join('|'));
+}
+
+function planMembership(value) {
+  return toList(value)
+    .filter(pair => Array.isArray(pair) && pair.length === 2 && pair.every(Number.isInteger))
+    .map(([tabId, groupId]) => [tabId, groupId]);
+}
+
+/**
+ * A model plan that landed after its click, in storage.session per window:
+ * the validated groups (tab IDs, names and semantic metadata only), the
+ * signature of the tab set it was made for, the engine scope (also its
+ * exact-cache scope) and locked partition it was made under, and the tab-group
+ * membership after the local result was applied (tab and group IDs). Stamped
+ * with the reset epoch.
+ */
+export class PlanOfferStore {
+  static KEY_PREFIX = PLAN_OFFER_PREFIX;
+
+  static keyFor(windowId) {
+    return `${PLAN_OFFER_PREFIX}${windowId}`;
+  }
+
+  /** @returns {Promise<{v: number, g: number, windowId: number, createdAt: number, signature: string, scope: string, locked: string, membership: number[][], groups: object[]}|null>} */
+  static async get(windowId) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null) return null;
+    await settledWrites();
+    const key = this.keyFor(id);
+    const record = (await area.get(key))[key];
+    if (!record || record.v !== PLAN_OFFER_VERSION || epochOf(record.g) !== await readResetEpoch()
+      || record.windowId !== id || !Array.isArray(record.groups) || typeof record.signature !== 'string') {
+      return null;
+    }
+    return record;
+  }
+
+  static async put(windowId, offer, options) {
+    const area = sessionArea();
+    const id = toWindowId(windowId);
+    if (!area || id === null || !Array.isArray(offer?.groups) || typeof offer.signature !== 'string') return false;
+    const origin = await writeOrigin(options);
+    const record = {
+      v: PLAN_OFFER_VERSION,
+      g: origin,
+      windowId: id,
+      createdAt: Date.now(),
+      signature: offer.signature,
+      scope: typeof offer.scope === 'string' ? offer.scope : '',
+      locked: typeof offer.locked === 'string' ? offer.locked : '',
+      membership: planMembership(offer.membership),
       // Copy only the listed fields so no title, URL or token rides along.
-      groups: plan.groups.map(group => ({
+      groups: offer.groups.map(group => ({
         name: typeof group?.name === 'string' ? group.name : '',
         color: CHROME_COLORS.has(group?.color) ? group.color : null,
         ...planGroupMetadata(group),
-        keys: planKeyList(group?.keys, MAX_NAME_KEYS),
-        tabIds: toList(group?.tabIds).filter(Number.isInteger),
-        dominant: CATEGORY_KEY_SET.has(group?.dominant) ? group.dominant : null,
-        kind: planGroupMetadata(group).kind || null
+        tabIds: toList(group?.tabIds).filter(Number.isInteger)
       }))
     };
+    let written = false;
     await serializeWrite(async () => {
       if (await readResetEpoch() !== origin) return;
-      await setUnlessReset(origin, { [this.keyFor(id)]: record }, area);
+      written = await setUnlessReset(origin, { [this.keyFor(id)]: record }, area);
     });
+    return written;
   }
 
   static async remove(windowId) {

@@ -1,0 +1,958 @@
+{
+ "started": "2026-11-22T18-15-55",
+ "model": "claude-haiku-5-5",
+ "mode": "labels",
+ "thinking": "off",
+ "effort": null,
+ "thinking_sent": {
+  "type": "disabled"
+ },
+ "effort_sent": null,
+ "thinking_note": "disabled",
+ "windows": [
+  "dev",
+  "life"
+ ],
+ "repeats": 2,
+ "api_version": "2026-10-21",
+ "max_cost_usd": 0.4,
+ "cost_usd": 0.006795600000000001,
+ "stopped_early": false,
+ "stability": [],
+ "units": [
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 3211,
+   "input_tokens": 15201,
+   "output_tokens": 375,
+   "thinking_tokens": 0,
+   "cost_usd": 0.0017076,
+   "score": {
+    "p": 0.558974358974359,
+    "r": 0.615819209039548,
+    "f1": 0.5860215053763441,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "label_accuracy": 0.9206349206349206,
+   "batches": 3,
+   "group_names": [
+    "Labs",
+    "Learning & News",
+    "Docs & Email & Admin",
+    "Apple",
+    "Shopping & Money",
+    "AI Tools",
+    "Coding",
+    "Cloud & Servers",
+    "Watch & Listen",
+    "Travel"
+   ],
+   "group_sizes": [
+    4,
+    6,
+    7,
+    6,
+    5,
+    8,
+    13,
+    8,
+    4,
+    2
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3172,
+     "headers_ms": 2671,
+     "ttfb_ms": 2671,
+     "first_token_ms": 2672,
+     "stop_reason": "end_turn",
+     "input_tokens": 5845,
+     "output_tokens": 146,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5845,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 146,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3027,
+     "headers_ms": 2568,
+     "ttfb_ms": 2569,
+     "first_token_ms": 2569,
+     "stop_reason": "end_turn",
+     "input_tokens": 5927,
+     "output_tokens": 148,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5927,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 148,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1955,
+     "headers_ms": 1651,
+     "ttfb_ms": 1652,
+     "first_token_ms": 1652,
+     "stop_reason": "end_turn",
+     "input_tokens": 3429,
+     "output_tokens": 81,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 876
+     },
+     "usage_raw": {
+      "input_tokens": 3429,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 81,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": [
+    {
+     "0": "dev",
+     "1": "news",
+     "2": "office",
+     "3": "learn",
+     "4": "dev",
+     "5": "dev",
+     "6": "news",
+     "7": "admin",
+     "8": "money",
+     "9": "ai",
+     "10": "dev",
+     "11": "infra",
+     "12": "news",
+     "13": "video",
+     "14": "ai",
+     "15": "infra",
+     "16": "dev",
+     "17": "ai",
+     "18": "infra",
+     "19": "ai",
+     "20": "infra",
+     "21": "ai",
+     "22": "video",
+     "23": "admin",
+     "24": "video"
+    },
+    {
+     "0": "money",
+     "1": "news",
+     "2": "infra",
+     "3": "shop",
+     "4": "dev",
+     "5": "news",
+     "6": "shop",
+     "7": "dev",
+     "8": "video",
+     "9": "infra",
+     "10": "dev",
+     "11": "ai",
+     "12": "infra",
+     "13": "dev",
+     "14": "dev",
+     "15": "dev",
+     "16": "dev",
+     "17": "mail",
+     "18": "video",
+     "19": "dev",
+     "20": "travel",
+     "21": "money",
+     "22": "dev",
+     "23": "shop",
+     "24": "infra"
+    },
+    {
+     "0": "dev",
+     "1": "dev",
+     "2": "shop",
+     "3": "mail",
+     "4": "ai",
+     "5": "dev",
+     "6": "admin",
+     "7": "office",
+     "8": "travel",
+     "9": "shop",
+     "10": "mail",
+     "11": "dev",
+     "12": "ai"
+    }
+   ]
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 2243,
+   "input_tokens": 15167,
+   "output_tokens": 347,
+   "thinking_tokens": 0,
+   "cost_usd": 0.0016902,
+   "score": {
+    "p": 0.6012658227848101,
+    "r": 0.5688622754491018,
+    "f1": 0.5846153846153846,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "label_accuracy": 0.8225806451612904,
+   "batches": 3,
+   "group_names": [
+    "Shopping & Money",
+    "Watch & Listen",
+    "London",
+    "Food & Home",
+    "Jobs & Learning",
+    "Kitchen",
+    "Health",
+    "Review Later",
+    "Japan",
+    "Model"
+   ],
+   "group_sizes": [
+    9,
+    5,
+    4,
+    8,
+    5,
+    7,
+    5,
+    10,
+    5,
+    4
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1535,
+     "headers_ms": 1093,
+     "ttfb_ms": 1093,
+     "first_token_ms": 1093,
+     "stop_reason": "end_turn",
+     "input_tokens": 5953,
+     "output_tokens": 138,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5953,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 138,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1472,
+     "headers_ms": 1004,
+     "ttfb_ms": 1004,
+     "first_token_ms": 1004,
+     "stop_reason": "end_turn",
+     "input_tokens": 5932,
+     "output_tokens": 140,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5932,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 140,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2236,
+     "headers_ms": 1902,
+     "ttfb_ms": 1902,
+     "first_token_ms": 1902,
+     "stop_reason": "end_turn",
+     "input_tokens": 3282,
+     "output_tokens": 69,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 848
+     },
+     "usage_raw": {
+      "input_tokens": 3282,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 69,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": [
+    {
+     "0": "money",
+     "1": "video",
+     "2": "jobs",
+     "3": "money",
+     "4": "food",
+     "5": "video",
+     "6": "food",
+     "7": "money",
+     "8": "jobs",
+     "9": "home",
+     "10": "home",
+     "11": "jobs",
+     "12": "money",
+     "13": "food",
+     "14": "learn",
+     "15": "health",
+     "16": "news",
+     "17": "shop",
+     "18": "food",
+     "19": "money",
+     "20": "food",
+     "21": "health",
+     "22": "home",
+     "23": "learn",
+     "24": "video"
+    },
+    {
+     "0": "money",
+     "1": "travel",
+     "2": "home",
+     "3": "cars",
+     "4": "video",
+     "5": "travel",
+     "6": "cars",
+     "7": "travel",
+     "8": "travel",
+     "9": "video",
+     "10": "news",
+     "11": "health",
+     "12": "news",
+     "13": "food",
+     "14": "travel",
+     "15": "food",
+     "16": "travel",
+     "17": "travel",
+     "18": "events",
+     "19": "video",
+     "20": "video",
+     "21": "video",
+     "22": "home",
+     "23": "home",
+     "24": "jobs"
+    },
+    {
+     "0": "news",
+     "1": "shop",
+     "2": "health",
+     "3": "admin",
+     "4": "cars",
+     "5": "home",
+     "6": "health",
+     "7": "money",
+     "8": "money",
+     "9": "travel",
+     "10": "office",
+     "11": "learn"
+    }
+   ]
+  },
+  {
+   "window": "dev",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 1654,
+   "input_tokens": 15201,
+   "output_tokens": 375,
+   "thinking_tokens": 0,
+   "cost_usd": 0.0017076,
+   "score": {
+    "p": 0.558974358974359,
+    "r": 0.615819209039548,
+    "f1": 0.5860215053763441,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "label_accuracy": 0.9206349206349206,
+   "batches": 3,
+   "group_names": [
+    "Labs",
+    "Learning & News",
+    "Docs & Email & Admin",
+    "Apple",
+    "Shopping & Money",
+    "AI Tools",
+    "Coding",
+    "Cloud & Servers",
+    "Watch & Listen",
+    "Travel"
+   ],
+   "group_sizes": [
+    4,
+    6,
+    7,
+    6,
+    5,
+    8,
+    13,
+    8,
+    4,
+    2
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1580,
+     "headers_ms": 891,
+     "ttfb_ms": 892,
+     "first_token_ms": 892,
+     "stop_reason": "end_turn",
+     "input_tokens": 5845,
+     "output_tokens": 146,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5845,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 146,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1651,
+     "headers_ms": 1046,
+     "ttfb_ms": 1047,
+     "first_token_ms": 1047,
+     "stop_reason": "end_turn",
+     "input_tokens": 5927,
+     "output_tokens": 148,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5927,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 148,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1236,
+     "headers_ms": 911,
+     "ttfb_ms": 911,
+     "first_token_ms": 911,
+     "stop_reason": "end_turn",
+     "input_tokens": 3429,
+     "output_tokens": 81,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 876
+     },
+     "usage_raw": {
+      "input_tokens": 3429,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 81,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": [
+    {
+     "0": "dev",
+     "1": "news",
+     "2": "office",
+     "3": "learn",
+     "4": "dev",
+     "5": "dev",
+     "6": "news",
+     "7": "admin",
+     "8": "money",
+     "9": "ai",
+     "10": "dev",
+     "11": "infra",
+     "12": "news",
+     "13": "video",
+     "14": "ai",
+     "15": "infra",
+     "16": "dev",
+     "17": "ai",
+     "18": "infra",
+     "19": "ai",
+     "20": "infra",
+     "21": "ai",
+     "22": "video",
+     "23": "admin",
+     "24": "video"
+    },
+    {
+     "0": "money",
+     "1": "news",
+     "2": "infra",
+     "3": "shop",
+     "4": "dev",
+     "5": "news",
+     "6": "shop",
+     "7": "dev",
+     "8": "video",
+     "9": "infra",
+     "10": "dev",
+     "11": "ai",
+     "12": "infra",
+     "13": "dev",
+     "14": "dev",
+     "15": "dev",
+     "16": "dev",
+     "17": "mail",
+     "18": "video",
+     "19": "dev",
+     "20": "travel",
+     "21": "money",
+     "22": "dev",
+     "23": "shop",
+     "24": "infra"
+    },
+    {
+     "0": "dev",
+     "1": "dev",
+     "2": "shop",
+     "3": "mail",
+     "4": "ai",
+     "5": "dev",
+     "6": "admin",
+     "7": "office",
+     "8": "travel",
+     "9": "shop",
+     "10": "mail",
+     "11": "dev",
+     "12": "ai"
+    }
+   ]
+  },
+  {
+   "window": "life",
+   "repeat": 1,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 1975,
+   "input_tokens": 15167,
+   "output_tokens": 347,
+   "thinking_tokens": 0,
+   "cost_usd": 0.0016902,
+   "score": {
+    "p": 0.45622119815668205,
+    "r": 0.592814371257485,
+    "f1": 0.515625,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "label_accuracy": 0.8387096774193549,
+   "batches": 3,
+   "group_names": [
+    "Shopping & Money & Home",
+    "Watch & Listen",
+    "London",
+    "Travel & Food",
+    "Jobs & Learning",
+    "Health",
+    "News",
+    "Japan",
+    "Model",
+    "Docs & Admin"
+   ],
+   "group_sizes": [
+    17,
+    5,
+    4,
+    11,
+    5,
+    5,
+    4,
+    5,
+    4,
+    2
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1973,
+     "headers_ms": 1195,
+     "ttfb_ms": 1195,
+     "first_token_ms": 1195,
+     "stop_reason": "end_turn",
+     "input_tokens": 5953,
+     "output_tokens": 138,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5953,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 138,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1405,
+     "headers_ms": 902,
+     "ttfb_ms": 902,
+     "first_token_ms": 902,
+     "stop_reason": "end_turn",
+     "input_tokens": 5932,
+     "output_tokens": 140,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 1212
+     },
+     "usage_raw": {
+      "input_tokens": 5932,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 140,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    },
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1202,
+     "headers_ms": 861,
+     "ttfb_ms": 861,
+     "first_token_ms": 861,
+     "stop_reason": "end_turn",
+     "input_tokens": 3282,
+     "output_tokens": 69,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "disabled"
+      },
+      "effort": null,
+      "note": "disabled",
+      "max_tokens": 848
+     },
+     "usage_raw": {
+      "input_tokens": 3282,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 69,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": [
+    {
+     "0": "money",
+     "1": "video",
+     "2": "jobs",
+     "3": "money",
+     "4": "food",
+     "5": "video",
+     "6": "food",
+     "7": "money",
+     "8": "jobs",
+     "9": "home",
+     "10": "home",
+     "11": "jobs",
+     "12": "money",
+     "13": "food",
+     "14": "learn",
+     "15": "health",
+     "16": "news",
+     "17": "shop",
+     "18": "food",
+     "19": "money",
+     "20": "food",
+     "21": "health",
+     "22": "home",
+     "23": "learn",
+     "24": "video"
+    },
+    {
+     "0": "money",
+     "1": "travel",
+     "2": "home",
+     "3": "cars",
+     "4": "video",
+     "5": "travel",
+     "6": "cars",
+     "7": "travel",
+     "8": "travel",
+     "9": "video",
+     "10": "news",
+     "11": "health",
+     "12": "news",
+     "13": "food",
+     "14": "travel",
+     "15": "food",
+     "16": "travel",
+     "17": "travel",
+     "18": "events",
+     "19": "video",
+     "20": "video",
+     "21": "home",
+     "22": "home",
+     "23": "home",
+     "24": "jobs"
+    },
+    {
+     "0": "news",
+     "1": "shop",
+     "2": "health",
+     "3": "admin",
+     "4": "cars",
+     "5": "home",
+     "6": "health",
+     "7": "money",
+     "8": "money",
+     "9": "travel",
+     "10": "office",
+     "11": "learn"
+    }
+   ]
+  }
+ ]
+}

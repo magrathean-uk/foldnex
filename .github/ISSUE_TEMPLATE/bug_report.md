@@ -21,8 +21,8 @@ List the steps and a small synthetic set of tabs. Identify whether you used the 
 - Foldnex version:
 - Grouping strategy and engine:
 - Model, if relevant:
-- Background preparation and Auto-group settings, if relevant:
-- Cloud economy mode and OpenAI Priority settings, if relevant:
+- Auto-group setting, if relevant:
+- OpenAI Priority setting, if relevant:
 
 ## Checks
 

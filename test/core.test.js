@@ -5,15 +5,13 @@ import test from 'node:test';
 
 import {
   assessGroupingQuality,
-  buildLabelPrompt,
+  buildPlanUser,
   formatLabelRows,
   getAdaptiveGroupRange,
-  groupCeiling,
-  labelTabsWithAI,
-  labelCacheScope,
   MAX_GROUPS,
-  NAME_SYSTEM,
   PROMPT_TITLE_LIMIT,
+  planJsonSchema,
+  planWindowWithCloud,
   PROVIDER_CATALOG,
   getCompatibleRequestControls,
   getEffectiveReasoningEffort,
@@ -21,14 +19,12 @@ import {
   getReasoningEffortOptions,
   isCompatibleReasoningModel,
   isOpenAIReasoningModel,
-  isOpenAIResponsesOnlyModel,
-  resetNanoBases
+  isOpenAIResponsesOnlyModel
 } from '../src/ai-engine.js';
 import {
   ExactResultCache,
   LearningCache,
   PlanMemory,
-  TabLabelCache,
   WindowPlanStore,
   fingerprintTab,
   sanitizeSemanticUrl
@@ -37,18 +33,9 @@ import {
   createClickBudget,
   executeTabGrouping,
   getDuplicateTabKey,
-  PREPARED_NAMING_WAIT_MS,
+  getPlanOffer,
   ungroupAllTabs
 } from '../src/grouper.js';
-import {
-  autoGroupWindow,
-  classifyTabs,
-  createBackgroundClassifier,
-  refreshAndAutoGroup,
-  refreshWindowPlan
-} from '../src/background-classifier.js';
-import { CATEGORY_KEYS } from '../src/label-vocabulary.js';
-import { planGroups } from '../src/planner.js';
 import { clusterTabsBySite, getSiteCategory } from '../src/site-clusterer.js';
 import {
   consumeProgrammaticGroupUpdate,
@@ -137,13 +124,8 @@ function makeTopicTabs(windowId, startId, counts, extra = {}) {
  */
 function installBrowser(tabs, { sync = {}, chromeGroups = [] } = {}) {
   const { local, session } = installChromeStorageMock();
-  const calls = { group: [], update: [], labelStores: 0 };
+  const calls = { group: [], update: [] };
   let nextGroupId = 3000;
-  const localSet = chrome.storage.local.set;
-  chrome.storage.local.set = async values => {
-    if (TabLabelCache.STORAGE_KEY in values) calls.labelStores++;
-    return localSet(values);
-  };
   chrome.storage.sync = {
     async get(keys) {
       if (keys === undefined || keys === null) return { ...sync };
@@ -191,67 +173,6 @@ function installBrowser(tabs, { sync = {}, chromeGroups = [] } = {}) {
   return { local, session, calls, sync };
 }
 
-/**
- * Chrome's Prompt API: label prompts answer every "id | title | site/path"
- * line with keyForTitle; name prompts answer every folder with nameFor(current
- * name). Records create options, prompts and aborts.
- */
-function installNanoMock({
-  labelFor = keyForTitle,
-  nameFor = name => name,
-  hangLabels = false,
-  labelDelayMs = 0,
-  create = null,
-  availability = 'available'
-} = {}) {
-  const calls = { create: [], labelPrompts: [], namePrompts: [], aborts: 0 };
-  const makeSession = createOptions => ({
-    inputUsage: 300,
-    async clone() {
-      return makeSession(createOptions);
-    },
-    async prompt(text, options) {
-      const naming = createOptions?.initialPrompts?.[0]?.content === NAME_SYSTEM;
-      (naming ? calls.namePrompts : calls.labelPrompts).push({ text, options });
-      if (!naming && hangLabels) {
-        await new Promise((_resolve, reject) => {
-          options?.signal?.addEventListener('abort', () => {
-            calls.aborts++;
-            reject(options.signal.reason);
-          }, { once: true });
-        });
-      }
-      if (!naming && labelDelayMs > 0) await new Promise(resolve => setTimeout(resolve, labelDelayMs));
-      const answer = {};
-      for (const line of text.split('\n')) {
-        const match = line.match(/^(\d+) \| (.*) \| (.*)$/);
-        if (match) answer[match[1]] = naming ? nameFor(match[2]) : labelFor(match[2]);
-      }
-      return JSON.stringify(answer);
-    },
-    async measureInputUsage(text) {
-      return Math.ceil(text.length / 4);
-    },
-    destroy() {}
-  });
-  resetNanoBases();
-  globalThis.self = globalThis;
-  globalThis.LanguageModel = {
-    async availability() { return availability; },
-    async create(options) {
-      calls.create.push(options);
-      return create ? create(options, makeSession) : makeSession(options);
-    }
-  };
-  return calls;
-}
-
-function removeNanoMock() {
-  resetNanoBases();
-  delete globalThis.LanguageModel;
-  delete globalThis.self;
-}
-
 const DEFAULT_FOLDER_NAMES = {
   food: 'Home Cooking', travel: 'Japan Trip', dev: 'React App', video: 'Video Production', design: 'Design References'
 };
@@ -260,10 +181,22 @@ const DEFAULT_FOLDER_NAMES = {
  * OpenAI-compatible provider: label requests get keyForTitle per row,
  * consolidation requests get one folder per row named by folderName(row).
  */
+/** A plan answer: one folder per labelFor category, named like a consolidation folder. */
+function topicPlan(rows, labelFor = keyForTitle) {
+  const byKey = new Map();
+  for (const [id, title] of rows) {
+    const key = labelFor(title);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(id);
+  }
+  return [...byKey].map(([key, ids]) => ({ name: DEFAULT_FOLDER_NAMES[key] || `${key[0].toUpperCase()}${key.slice(1)} Topic`, ids }));
+}
+
 function installCloudFetch({
   labelFor = keyForTitle,
   folderName = row => DEFAULT_FOLDER_NAMES[row[1]] || 'Mixed Picks',
   folders = null,
+  plan = null,
   delayMs = () => 0,
   usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
 } = {}) {
@@ -274,7 +207,10 @@ function installCloudFetch({
     const payload = JSON.parse(options.body);
     const content = payload.messages.at(-1).content;
     const request = { url, payload, kind: 'other', rows: [], signal: options.signal };
-    if (content.includes('{"tabs":')) {
+    if (payload.messages.some(message => message.content.includes('You organise the tabs of one browser window'))) {
+      request.kind = 'plan';
+      request.rows = JSON.parse(content.slice(content.lastIndexOf('{"tabs":'))).tabs;
+    } else if (content.includes('{"tabs":')) {
       request.kind = 'label';
       request.rows = JSON.parse(content.slice(content.lastIndexOf('{"tabs":'))).tabs;
     } else if (content.includes('{"rows":')) {
@@ -285,7 +221,9 @@ function installCloudFetch({
     const wait = delayMs(request);
     if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
     completed++;
-    const answer = request.kind === 'label'
+    const answer = request.kind === 'plan'
+      ? { folders: plan ? plan(request.rows) : topicPlan(request.rows, labelFor) }
+      : request.kind === 'label'
       ? Object.fromEntries(request.rows.map(([id, title]) => [String(id), labelFor(title)]))
       : { folders: folders ? folders(request.rows) : request.rows.map(row => ({ name: folderName(row), ids: [row[0]] })) };
     return {
@@ -303,6 +241,7 @@ function installCloudFetch({
     requests,
     labelRequests: () => requests.filter(request => request.kind === 'label'),
     consolidations: () => requests.filter(request => request.kind === 'consolidate'),
+    plans: () => requests.filter(request => request.kind === 'plan'),
     completed: () => completed,
     restore() { globalThis.fetch = original; }
   };
@@ -438,13 +377,13 @@ test('a 200-tab address window stays deterministic, complete, and below 30 group
   assert.ok(!first.some(group => /tech/i.test(group.name)));
 });
 
-test('cloud label rows cap titles and use compact local ordinals without URL fragments', () => {
+test('plan rows cap titles and use compact local ordinals without URL fragments', () => {
   const longTitle = `Detailed task ${'context '.repeat(30)}— Site`;
   const tabs = [
     { id: 98273465, title: longTitle, url: 'https://app.example.com/projects/1234567890123456/details?q=private+search', active: true },
     { id: 11223344, title: 'Second title', url: 'https://example.com/#/settings', active: false }
   ];
-  const prompt = buildLabelPrompt(tabs, 'rows');
+  const prompt = buildPlanUser(tabs);
   const rows = formatLabelRows(tabs);
 
   assert.deepEqual(rows.map(row => row[0]), [0, 1]);
@@ -543,7 +482,7 @@ test('regional quality rejects arbitrary country pairs but accepts coherent neig
   assert.equal(neighbours.passed, true);
 });
 
-test('a regional consolidation name is rejected locally without a retry', async () => {
+test('a regional plan folder name is rejected locally without a retry', async () => {
   const tabs = [
     { id: 41, windowId: 14, index: 0, active: true, pinned: false, incognito: false, title: 'Italian Government', url: 'https://www.governo.it/' },
     { id: 42, windowId: 14, index: 1, active: false, pinned: false, incognito: false, title: 'University of Lisbon', url: 'https://www.ulisboa.pt/' },
@@ -552,7 +491,7 @@ test('a regional consolidation name is rejected locally without a retry', async 
   ];
   installBrowser(tabs);
   const cloud = installCloudFetch({
-    folders: rows => [{ name: 'Southern Europe', ids: rows.map(row => row[0]) }]
+    plan: rows => [{ name: 'Southern Europe', ids: rows.map(row => row[0]) }]
   });
 
   try {
@@ -562,18 +501,19 @@ test('a regional consolidation name is rejected locally without a retry', async 
       groqModel: 'qwen/qwen3.8-27b'
     });
 
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.consolidations().length, 1);
-    assert.equal(cloud.requests.length, 2, 'no retry after the rejected name');
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.requests.length, 1, 'no retry after the rejected name');
+    assert.equal(result.source, 'cloud-plan');
     assert.ok(!result.groups.some(group => group.name === 'Southern Europe'));
-    assert.deepEqual(result.groups.map(group => group.name), ['Accounts & Admin', 'Learning']);
+    assert.equal(result.groups.length, 1);
+    assert.equal(result.groups[0].nameSource, 'deterministic');
     assert.ok(!result.qualityCodes.includes('regional'));
   } finally {
     cloud.restore();
   }
 });
 
-test('the planner never produces Other, even when the model answers nonsense', async () => {
+test('the plan path never produces Other, even when the model answers nonsense', async () => {
   const tabs = [
     ...['a', 'b', 'c'].map((slug, index) => ({
       id: 61 + index, windowId: 15, index, active: index === 0, pinned: false, incognito: false,
@@ -586,25 +526,22 @@ test('the planner never produces Other, even when the model answers nonsense', a
   ];
   installBrowser(tabs);
   const cloud = installCloudFetch({
-    labelFor: () => 'other',
-    folders: rows => [{ name: 'Other', ids: rows.map(row => row[0]) }]
+    plan: rows => [{ name: 'Other', ids: rows.slice(0, 3).map(row => row[0]) }, { name: 'Misc', ids: rows.slice(3).map(row => row[0]) }]
   });
 
   try {
     const result = await executeTabGrouping(15, { provider: 'openai', openaiApiKey: 'test-only' });
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.ok(result.groups.length >= 1);
-    assert.ok(result.groups.length <= groupCeiling(6));
-    assert.ok(!result.groups.some(group => /^other$/i.test(group.name)));
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.labelRequests().length, 0);
+    assert.equal(result.groups.length, 2);
+    assert.ok(!result.groups.some(group => /^(other|misc)$/i.test(group.name)));
     assert.deepEqual(result.groups.flatMap(group => group.tabIds).sort((a, b) => a - b), tabs.map(tab => tab.id));
-    // Nonsense labels leave every tab placed by address, to be relabelled later.
-    assert.equal(result.provisionalTabs, 6);
   } finally {
     cloud.restore();
   }
 });
 
-test('Socials and explicit rules are locked whatever the labels say', async () => {
+test('Socials and explicit rules are locked and never sent in the plan request', async () => {
   const makeTabs = () => [
     { id: 1, windowId: 9, index: 0, active: true, pinned: false, incognito: false, title: 'Home / X', url: 'https://x.com/home' },
     { id: 2, windowId: 9, index: 1, active: false, pinned: false, incognito: false, title: '/r/Chrome', url: 'https://www.reddit.com/r/chrome/' },
@@ -613,20 +550,21 @@ test('Socials and explicit rules are locked whatever the labels say', async () =
   ];
   const settings = { provider: 'groq', groqApiKey: 'test-only', groqModel: 'qwen/qwen3.8-27b' };
 
-  // Without rules: K = 2 for 4 tabs, so Socials plus one group.
+  // Without rules: Socials is locked, the other two tabs are planned.
   installBrowser(makeTabs());
   let cloud = installCloudFetch({ labelFor: () => 'admin' });
   try {
     const result = await executeTabGrouping(9, settings);
     assert.equal(result.groups.length, 2);
     assert.deepEqual(result.groups.find(group => group.name === 'Socials')?.tabIds, [1, 2]);
-    assert.deepEqual(cloud.labelRequests()[0].rows.map(row => row[1]).sort(), ['Billing', 'Dashboard | Pathfinder']);
+    assert.deepEqual(cloud.plans()[0].rows.map(row => row[1]).sort(), ['Billing', 'Dashboard | Pathfinder']);
+    // One locked group leaves nine folders for the model.
+    assert.match(cloud.plans()[0].payload.messages[0].content, /Use at most 9 folders/);
   } finally {
     cloud.restore();
   }
 
-  // A manual rule wins over the label. The compactness target does not
-  // flag three distinct groups as a rules overflow under the hard cap.
+  // A manual rule wins too. One tab left is placed locally with no request.
   const { local } = installBrowser(makeTabs());
   local.foldnex_learning_schema_version = 2;
   local.foldnex_learned_rules = [{
@@ -640,13 +578,13 @@ test('Socials and explicit rules are locked whatever the labels say', async () =
     assert.deepEqual(result.groups.find(group => group.name === 'Network')?.tabIds, [3]);
     assert.equal(result.groups.length, 3);
     assert.ok(!result.qualityFlags.includes('rules_exceed_ceiling'));
-    assert.deepEqual(cloud.labelRequests()[0].rows.map(row => row[1]), ['Billing']);
+    assert.equal(cloud.requests.length, 0);
   } finally {
     cloud.restore();
   }
 });
 
-test('label requests keep ordinals local and follow provider request shapes', async () => {
+test('plan requests keep ordinals local and follow provider request shapes', async () => {
   const tabs = [
     { id: 700001, title: 'Issue implementation', url: 'https://github.com/org/repo/issues/1' },
     { id: 700002, title: 'Easy ramen recipe', url: 'https://docs.example.com/api' }
@@ -656,13 +594,10 @@ test('label requests keep ordinals local and follow provider request shapes', as
     usage: { prompt_tokens: 140, completion_tokens: 24, total_tokens: 164, prompt_tokens_details: { cached_tokens: 64 } }
   });
   try {
-    const groq = await labelTabsWithAI(tabs, { provider: 'groq', groqApiKey: 'test-only', groqModel: 'openai/gpt-oss-20b' });
-    assert.deepEqual([...groq.labels], [[700001, 'dev'], [700002, 'food']]);
+    const groq = await planWindowWithCloud(tabs, 2, { provider: 'groq', groqApiKey: 'test-only', groqModel: 'openai/gpt-oss-20b' }, { recordUsage: false });
     assert.equal(groq.meta.usage.cachedTokens, 64);
     const [{ payload }] = cloud.requests;
     assert.equal(payload.response_format.type, 'json_object');
-    assert.equal(payload.reasoning_effort, 'low');
-    assert.ok(payload.max_completion_tokens <= 1536);
     assert.ok(!JSON.stringify(payload).includes('700001'));
   } finally {
     cloud.restore();
@@ -670,20 +605,14 @@ test('label requests keep ordinals local and follow provider request shapes', as
 
   cloud = installCloudFetch();
   try {
-    await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5.4-nano', openaiPriority: false });
-    await labelTabsWithAI(tabs, { provider: 'openai', openaiApiKey: 'test-only', openaiPriority: true });
-    await labelTabsWithAI(tabs, {
-      provider: 'deepseek', deepseekApiKey: 'test-only', deepseekModel: 'deepseek-flash', deepseekReasoningEffort: 'max'
-    });
-    const [nano, priority, deepseek] = cloud.requests.map(request => request.payload);
+    await planWindowWithCloud(tabs, 2, { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5.4-nano', openaiPriority: false }, { recordUsage: false });
+    await planWindowWithCloud(tabs, 2, { provider: 'openai', openaiApiKey: 'test-only', openaiPriority: true }, { recordUsage: false });
+    const [nano, priority] = cloud.requests.map(request => request.payload);
     assert.equal('temperature' in nano, false);
-    assert.equal(nano.reasoning_effort, 'low');
     assert.equal(nano.messages[0].role, 'developer');
     assert.equal(nano.service_tier, 'default');
     assert.equal(priority.service_tier, 'priority');
-    assert.equal(priority.prompt_cache_key, 'foldnex-labels');
-    assert.equal(deepseek.reasoning_effort, 'max');
-    assert.equal(deepseek.max_tokens, 8192);
+    assert.equal('prompt_cache_key' in priority, false);
   } finally {
     cloud.restore();
   }
@@ -707,10 +636,10 @@ test('OpenAI Responses-only Pro models fail early with a clear model error', asy
   assert.equal(isOpenAIResponsesOnlyModel('gpt-5.4-pro-2026-03-05'), true);
   assert.deepEqual(getReasoningEffortOptions('openai', 'gpt-5-pro'), []);
   await assert.rejects(
-    labelTabsWithAI([
+    planWindowWithCloud([
       { id: 1, title: 'Code', url: 'https://example.com/code' },
       { id: 2, title: 'Docs', url: 'https://example.com/docs' }
-    ], { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5-pro' }),
+    ], 2, { provider: 'openai', openaiApiKey: 'test-only', openaiModel: 'gpt-5-pro' }, { recordUsage: false }),
     /requires the OpenAI Responses API/
   );
 });
@@ -952,35 +881,37 @@ test('orchestrator scopes exact cache and diagnostics by effective reasoning eff
 
   try {
     const first = await executeTabGrouping(5, settings);
-    assert.equal(first.source, 'cloud');
+    assert.equal(first.source, 'cloud-plan');
     assert.equal(first.groupsCreated, 2);
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.consolidations().length, 1);
-    assert.equal(cloud.labelRequests()[0].payload.reasoning_effort, 'medium');
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.requests.length, 1);
+    // The plan sends the model's lowest effort whatever is saved.
+    assert.equal(cloud.plans()[0].payload.reasoning_effort, 'low');
     assert.deepEqual(first.groups.map(group => group.name).sort(), ['Design References', 'Video Production']);
-    assert.equal(local.foldnex_last_run.promptTokens, 440);
-    assert.equal(local.foldnex_last_run.reasoningEffort, 'medium');
-    assert.equal(local.foldnex_last_run.reasoningTokens, 128);
+    assert.equal(local.foldnex_last_run.promptTokens, 220);
+    assert.equal(local.foldnex_last_run.reasoningEffort, 'low');
+    assert.equal(local.foldnex_last_run.reasoningTokens, 64);
+    assert.equal(local.foldnex_last_run.modelCalls.plan, 1);
     assert.equal((await LearningCache.getRules()).length, 0);
 
     const second = await executeTabGrouping(5, settings);
     assert.equal(second.source, 'exact-cache');
     assert.equal(second.groupsCreated, 2);
-    assert.equal(cloud.requests.length, 2);
+    assert.equal(cloud.requests.length, 1);
     assert.equal(local.foldnex_last_run.reasoningEffort, null);
     assert.equal(local.foldnex_last_run.reasoningTokens, null);
 
-    // A new effort must reassess labels and model names rather than silently
-    // reusing a lower-effort result. Returning to medium still costs no call.
+    // The saved effort does not reach the plan request, so changing it asks
+    // for nothing new; another model does.
     const highEffort = await executeTabGrouping(5, { ...settings, groqReasoningEffort: 'high' });
-    assert.equal(highEffort.source, 'cloud');
-    assert.equal(cloud.requests.length, 4);
-    assert.equal(cloud.labelRequests().at(-1).payload.reasoning_effort, 'high');
+    assert.equal(highEffort.source, 'exact-cache');
+    assert.equal(cloud.requests.length, 1);
     assert.deepEqual(membership(highEffort.groups), membership(first.groups));
-    assert.equal(calls.update.length, 6);
-    const mediumAgain = await executeTabGrouping(5, settings);
-    assert.equal(mediumAgain.source, 'exact-cache');
-    assert.equal(cloud.requests.length, 4);
+    const otherModel = await executeTabGrouping(5, { ...settings, groqModel: 'openai/gpt-oss-120b' });
+    assert.equal(otherModel.source, 'cloud-plan');
+    assert.equal(cloud.requests.length, 2);
+    assert.equal(cloud.plans().at(-1).payload.reasoning_effort, 'low');
+    assert.equal(calls.update.length, 8);
   } finally {
     cloud.restore();
   }
@@ -1028,73 +959,6 @@ test('site-category strategy bypasses AI and accepts a large same-site group', a
   }
 });
 
-test('unavailable Nano falls back offline without sending saved cloud credentials', async () => {
-  installChromeStorageMock();
-  resetNanoBases();
-  const tabs = [
-    { id: 801, windowId: 11, index: 0, active: true, pinned: false, incognito: false, title: 'Project board', url: 'https://github.com/org/repo/projects' },
-    { id: 802, windowId: 11, index: 1, active: false, pinned: false, incognito: false, title: 'Pull request', url: 'https://github.com/org/repo/pulls' }
-  ];
-  let groupId = 810;
-  chrome.tabs = {
-    async query() { return tabs.map(tab => ({ ...tab })); },
-    async get(id) { return { ...tabs.find(tab => tab.id === id) }; },
-    async remove() {},
-    async group() { return groupId++; },
-    async ungroup() {}
-  };
-  chrome.tabGroups = { async update() {} };
-
-  const originalFetch = globalThis.fetch;
-  const hadSelf = Object.hasOwn(globalThis, 'self');
-  const originalSelf = globalThis.self;
-  const hadLanguageModel = Object.hasOwn(globalThis, 'LanguageModel');
-  const originalLanguageModel = globalThis.LanguageModel;
-  let fetchCount = 0;
-  globalThis.fetch = async () => {
-    fetchCount++;
-    throw new Error('Nano selection must not call a cloud provider');
-  };
-  try {
-    globalThis.self = globalThis;
-    delete globalThis.LanguageModel;
-    const unavailableResult = await executeTabGrouping(11, {
-      provider: 'gemini_nano',
-      geminiApiKey: 'saved-gemini-key',
-      openaiApiKey: 'saved-openai-key'
-    });
-
-    assert.equal(unavailableResult.source, 'offline-fallback');
-    assert.equal(unavailableResult.fallbackUsed, true);
-    assert.equal(unavailableResult.fallbackCode, 'nano_unavailable');
-    assert.ok(unavailableResult.groups.length <= groupCeiling(2));
-    assert.ok(!unavailableResult.groups.some(group => /^other$/i.test(group.name)));
-
-    globalThis.LanguageModel = {
-      async availability() { return 'readily'; },
-      async create() { throw new Error('Local model session failed'); }
-    };
-    const failedRuntimeResult = await executeTabGrouping(11, {
-      provider: 'gemini_nano',
-      geminiApiKey: 'saved-gemini-key',
-      openaiApiKey: 'saved-openai-key'
-    });
-
-    assert.equal(failedRuntimeResult.source, 'offline-fallback');
-    assert.equal(failedRuntimeResult.fallbackUsed, true);
-    assert.ok(failedRuntimeResult.groups.length <= groupCeiling(2));
-    assert.ok(!failedRuntimeResult.groups.some(group => /^other$/i.test(group.name)));
-    assert.equal(fetchCount, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-    resetNanoBases();
-    if (hadSelf) globalThis.self = originalSelf;
-    else delete globalThis.self;
-    if (hadLanguageModel) globalThis.LanguageModel = originalLanguageModel;
-    else delete globalThis.LanguageModel;
-  }
-});
-
 test('click budget counts down and aborts before its deadline', async () => {
   let clock = 1000;
   const budget = createClickBudget(4500, () => clock);
@@ -1114,213 +978,70 @@ test('click budget counts down and aborts before its deadline', async () => {
   live.dispose();
 });
 
-test('Nano warm path: the second click makes no prompts and keeps names and membership', async () => {
-  const tabs = makeTopicTabs(40, 1000, { food: 10, travel: 10, dev: 10 });
-  const { local } = installBrowser(tabs);
-  const nano = installNanoMock({ nameFor: name => `${name} Hub` });
-  try {
-    const first = await executeTabGrouping(40, { provider: 'gemini_nano' });
-    assert.equal(first.source, 'nano');
-    assert.equal(first.provisionalTabs, 0);
-    assert.ok(nano.labelPrompts.length >= 2);
-    assert.ok(nano.labelPrompts.every(prompt => prompt.text.split('\n').length - 1 <= 20));
-    assert.equal(nano.namePrompts.length, 1);
-    assert.ok(first.groups.some(group => group.name === 'Food & Recipes Hub'));
-    assert.equal(nano.create[0].topK, 1);
-    assert.equal(nano.create[0].temperature, 0);
-
-    await ExactResultCache.clear();
-    const labelPrompts = nano.labelPrompts.length;
-    const second = await executeTabGrouping(40, { provider: 'gemini_nano' });
-    assert.equal(second.source, 'label-cache');
-    assert.equal(nano.labelPrompts.length, labelPrompts);
-    assert.equal(nano.namePrompts.length, 1);
-    assert.deepEqual(membership(second.groups), membership(first.groups));
-    assert.equal(second.nameSources.memory, 3);
-    assert.equal(local.foldnex_last_run.modelCalls.label, 0);
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('a click that reaches its deadline places the rest provisionally and caches nothing provisional', async () => {
-  const tabs = makeTopicTabs(41, 1100, { food: 10, travel: 10, dev: 10 });
-  const { local } = installBrowser(tabs);
-  // A fast stored estimate, so the budget fits one batch that then hangs.
-  local.foldnex_nano_perf_v1 = { overheadMs: 200, msPerTab: 60 };
-  const nano = installNanoMock({ hangLabels: true });
-  try {
-    const startedAt = Date.now();
-    const result = await executeTabGrouping(41, { provider: 'gemini_nano' }, { budgetMs: 1200 });
-    assert.ok(Date.now() - startedAt < 1500, 'the click resolves within its budget');
-    assert.equal(nano.labelPrompts.length, 1);
-    assert.equal(nano.aborts, 1, 'the in-flight prompt was aborted');
-    assert.equal(result.deadlineHit, true);
-    assert.equal(result.provisionalTabIds.length, 30);
-    assert.ok(result.groups.length <= groupCeiling(30));
-    assert.deepEqual(result.groups.flatMap(group => group.tabIds).sort((a, b) => a - b), tabs.map(tab => tab.id));
-    assert.equal(local.foldnex_exact_results_v1, undefined);
-    assert.equal(local[TabLabelCache.STORAGE_KEY], undefined);
-    assert.equal(local.foldnex_last_run.deadlineHit, true);
-
-    // A budget too small for any batch never prompts at all.
-    const tight = await executeTabGrouping(41, { provider: 'gemini_nano' }, { budgetMs: 300 });
-    assert.equal(nano.labelPrompts.length, 1);
-    assert.equal(tight.deadlineHit, true);
-    assert.equal(tight.provisionalTabs, 30);
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('a cold model does not hold the click and the background reuses the same load', async () => {
-  const tabs = makeTopicTabs(42, 1200, { food: 3, travel: 3 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
-  const nano = installNanoMock({ create: () => new Promise(() => {}) });
-  try {
-    const startedAt = Date.now();
-    const result = await executeTabGrouping(42, { provider: 'gemini_nano' }, { budgetMs: 3300 });
-    assert.ok(Date.now() - startedAt < 3300);
-    assert.equal(result.fallbackCode, 'nano_loading');
-    assert.equal(result.fallbackUsed, false);
-    assert.equal(result.provisionalTabs, 6);
-    assert.equal(nano.create.length, 1);
-
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 50);
-    const background = await classifyTabs(tabs.map(tab => tab.id), controller.signal);
-    assert.equal(background.aborted, true);
-    assert.equal(nano.create.length, 1, 'the pending load is shared, not restarted');
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('cloud labels for 60 tabs use three enum-schema batches and one consolidation', async () => {
+test('a 60-tab cloud click sends one strict-schema plan request without a cache key', async () => {
   const tabs = makeTopicTabs(43, 1300, { food: 20, travel: 20, dev: 20 });
   installBrowser(tabs);
   const cloud = installCloudFetch();
   const settings = { provider: 'openai', openaiApiKey: 'test-only', openaiReasoningEffort: 'medium' };
   try {
     const result = await executeTabGrouping(43, settings);
-    const labels = cloud.labelRequests();
-    assert.deepEqual(labels.map(request => request.rows.length).sort((a, b) => b - a), [25, 25, 10]);
-    for (const { payload } of labels) {
-      assert.equal(payload.response_format.type, 'json_schema');
-      assert.equal(payload.response_format.json_schema.strict, true);
-      assert.deepEqual(payload.response_format.json_schema.schema.properties['0'].enum, [...CATEGORY_KEYS]);
-      assert.equal(payload.prompt_cache_key, 'foldnex-labels');
-      assert.equal(payload.reasoning_effort, 'medium');
-    }
-    assert.ok(cloud.consolidations().length <= 1);
-    for (const { payload } of cloud.consolidations()) assert.equal(payload.prompt_cache_key, 'foldnex-consolidate');
-    assert.ok(result.groups.length <= 10);
+    assert.equal(cloud.requests.length, 1);
+    const [{ payload, rows }] = cloud.plans();
+    assert.equal(rows.length, 60);
+    assert.equal(payload.response_format.type, 'json_schema');
+    assert.equal(payload.response_format.json_schema.strict, true);
+    assert.deepEqual(payload.response_format.json_schema.schema, planJsonSchema());
+    assert.equal(Object.hasOwn(payload, 'prompt_cache_key'), false);
+    // The default model offers none: the plan does not reason, whatever is saved.
+    assert.equal(payload.reasoning_effort, 'none');
+    assert.equal(payload.max_completion_tokens, 400 + 12 * 60);
+    assert.deepEqual(result.groups.map(group => group.name).sort(), ['Home Cooking', 'Japan Trip', 'React App']);
     assert.equal(result.groups.flatMap(group => group.tabIds).length, 60);
-
-    // Labels are context-free: one big batch gives the same labels and plan.
-    const batched = await labelTabsWithAI(tabs, settings);
-    const single = await labelTabsWithAI(tabs, settings, { batchSize: 100 });
-    assert.deepEqual([...single.labels], [...batched.labels]);
-    assert.deepEqual(
-      membership(planGroups(tabs, single.labels).groups),
-      membership(planGroups(tabs, batched.labels).groups)
-    );
   } finally {
     cloud.restore();
   }
 });
 
-test('a late consolidation keeps the deterministic plan now and names the next click', async () => {
-  const tabs = makeTopicTabs(44, 1400, { food: 4, travel: 4, dev: 4 });
-  const { local } = installBrowser(tabs);
-  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'consolidate' ? 2200 : 0) });
-  const settings = { provider: 'openai', openaiApiKey: 'test-only' };
-  try {
-    const startedAt = Date.now();
-    const first = await executeTabGrouping(44, settings, { budgetMs: 2000 });
-    assert.ok(Date.now() - startedAt < 2000);
-    assert.ok(first.qualityFlags.includes('consolidation_timeout'));
-    assert.equal(first.deadlineHit, true);
-    assert.equal(cloud.consolidations().length, 1);
-    assert.deepEqual(first.groups.map(group => group.name).sort(), ['Coding', 'Food & Recipes', 'Travel']);
-    assert.equal(local.foldnex_exact_results_v1, undefined);
-
-    // The late answer is validated and remembered, not applied.
-    assert.ok(await waitFor(async () => (await PlanMemory.read()).names.length === 3));
-
-    await ExactResultCache.clear();
-    const second = await executeTabGrouping(44, settings);
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.consolidations().length, 1);
-    assert.equal(second.source, 'label-cache');
-    assert.deepEqual(second.groups.map(group => group.name).sort(), ['Home Cooking', 'Japan Trip', 'React App']);
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('a prepared window waits briefly for names and remembers a late answer', async () => {
-  const tabs = makeTopicTabs(45, 1450, { food: 4, travel: 4, dev: 4 });
-  const { local } = installBrowser(tabs);
-  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'consolidate' ? 2200 : 0) });
-  const settings = { provider: 'openai', openaiApiKey: 'test-only' };
-  try {
-    // Warm the label cache, then forget the names so the next click needs them again.
-    await executeTabGrouping(45, settings, { budgetMs: 2000 });
-    assert.ok(await waitFor(async () => (await PlanMemory.read()).names.length === 3));
-    delete local.foldnex_plan_memory_v1;
-    await ExactResultCache.clear();
-
-    const startedAt = Date.now();
-    const prepared = await executeTabGrouping(45, settings);
-    assert.equal(prepared.source, 'label-cache');
-    assert.ok(Date.now() - startedAt < PREPARED_NAMING_WAIT_MS + 700, 'no wait for a slow consolidation');
-    assert.ok(prepared.qualityFlags.includes('consolidation_timeout'));
-    assert.deepEqual(prepared.groups.map(group => group.name).sort(), ['Coding', 'Food & Recipes', 'Travel']);
-    assert.ok(await waitFor(async () => (await PlanMemory.read()).names.length === 3));
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('Groq label and consolidation requests use JSON object mode', async () => {
+test('a Groq plan request uses JSON object mode in one user message', async () => {
   const tabs = makeTopicTabs(45, 1500, { food: 3, travel: 3 });
   installBrowser(tabs);
   const cloud = installCloudFetch();
   try {
     await executeTabGrouping(45, { provider: 'groq', groqApiKey: 'test-only', groqModel: 'openai/gpt-oss-20b' });
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.consolidations().length, 1);
-    for (const { payload } of cloud.requests) {
-      assert.equal(payload.response_format.type, 'json_object');
-      assert.equal(payload.messages.length, 1);
-      assert.equal(payload.messages[0].role, 'user');
-    }
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.requests.length, 1);
+    const [{ payload }] = cloud.plans();
+    assert.equal(payload.response_format.type, 'json_object');
+    assert.equal(payload.messages.length, 1);
+    assert.equal(payload.messages[0].role, 'user');
   } finally {
     cloud.restore();
   }
 });
 
-test('an empty consolidation answer leaves the plan untouched', async () => {
+test('an empty plan answer falls back to the local result and is not cached', async () => {
   const tabs = makeTopicTabs(49, 1550, { food: 3, travel: 3, dev: 3 });
   const { local } = installBrowser(tabs);
-  const cloud = installCloudFetch({ folders: () => [] });
+  const cloud = installCloudFetch({ plan: () => [] });
   try {
     const result = await executeTabGrouping(49, { provider: 'openai', openaiApiKey: 'test-only' });
-    assert.equal(cloud.consolidations().length, 1);
-    assert.ok(result.qualityFlags.includes('consolidation_failed'));
-    assert.deepEqual(result.groups.map(group => group.name).sort(), ['Coding', 'Food & Recipes', 'Travel']);
-    // Unnamed groups are not reused, so the next click retries consolidation.
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(result.fallbackUsed, true);
+    assert.equal(result.source, 'offline-fallback');
+    // The local engine: one group per topic by shared title words, named by
+    // majority category or, with none, by the shared words.
+    assert.deepEqual(result.groups.map(group => group.name).sort(), ['Food & Recipes', 'React Hooks', 'Travel']);
+    assert.deepEqual(result.groups.map(group => group.tabIds.length), [3, 3, 3]);
+    assert.ok(result.groups.every(group => new Set(group.tabIds.map(id => Math.floor((id - 1550) / 3))).size === 1));
     assert.equal(local.foldnex_exact_results_v1, undefined);
-    const second = await executeTabGrouping(49, { provider: 'openai', openaiApiKey: 'test-only' });
-    assert.equal(second.source, 'label-cache');
-    assert.equal(cloud.consolidations().length, 2);
+    await executeTabGrouping(49, { provider: 'openai', openaiApiKey: 'test-only' });
+    assert.equal(cloud.plans().length, 2);
   } finally {
     cloud.restore();
   }
 });
 
-test('the label cache sends only new tabs and respects which engine wrote a label', async () => {
+test('a changed window asks for a new plan and engines do not share results', async () => {
   const tabs = makeTopicTabs(21, 5000, { food: 6 });
   installBrowser(tabs);
   let cloud = installCloudFetch();
@@ -1328,81 +1049,65 @@ test('the label cache sends only new tabs and respects which engine wrote a labe
 
   try {
     await executeTabGrouping(21, settings);
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.labelRequests()[0].rows.length, 6);
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.plans()[0].rows.length, 6);
 
     tabs.push({ ...makeTopicTabs(21, 5100, { travel: 1 })[0], index: 6, active: false });
     const second = await executeTabGrouping(21, settings);
-    assert.equal(cloud.labelRequests().length, 2);
-    assert.deepEqual(cloud.labelRequests()[1].rows.map(row => row[1]), ['Cheap flights to Tokyo 0']);
-    assert.equal(second.source, 'cloud');
+    assert.equal(cloud.plans().length, 2);
+    assert.equal(cloud.plans()[1].rows.length, 7);
+    assert.equal(second.source, 'cloud-plan');
 
     const third = await executeTabGrouping(21, settings);
-    assert.equal(cloud.labelRequests().length, 2);
+    assert.equal(cloud.requests.length, 2);
     assert.equal(third.source, 'exact-cache');
 
-    // Choosing Nano asks Nano rather than silently reusing cloud labels.
-    const nano = installNanoMock();
-    try {
-      const local = await executeTabGrouping(21, { provider: 'gemini_nano' });
-      assert.ok(nano.labelPrompts.length > 0);
-      assert.equal(local.source, 'nano');
-      const before = cloud.requests.length;
-      const cloudAgain = await executeTabGrouping(21, settings);
-      assert.equal(cloudAgain.source, 'exact-cache');
-      assert.equal(cloud.requests.length, before, 'switching back reuses the earlier cloud work');
-    } finally {
-      removeNanoMock();
-    }
+    // Choosing Offline smart mode groups locally rather than reusing the cloud plan.
+    const before = cloud.requests.length;
+    const local = await executeTabGrouping(21, { provider: 'offline' });
+    assert.equal(local.source, 'offline');
+    assert.equal(cloud.requests.length, before);
+    const cloudAgain = await executeTabGrouping(21, settings);
+    assert.equal(cloudAgain.source, 'exact-cache');
+    assert.equal(cloud.requests.length, before, 'switching back reuses the earlier cloud plan');
   } finally {
     cloud.restore();
   }
 
-  // Nano-quality labels are never silently reused by a cloud engine.
+  // A local result never stands in for a cloud plan.
   const fresh = makeTopicTabs(22, 5200, { food: 3, travel: 3 });
   installBrowser(fresh);
-  const nano = installNanoMock();
   cloud = installCloudFetch();
   try {
-    await executeTabGrouping(22, { provider: 'gemini_nano' });
-    assert.ok(nano.labelPrompts.length > 0);
+    await executeTabGrouping(22, { provider: 'offline' });
+    assert.equal(cloud.requests.length, 0);
     await executeTabGrouping(22, settings);
-    assert.equal(cloud.labelRequests().length, 1);
-    assert.equal(cloud.labelRequests()[0].rows.length, 6);
+    assert.equal(cloud.plans().length, 1);
+    assert.equal(cloud.plans()[0].rows.length, 6);
   } finally {
     cloud.restore();
-    removeNanoMock();
   }
 });
 
 test('an incognito task run stores nothing', async () => {
   const tabs = makeTopicTabs(46, 1600, { food: 4, travel: 4 }, { incognito: true });
   const { local, session } = installBrowser(tabs);
-  const nano = installNanoMock();
-  try {
-    const result = await executeTabGrouping(46, { provider: 'gemini_nano' });
-    assert.ok(nano.labelPrompts.length > 0);
-    assert.ok(result.groups.length >= 1);
-    assert.deepEqual(local, {});
-    assert.ok(!Object.keys(session).some(key => key.startsWith(WindowPlanStore.KEY_PREFIX)));
-  } finally {
-    removeNanoMock();
-  }
+  const result = await executeTabGrouping(46, { provider: 'offline' });
+  assert.ok(result.groups.length >= 1);
+  assert.deepEqual(local, {});
+  assert.ok(!Object.keys(session).some(key => key.startsWith(WindowPlanStore.KEY_PREFIX)));
 });
 
 test('run diagnostics hold counts and names, never titles or URLs', async () => {
   const tabs = makeTopicTabs(47, 1700, { food: 5, travel: 5, dev: 5 });
   const { local } = installBrowser(tabs);
-  const nano = installNanoMock();
-  try {
-    await executeTabGrouping(47, { provider: 'gemini_nano' });
+  {
+    await executeTabGrouping(47, { provider: 'offline' });
     const run = local.foldnex_last_run;
-    assert.ok(nano.labelPrompts.length > 0);
-    assert.equal(run.groupCeiling, groupCeiling(15));
-    assert.equal(run.provisionalTabs, 0);
-    assert.equal(run.labelSources.model, 15);
+    assert.equal(Object.hasOwn(run, 'provisionalTabs'), false);
+    assert.equal(run.labelSources.model, 0);
     assert.deepEqual(Object.keys(run.labelSources).sort(), ['cache', 'lexicon', 'model', 'review', 'site', 'siteAffinity', 'tokenAttach']);
-    assert.deepEqual(Object.keys(run.modelCalls).sort(), ['consolidation', 'label', 'naming']);
+    assert.deepEqual(run.modelCalls, {}, 'an Offline click counts no model call');
     assert.deepEqual(Object.keys(run.nameSources).sort(), ['deterministic', 'memory', 'model', 'user']);
     assert.equal(run.deadlineHit, false);
     assert.equal(run.budgetMs, 4500);
@@ -1411,12 +1116,10 @@ test('run diagnostics hold counts and names, never titles or URLs', async () => 
       assert.ok(!stored.includes(tab.title));
       assert.ok(!stored.includes(tab.url));
     }
-  } finally {
-    removeNanoMock();
   }
 });
 
-test('offline smart mode plans locally within the ceiling and never calls a model', async () => {
+test('offline smart mode plans locally within the group limit and never calls a model', async () => {
   const words = ['Quarterly notes', 'Garden ideas', 'Weekend recipe', 'Budget sheet', 'Flight options'];
   const tabs = Array.from({ length: 50 }, (_, index) => ({
     id: 2000 + index,
@@ -1429,20 +1132,44 @@ test('offline smart mode plans locally within the ceiling and never calls a mode
     url: `https://${index % 3 === 0 ? 'shared-portal' : `one-off-${index}`}.example-${index % 3 === 0 ? 'x' : index}.org/page/${index}`
   }));
   installBrowser(tabs);
-  const nano = installNanoMock();
   const cloud = installCloudFetch();
   try {
     const result = await executeTabGrouping(48, { provider: 'offline' });
     assert.equal(result.source, 'offline');
     assert.ok(result.groups.length <= 10);
     assert.ok(!result.groups.some(group => /^other$/i.test(group.name)));
-    assert.equal(result.provisionalTabs, 0);
     assert.equal(cloud.requests.length, 0);
-    assert.equal(nano.labelPrompts.length + nano.namePrompts.length, 0);
     assert.deepEqual(result.groups.flatMap(group => group.tabIds).sort((a, b) => a - b), tabs.map(tab => tab.id));
   } finally {
     cloud.restore();
-    removeNanoMock();
+  }
+});
+
+test('offline smart mode applies the local engine: shared-word clusters, Review Later, no compaction merge', async () => {
+  const titles = ['Ramen broth recipe', 'Lasagne sheets recipe', 'Ramen toppings recipe', 'Lasagne sauce recipe',
+    'Bolivia salt flats tour', 'Bolivia salt flats weather', 'Kestrel telescope mount', 'Kestrel telescope eyepiece',
+    'Unrelated loner page', 'Another stray tab'];
+  const tabs = titles.map((title, index) => ({
+    id: 2100 + index, windowId: 49, index, active: index === 0, pinned: false, incognito: false,
+    title, url: `https://www.place${index}-site.com/p/${index}`
+  }));
+  installBrowser(tabs);
+  const cloud = installCloudFetch();
+  try {
+    const result = await executeTabGrouping(49, { provider: 'offline' });
+    assert.equal(result.source, 'offline');
+    assert.equal(cloud.requests.length, 0);
+    // Five groups for ten tabs: above the compactness target of four, so the
+    // two recipe clusters stay apart instead of merging by category.
+    assert.deepEqual(result.groups.map(group => [group.name, [...group.tabIds].sort((a, b) => a - b)]).sort(), [
+      ['Bolivia Flats', [2104, 2105]],
+      ['Food & Recipes', [2100, 2102]],
+      ['Kestrel Telescope', [2106, 2107]],
+      ['Lasagne', [2101, 2103]],
+      ['Review Later', [2108, 2109]]
+    ]);
+  } finally {
+    cloud.restore();
   }
 });
 
@@ -1488,6 +1215,9 @@ test('screenshot regression: ordinary cleanup preserves unrelated topics even af
       const result = await executeTabGrouping(90, settings);
       const groupOf = index => result.groups.find(group => group.tabIds.includes(9000 + index));
       for (const index of [4, 10, 11]) {
+        // The local engine (offline and fallback) leaves tabs that share no
+        // title words in Review Later, which is no topic group.
+        if (mode !== 'cloud' && groupOf(index).name === 'Review Later') continue;
         assert.ok(!groupOf(index).tabIds.some(id => [9001, 9002, 9005, 9006, 9007, 9008, 9009].includes(id)),
           `${mode}: News, Shopping and Maps must not join Coding or AI`);
       }
@@ -1578,143 +1308,6 @@ test('incognito site grouping leaves persistent extension storage untouched', as
   assert.deepEqual(local, {});
 });
 
-test('background labelling stores every batch, the plan refresh names once, and the click is warm', async () => {
-  const tabs = makeTopicTabs(50, 3000, { food: 10, travel: 10, dev: 10 });
-  const { calls, session } = installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
-  const nano = installNanoMock({ nameFor: name => `${name} Hub` });
-  try {
-    const result = await classifyTabs(tabs.map(tab => tab.id));
-    assert.deepEqual(result.windowIds, [50]);
-    assert.deepEqual(nano.labelPrompts.map(prompt => prompt.text.split('\n').length - 1), [16, 14]);
-    assert.equal(calls.labelStores, 2, 'each batch is stored as soon as it lands');
-
-    const plan = await refreshWindowPlan(50, { provider: 'gemini_nano' });
-    assert.equal(nano.namePrompts.length, 1);
-    assert.ok(session[WindowPlanStore.keyFor(50)]);
-    assert.deepEqual((await WindowPlanStore.get(50)).signature, plan.signature);
-
-    const click = await executeTabGrouping(50, { provider: 'gemini_nano' });
-    assert.equal(nano.labelPrompts.length, 2);
-    assert.equal(nano.namePrompts.length, 1);
-    assert.equal(click.source, 'label-cache');
-    assert.ok(click.groups.some(group => group.name === 'Coding Hub'));
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('background classifier never sends tabs to a cloud engine unless auto-grouping is on', async () => {
-  const tabs = makeTopicTabs(51, 3100, { food: 3, travel: 3 });
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only' } });
-  let cloud = installCloudFetch();
-  try {
-    await classifyTabs(tabs.map(tab => tab.id));
-    assert.equal(cloud.requests.length, 0);
-  } finally {
-    cloud.restore();
-  }
-
-  installBrowser(tabs, { sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true } });
-  cloud = installCloudFetch();
-  try {
-    await classifyTabs(tabs.map(tab => tab.id));
-    assert.equal(cloud.requests.length, 0, 'auto-group consent alone cannot upload an existing tab sweep');
-    await classifyTabs(tabs.map(tab => tab.id), null, {
-      admission: { freshIds: new Set(tabs.map(tab => tab.id)), reasons: new Map(tabs.map(tab => [tab.id, 'created'])) }
-    });
-    assert.equal(cloud.labelRequests().length, 1);
-    await refreshAndAutoGroup(51);
-    assert.equal(cloud.consolidations().length, 0, 'the background never pays for consolidation');
-    assert.equal(cloud.requests.length, 1);
-  } finally {
-    cloud.restore();
-  }
-});
-
-test('auto-group joins matching groups, respects the ceiling and skips Review Later', async () => {
-  const tabs = [
-    ...makeTopicTabs(52, 3200, { food: 4, travel: 3 }),
-    { id: 3299, windowId: 52, index: 7, pinned: false, incognito: false, status: 'complete', groupId: -1, title: 'Kitchen recipe 9', url: 'https://www.new-food-site.com/' }
-  ];
-  for (const tab of tabs.slice(0, 7)) tab.groupId = tab.title.includes('ramen') ? 77 : 78;
-  const chromeGroups = [
-    { id: 77, windowId: 52, title: 'Food & Recipes', color: 'orange' },
-    { id: 78, windowId: 52, title: 'Travel', color: 'blue' }
-  ];
-  const { calls } = installBrowser(tabs, {
-    sync: { provider: 'openai', openaiApiKey: 'test-only', autoGroupNewTabs: true },
-    chromeGroups
-  });
-  const { fingerprintById } = await TabLabelCache.lookup(tabs);
-  await TabLabelCache.store(new Map(tabs.map(tab => [tab.id, keyForTitle(tab.title)])), fingerprintById, 'openai', {
-    scope: labelCacheScope({ provider: 'openai' })
-  });
-
-  const plan = await refreshAndAutoGroup(52);
-  assert.ok(plan.groups.some(group => group.name === 'Food & Recipes' && group.tabIds.includes(3299)));
-  assert.equal((await WindowPlanStore.get(52)).groups.find(group => group.name === 'Food & Recipes').tabIds.length, 5);
-  assert.deepEqual(calls.group, [{ groupId: 77, tabIds: [3299] }]);
-
-  // At the absolute limit, two new games tabs never create a group.
-  const crowded = [
-    ...Array.from({ length: 6 }, (_, index) => ({ id: 3400 + index, windowId: 53, index, groupId: 90 + index, title: `Tab ${index}`, url: `https://www.site-${index}.com/` })),
-    { id: 3410, windowId: 53, index: 6, groupId: -1, title: 'Strategy game guide 1', url: 'https://www.games-1.com/' },
-    { id: 3411, windowId: 53, index: 7, groupId: -1, title: 'Strategy game guide 2', url: 'https://www.games-2.com/' }
-  ];
-  const full = installBrowser(crowded, {
-    chromeGroups: Array.from({ length: MAX_GROUPS }, (_, index) => ({ id: 90 + index, windowId: 53, title: `Group ${index}` }))
-  });
-  await autoGroupWindow(53, { groups: [{ name: 'Gaming', kind: 'category', tabIds: [3410, 3411] }] });
-  assert.ok(!full.calls.group.some(call => call.createProperties));
-
-  // Review Later is never auto-grouped, even with room below the ceiling.
-  const review = installBrowser(crowded.map(tab => ({ ...tab, groupId: -1 })));
-  await autoGroupWindow(53, { groups: [{ name: 'Review Later', kind: 'review', tabIds: [3410, 3411] }] });
-  assert.deepEqual(review.calls.group, []);
-});
-
-test('prioritize moves a window to the front without flushing early', async () => {
-  const tabs = [
-    ...makeTopicTabs(54, 3500, { food: 2 }),
-    ...makeTopicTabs(55, 3600, { travel: 2 })
-  ];
-  installBrowser(tabs, { sync: { backgroundPrep: true } });
-  const seen = [];
-  const classifier = createBackgroundClassifier({
-    classify: async tabIds => {
-      seen.push(tabIds);
-      return { windowIds: [] };
-    },
-    refresh: async () => null,
-    flushDelayMs: 60
-  });
-
-  classifier.enqueue([3500, 3501]);
-  await classifier.prioritize(55);
-  assert.deepEqual(classifier.pendingTabIds(), [3600, 3601, 3500, 3501]);
-  await new Promise(resolve => setTimeout(resolve, 20));
-  assert.equal(seen.length, 0, 'no flush before the debounce');
-  assert.ok(await waitFor(() => seen.length === 1, 1000));
-  assert.deepEqual(seen[0], [3600, 3601, 3500, 3501]);
-});
-
-test('pause aborts an in-flight background label prompt and requeues its tabs', async () => {
-  const tabs = makeTopicTabs(56, 3700, { food: 3, dev: 3 });
-  installBrowser(tabs, { sync: { provider: 'gemini_nano', backgroundPrep: true } });
-  const nano = installNanoMock({ hangLabels: true });
-  const classifier = createBackgroundClassifier({ refresh: async () => null, flushDelayMs: 10 });
-  try {
-    classifier.enqueue(tabs.map(tab => tab.id));
-    assert.ok(await waitFor(() => nano.labelPrompts.length === 1, 2000));
-    classifier.pause();
-    assert.ok(await waitFor(() => classifier.pendingTabIds().length === tabs.length, 1000));
-    assert.equal(nano.aborts, 1);
-    assert.deepEqual(classifier.pendingTabIds().sort((a, b) => a - b), tabs.map(tab => tab.id));
-  } finally {
-    removeNanoMock();
-  }
-});
-
 test('the store package lists every statically imported source file', async () => {
   const root = new URL('../', import.meta.url);
   const script = await readFile(new URL('scripts/package-store.sh', root), 'utf8');
@@ -1735,6 +1328,10 @@ test('the store package lists every statically imported source file', async () =
   }
 
   assert.ok(seen.has('src/planner.js'));
+  // Foldnex's own MIT notice ships beside the font's and the model's.
+  for (const notice of ['LICENSE', 'icons/material-symbols-LICENSE.txt', 'models/potion-base-4M-LICENSE.txt']) {
+    assert.ok(packaged.has(notice), `${notice} is not packaged`);
+  }
   for (const file of seen) assert.ok(packaged.has(file), `${file} is imported but not packaged`);
 });
 
@@ -1743,21 +1340,21 @@ test('the setup card and unload setting offer exactly the stored preference valu
   const popup = await readFile(new URL('popup.html', root), 'utf8');
   const options = await readFile(new URL('options/options.html', root), 'utf8');
 
-  // setupChoice is 'cloud' | 'nano' | 'offline'; 'keep' saves one of those for Ollama.
+  // setupChoice is 'cloud' | 'offline'; 'keep' saves one of those for Ollama.
   const choices = [...popup.matchAll(/<button type="button"[^>]*class="setup-choice[^"]*"[^>]*data-choice="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(choices, ['cloud', 'nano', 'offline', 'keep']);
+  assert.deepEqual(choices, ['cloud', 'offline', 'keep']);
 
   const select = options.match(/<select id="prefModelUnloadAfter"[\s\S]*?<\/select>/)?.[0] || '';
   const values = [...select.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)];
   assert.deepEqual(values.map(match => match[1]), ['immediately', '2m', '5m', '15m', '60m', 'never']);
   assert.equal(values.find(match => match[1] === '5m')?.[2], 'After 5 minutes (default)');
-  assert.match(options, /<input type="checkbox" id="prefBackgroundPrep"/);
+  assert.doesNotMatch(options, /prefBackgroundPrep/);
 });
 
-// Last: background.js registers listeners and warms Nano when it is evaluated.
+// Last: background.js registers listeners when it is evaluated.
 test('a user rename sticks to its group after a tab is added', async () => {
   const tabs = makeTopicTabs(60, 4000, { food: 5, travel: 5, dev: 5 });
-  const { calls } = installBrowser(tabs, { sync: { provider: 'gemini_nano', groupingStrategy: 'task' } });
+  const { calls } = installBrowser(tabs, { sync: { provider: 'offline', groupingStrategy: 'task' } });
   const listeners = {};
   const event = name => ({ addListener(listener) { listeners[name] = listener; } });
   chrome.storage.local.setAccessLevel = async () => {};
@@ -1780,14 +1377,12 @@ test('a user rename sticks to its group after a tab is added', async () => {
   chrome.tabGroups.onRemoved = event('groupRemoved');
   chrome.windows = { onRemoved: event('windowRemoved') };
   chrome.management = { async getSelf() { return { installType: 'normal' }; } };
-  const nano = installNanoMock();
 
-  try {
+  {
     await import('../background.js');
     assert.equal(typeof listeners.groupUpdated, 'function');
 
-    const first = await executeTabGrouping(60, { provider: 'gemini_nano' });
-    assert.equal(nano.namePrompts.length, 1);
+    const first = await executeTabGrouping(60, { provider: 'offline' });
     const foodIndex = first.groups.findIndex(group => group.name === 'Food & Recipes');
     assert.ok(foodIndex >= 0);
     const foodUpdate = calls.update.find(update => update.title === 'Food & Recipes');
@@ -1799,90 +1394,62 @@ test('a user rename sticks to its group after a tab is added', async () => {
     const memory = await PlanMemory.read();
     const record = memory.names.find(item => item.s === 'user');
     assert.equal(record.n, 'Recipes');
-    assert.deepEqual(record.k, ['cat:food']);
+    assert.equal(record.k.length, 1, 'the rename is tied to the stored plan group');
     assert.equal(record.f.length, 5);
 
     tabs.push({ ...makeTopicTabs(60, 4100, { food: 6 })[5], index: tabs.length, active: false });
-    const second = await executeTabGrouping(60, { provider: 'gemini_nano' });
+    const second = await executeTabGrouping(60, { provider: 'offline' });
     const renamed = second.groups.find(item => item.tabIds.includes(4105));
     assert.equal(renamed.name, 'Recipes');
     assert.equal(renamed.tabIds.length, 6);
-    assert.equal(nano.namePrompts.length, 1, 'no naming prompt on the second click');
 
-    // PREPARE_GROUPING answers at once (By site category: nothing to prepare).
     await chrome.storage.sync.set({ groupingStrategy: 'site' });
-    const response = await new Promise(resolve => {
-      listeners.message({ type: 'PREPARE_GROUPING', windowId: 60 }, {}, resolve);
-    });
-    assert.deepEqual(response, { ok: true });
-
     await listeners.windowRemoved(60);
     await waitFor(async () => (await WindowPlanStore.get(60)) === null, 500);
     assert.equal(await WindowPlanStore.get(60), null);
-  } finally {
-    removeNanoMock();
   }
 });
 
-test('a slow cloud label batch is not aborted at the deadline and its late labels warm the next click', async () => {
+test('a slow plan is not aborted at the deadline, and a private window sends none', async () => {
   const tabs = makeTopicTabs(70, 7000, { food: 20, travel: 15, dev: 10 });
   const { local } = installBrowser(tabs);
-  // 45 tabs make batches of 25 and 20; the 20-tab batch lands after the click stopped waiting.
-  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'label' && request.rows.length === 20 ? 2500 : 0) });
+  const cloud = installCloudFetch({ delayMs: request => (request.kind === 'plan' ? 2500 : 0) });
   const settings = { provider: 'openai', openaiApiKey: 'test-only', openaiReasoningEffort: 'medium' };
   try {
     const startedAt = Date.now();
     const first = await executeTabGrouping(70, settings, { budgetMs: 1500 });
-    assert.ok(Date.now() - startedAt < 2200, 'the click does not wait for the slow batch');
+    assert.ok(Date.now() - startedAt < 2200, 'the click does not wait for the slow plan');
     assert.equal(first.deadlineHit, true);
     assert.equal(first.fallbackUsed, false);
-    assert.equal(first.provisionalTabs, 20);
-    assert.equal(first.source, 'cloud');
-    assert.equal(cloud.labelRequests().length, 2);
-    assert.ok(cloud.labelRequests().every(request => !request.signal?.aborted), 'no label request is aborted');
-    assert.equal(local.foldnex_last_run.labelSources.model, 25);
-    assert.equal(local.foldnex_last_run.modelCalls.label, 2);
-    assert.equal(local.foldnex_last_run.promptTokens, 10, 'usage of the batch that landed in time');
+    assert.equal(first.source, 'plan-pending');
+    assert.equal(cloud.requests.length, 1);
+    assert.equal(cloud.plans()[0].signal.aborted, false, 'the plan request is not aborted');
+    assert.equal(local.foldnex_last_run.modelCalls.plan, 1);
+    assert.deepEqual(Object.keys(local.foldnex_last_run.modelCalls), ['plan']);
     assert.equal(local.foldnex_exact_results_v1, undefined);
-
-    assert.ok(await waitFor(async () => Object.keys(await TabLabelCache.read()).length === 45, 5000), 'the late batch is cached');
-    assert.equal(cloud.labelRequests().at(-1).signal.aborted, false);
-
-    const second = await executeTabGrouping(70, settings);
-    assert.equal(second.source, 'label-cache');
-    assert.equal(second.provisionalTabs, 0);
-    assert.equal(second.deadlineHit, false);
-    assert.equal(cloud.labelRequests().length, 2, 'the next click sends no label request');
+    assert.ok(await waitFor(async () => Boolean(await getPlanOffer(70)), 5000), 'the late plan is offered');
+    assert.equal(cloud.labelRequests().length + cloud.consolidations().length, 0);
   } finally {
     cloud.restore();
   }
 
-  // An incognito click never stores a late label, so it aborts at the deadline
-  // and sends nothing when no time is left.
+  // A private window never sends a plan: it groups locally and writes nothing (D40).
   const hidden = makeTopicTabs(71, 7100, { food: 3, travel: 3 }, { incognito: true });
   const { local: hiddenLocal } = installBrowser(hidden);
-  const slow = installCloudFetch({ delayMs: request => (request.kind === 'label' ? 900 : 0) });
+  const seeded = { foldnex_learning_schema_version: 2, foldnex_learned_rules: [] };
+  Object.assign(hiddenLocal, seeded);
+  const slow = installCloudFetch({ delayMs: request => (request.kind === 'plan' ? 900 : 0) });
   try {
     const result = await executeTabGrouping(71, settings, { budgetMs: 1200 });
-    assert.equal(result.deadlineHit, true);
-    assert.equal(result.provisionalTabs, 6);
-    assert.equal(slow.labelRequests().length, 1);
-    assert.equal(slow.labelRequests()[0].signal.aborted, true, 'the incognito request is aborted');
-    assert.ok(await waitFor(() => slow.completed() === 1));
-    await new Promise(resolve => setTimeout(resolve, 30));
-    assert.deepEqual(hiddenLocal, {});
-
-    const late = await executeTabGrouping(71, settings, { budgetMs: 500 });
-    assert.equal(late.deadlineHit, true);
-    assert.equal(late.provisionalTabs, 6);
-    assert.equal(slow.labelRequests().length, 1, 'no request without time left');
-    assert.deepEqual(hiddenLocal, {});
+    assert.equal(result.source, 'offline');
+    assert.equal(slow.requests.length, 0, 'no request from a private window');
+    assert.deepEqual(hiddenLocal, seeded);
   } finally {
     slow.restore();
   }
 });
 
-test('a cloud label failure within the deadline still falls back at once', async () => {
+test('a cloud plan failure within the deadline still falls back at once', async () => {
   const tabs = makeTopicTabs(72, 7200, { food: 3, travel: 3 });
   installBrowser(tabs);
   const original = globalThis.fetch;
@@ -1897,13 +1464,12 @@ test('a cloud label failure within the deadline still falls back at once', async
     assert.equal(result.source, 'offline-fallback');
     assert.equal(result.fallbackCode, 'auth');
     assert.equal(result.deadlineHit, false);
-    assert.equal(result.provisionalTabs, 6);
   } finally {
     globalThis.fetch = original;
   }
 });
 
-test('clearing memory after a click deadline rejects its late cloud labels and permits a fresh cleanup', async () => {
+test('clearing memory after a click deadline rejects its late plan and permits a fresh cleanup', async () => {
   const tabs = makeTopicTabs(75, 7500, { food: 3, travel: 3 });
   installBrowser(tabs);
   const cloud = installCloudFetch({ delayMs: () => 700 });
@@ -1911,16 +1477,15 @@ test('clearing memory after a click deadline rejects its late cloud labels and p
   try {
     const first = await executeTabGrouping(75, settings, { budgetMs: 1000 });
     assert.equal(first.deadlineHit, true);
-    assert.equal(first.provisionalTabs, 6);
+    assert.equal(first.source, 'plan-pending');
     await LearningCache.resetRules();
     assert.ok(await waitFor(() => cloud.completed() === 1));
     await new Promise(resolve => setTimeout(resolve, 20));
-    assert.deepEqual(await TabLabelCache.read(), {});
+    assert.equal(await getPlanOffer(75), null);
     assert.equal(await WindowPlanStore.get(75), null);
     const fresh = await executeTabGrouping(75, settings);
-    assert.equal(fresh.provisionalTabs, 0);
-    assert.equal(cloud.labelRequests().length, 2, 'post-reset work makes a fresh provider request');
-    assert.equal(Object.keys(await TabLabelCache.read()).length, 6);
+    assert.equal(fresh.source, 'cloud-plan');
+    assert.equal(cloud.plans().length, 2, 'post-reset work makes a fresh provider request');
   } finally {
     cloud.restore();
   }
@@ -1949,74 +1514,4 @@ test('clearing memory during Chrome application rejects the old cleanup result a
   assert.equal(fresh.success, true);
   assert.equal(local.foldnex_exact_results_v1.length, 1, 'new work can save an exact result');
   assert.ok(await WindowPlanStore.get(76));
-});
-
-test('a Nano click with no time left to name its groups is not reused by the exact cache', async () => {
-  const tabs = makeTopicTabs(73, 7300, { food: 4, travel: 4, dev: 4 });
-  const { local } = installBrowser(tabs, { sync: { provider: 'gemini_nano' } });
-  // A fast estimate puts all 12 tabs in one prompt, which then leaves under 3 s.
-  local.foldnex_nano_perf_v1 = { overheadMs: 200, msPerTab: 60 };
-  const nano = installNanoMock({ nameFor: name => `${name} Hub`, labelDelayMs: 900 });
-  const settings = { provider: 'gemini_nano' };
-  try {
-    const first = await executeTabGrouping(73, settings, { budgetMs: 3400 });
-    assert.equal(first.source, 'nano');
-    assert.equal(first.deadlineHit, false);
-    assert.equal(first.provisionalTabs, 0);
-    assert.equal(nano.labelPrompts.length, 1);
-    assert.equal(nano.namePrompts.length, 0, 'naming was skipped for time');
-    assert.deepEqual(first.groups.map(group => group.name).sort(), ['Coding', 'Food & Recipes', 'Travel']);
-    assert.equal(local.foldnex_exact_results_v1, undefined, 'deterministic names are not cached');
-
-    // The background names the groups; the next click uses those names.
-    await refreshWindowPlan(73, settings);
-    assert.equal(nano.namePrompts.length, 1);
-    const second = await executeTabGrouping(73, settings);
-    assert.equal(second.source, 'label-cache');
-    assert.deepEqual(second.groups.map(group => group.name).sort(), ['Coding Hub', 'Food & Recipes Hub', 'Travel Hub']);
-    assert.equal(local.foldnex_exact_results_v1.length, 1, 'a named result is cached');
-
-    const third = await executeTabGrouping(73, settings);
-    assert.equal(third.source, 'exact-cache');
-    assert.deepEqual(membership(third.groups), membership(second.groups));
-    assert.equal(nano.namePrompts.length, 1);
-  } finally {
-    removeNanoMock();
-  }
-});
-
-test('an exact-cache hit takes a newer remembered name and keeps its membership', async () => {
-  const tabs = makeTopicTabs(74, 7400, { food: 4, travel: 4, dev: 4 });
-  const { local } = installBrowser(tabs);
-  const nano = installNanoMock({ nameFor: name => `${name} Hub` });
-  const settings = { provider: 'gemini_nano' };
-  try {
-    const first = await executeTabGrouping(74, settings);
-    assert.equal(nano.namePrompts.length, 1);
-    assert.equal(local.foldnex_exact_results_v1.length, 1);
-
-    // A later naming (another click or the background) renames the food group.
-    const memory = await PlanMemory.read();
-    const food = memory.names.find(record => record.n === 'Food & Recipes Hub');
-    assert.ok(food);
-    await PlanMemory.putNames([{ ...food, n: 'Weeknight Dinners' }]);
-
-    const prompts = nano.labelPrompts.length + nano.namePrompts.length;
-    const second = await executeTabGrouping(74, settings);
-    assert.equal(second.source, 'exact-cache');
-    assert.equal(nano.labelPrompts.length + nano.namePrompts.length, prompts, 'no model call');
-    assert.deepEqual(second.groups.map(group => group.name).sort(), ['Coding Hub', 'Travel Hub', 'Weeknight Dinners']);
-    const ids = groups => groups.map(group => [...group.tabIds].sort((a, b) => a - b).join(',')).sort();
-    assert.deepEqual(ids(second.groups), ids(first.groups));
-    assert.equal(second.nameSources.memory, 1);
-
-    // A remembered name another group already holds is not applied.
-    const travel = (await PlanMemory.read()).names.find(record => record.n === 'Travel Hub');
-    await PlanMemory.putNames([{ ...travel, n: 'Coding Hub' }]);
-    const third = await executeTabGrouping(74, settings);
-    assert.equal(third.source, 'exact-cache');
-    assert.deepEqual(third.groups.map(group => group.name).sort(), ['Coding Hub', 'Travel Hub', 'Weeknight Dinners']);
-  } finally {
-    removeNanoMock();
-  }
 });

@@ -1,0 +1,13063 @@
+{
+ "started": "2026-11-22T21-36-29",
+ "mode": "upkeep",
+ "stub": false,
+ "model": "claude-sonnet-5-5",
+ "thinking": "off",
+ "thinking_sent": {
+  "type": "between_tools"
+ },
+ "api_version": "2026-10-21",
+ "shares": [
+  0.1,
+  0.2,
+  0.3,
+  0.5
+ ],
+ "seeds": [
+  1001,
+  2001,
+  3001,
+  4001
+ ],
+ "seed_rule": "1000 * (share index + 1) + 1, the first seed of each share in eval/rescore.mjs",
+ "windows": [
+  "a-student",
+  "a-oncall",
+  "a-household",
+  "a-designer",
+  "a-hoarder",
+  "b-move",
+  "b-academic",
+  "b-expat",
+  "b-messy",
+  "b-shop",
+  "dev",
+  "life"
+ ],
+ "requests_scheduled": 48,
+ "max_cost_usd": 1,
+ "cost_usd": 0.4185120000000001,
+ "stopped_early": false,
+ "plan_example_name": "Wedding Plans",
+ "units": [
+  {
+   "window": "a-student",
+   "repeat": 0,
+   "tabs": 58,
+   "failed": false,
+   "wall_ms": 2891,
+   "input_tokens": 3283,
+   "output_tokens": 251,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009076,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "House Hunting",
+    "Christmas Social",
+    "Statistics Coursework",
+    "Minimum Wage Essay",
+    "Part-Time Jobs",
+    "Streaming & Games",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    9,
+    10,
+    8,
+    8,
+    8,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2891,
+     "headers_ms": 1554,
+     "ttfb_ms": 1555,
+     "first_token_ms": 1555,
+     "stop_reason": "end_turn",
+     "input_tokens": 3283,
+     "output_tokens": 251,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1096
+     },
+     "usage_raw": {
+      "input_tokens": 3283,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 251,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "House Hunting",
+      "ids": [
+       4,
+       5,
+       7,
+       26,
+       28,
+       33,
+       45,
+       49,
+       57
+      ]
+     },
+     {
+      "name": "Christmas Social",
+      "ids": [
+       1,
+       9,
+       12,
+       14,
+       22,
+       24,
+       27,
+       39,
+       50
+      ]
+     },
+     {
+      "name": "Statistics Coursework",
+      "ids": [
+       6,
+       15,
+       21,
+       23,
+       25,
+       29,
+       36,
+       38,
+       41,
+       55
+      ]
+     },
+     {
+      "name": "Minimum Wage Essay",
+      "ids": [
+       3,
+       13,
+       20,
+       32,
+       43,
+       46,
+       47,
+       53
+      ]
+     },
+     {
+      "name": "Part-Time Jobs",
+      "ids": [
+       16,
+       17,
+       30,
+       35,
+       40,
+       42,
+       54,
+       56
+      ]
+     },
+     {
+      "name": "Streaming & Games",
+      "ids": [
+       0,
+       10,
+       11,
+       19,
+       31,
+       44,
+       48,
+       51
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       8,
+       18,
+       34,
+       37,
+       52
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 64,
+   "visible_tabs": 58,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43,
+    63
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64
+   ],
+   "schedule": {
+    "position": 1,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:36:32.266Z"
+   }
+  },
+  {
+   "window": "a-student",
+   "repeat": 0,
+   "tabs": 51,
+   "failed": false,
+   "wall_ms": 2636,
+   "input_tokens": 3053,
+   "output_tokens": 250,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008606,
+   "score": {
+    "p": 0.9440993788819876,
+    "r": 0.9047619047619048,
+    "f1": 0.9240121580547113,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Secret Santa",
+    "House Hunting",
+    "Hiking Soc Social",
+    "Statistics Assignment",
+    "Minimum Wage Essay",
+    "Job Search",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    1,
+    7,
+    7,
+    10,
+    10,
+    8,
+    5,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2636,
+     "headers_ms": 1018,
+     "ttfb_ms": 1019,
+     "first_token_ms": 1019,
+     "stop_reason": "end_turn",
+     "input_tokens": 3053,
+     "output_tokens": 250,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 3053,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 250,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Secret Santa",
+      "ids": [
+       0
+      ]
+     },
+     {
+      "name": "House Hunting",
+      "ids": [
+       3,
+       5,
+       23,
+       25,
+       40,
+       44,
+       50
+      ]
+     },
+     {
+      "name": "Hiking Soc Social",
+      "ids": [
+       6,
+       7,
+       9,
+       11,
+       21,
+       24,
+       35
+      ]
+     },
+     {
+      "name": "Statistics Assignment",
+      "ids": [
+       4,
+       10,
+       12,
+       18,
+       19,
+       22,
+       26,
+       32,
+       34,
+       37
+      ]
+     },
+     {
+      "name": "Minimum Wage Essay",
+      "ids": [
+       1,
+       2,
+       17,
+       20,
+       28,
+       29,
+       39,
+       41,
+       42,
+       46
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       13,
+       14,
+       31,
+       36,
+       38,
+       47,
+       48,
+       49
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       8,
+       16,
+       27,
+       43,
+       45
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       15,
+       30,
+       33
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 64,
+   "visible_tabs": 51,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64
+   ],
+   "schedule": {
+    "position": 2,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:36:34.902Z"
+   }
+  },
+  {
+   "window": "a-student",
+   "repeat": 0,
+   "tabs": 45,
+   "failed": false,
+   "wall_ms": 3682,
+   "input_tokens": 2633,
+   "output_tokens": 255,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007816,
+   "score": {
+    "p": 1,
+    "r": 0.8017241379310345,
+    "f1": 0.8899521531100478,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Statistics Coursework",
+    "Minimum Wage Essay",
+    "Job Hunting",
+    "House Hunting",
+    "Hiking Soc Social",
+    "Secret Santa",
+    "Streaming and Music",
+    "Games",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    7,
+    7,
+    5,
+    5,
+    2,
+    6,
+    2,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3682,
+     "headers_ms": 2166,
+     "ttfb_ms": 2167,
+     "first_token_ms": 2167,
+     "stop_reason": "end_turn",
+     "input_tokens": 2633,
+     "output_tokens": 255,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2633,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 255,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Statistics Coursework",
+      "ids": [
+       2,
+       8,
+       13,
+       15,
+       25,
+       28,
+       41
+      ]
+     },
+     {
+      "name": "Minimum Wage Essay",
+      "ids": [
+       12,
+       14,
+       20,
+       21,
+       33,
+       34,
+       26
+      ]
+     },
+     {
+      "name": "Job Hunting",
+      "ids": [
+       9,
+       18,
+       24,
+       29,
+       40,
+       42,
+       43
+      ]
+     },
+     {
+      "name": "House Hunting",
+      "ids": [
+       17,
+       23,
+       32,
+       36,
+       44
+      ]
+     },
+     {
+      "name": "Hiking Soc Social",
+      "ids": [
+       4,
+       6,
+       16,
+       27,
+       37
+      ]
+     },
+     {
+      "name": "Secret Santa",
+      "ids": [
+       1,
+       3
+      ]
+     },
+     {
+      "name": "Streaming and Music",
+      "ids": [
+       0,
+       7,
+       11,
+       19,
+       35,
+       38
+      ]
+     },
+     {
+      "name": "Games",
+      "ids": [
+       5,
+       31
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       10,
+       22,
+       30,
+       39
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 64,
+   "visible_tabs": 45,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    32,
+    37,
+    43,
+    44,
+    46,
+    59
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64
+   ],
+   "schedule": {
+    "position": 3,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:36:38.586Z"
+   }
+  },
+  {
+   "window": "a-student",
+   "repeat": 0,
+   "tabs": 32,
+   "failed": false,
+   "wall_ms": 2531,
+   "input_tokens": 2177,
+   "output_tokens": 218,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006534,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Housing Search",
+    "Statistics Coursework",
+    "Labour Economics Essay",
+    "Part-Time Jobs",
+    "Hiking Society Social",
+    "Gaming and Streaming",
+    "Student Finance",
+    "Review Later"
+   ],
+   "group_sizes": [
+    4,
+    4,
+    6,
+    6,
+    4,
+    5,
+    1,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2531,
+     "headers_ms": 1063,
+     "ttfb_ms": 1063,
+     "first_token_ms": 1063,
+     "stop_reason": "end_turn",
+     "input_tokens": 2177,
+     "output_tokens": 218,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2177,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 218,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Housing Search",
+      "ids": [
+       3,
+       4,
+       26,
+       15
+      ]
+     },
+     {
+      "name": "Statistics Coursework",
+      "ids": [
+       5,
+       13,
+       14,
+       24
+      ]
+     },
+     {
+      "name": "Labour Economics Essay",
+      "ids": [
+       1,
+       2,
+       16,
+       17,
+       27,
+       29
+      ]
+     },
+     {
+      "name": "Part-Time Jobs",
+      "ids": [
+       10,
+       11,
+       20,
+       23,
+       30,
+       31
+      ]
+     },
+     {
+      "name": "Hiking Society Social",
+      "ids": [
+       7,
+       8,
+       9,
+       22
+      ]
+     },
+     {
+      "name": "Gaming and Streaming",
+      "ids": [
+       0,
+       6,
+       12,
+       21,
+       25
+      ]
+     },
+     {
+      "name": "Student Finance",
+      "ids": [
+       18
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       19,
+       28
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 64,
+   "visible_tabs": 32,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    23,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62
+   ],
+   "schedule": {
+    "position": 4,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:36:41.118Z"
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 0,
+   "tabs": 66,
+   "failed": false,
+   "wall_ms": 2603,
+   "input_tokens": 3627,
+   "output_tokens": 302,
+   "thinking_tokens": 0,
+   "cost_usd": 0.010274,
+   "score": {
+    "p": 0.8658536585365854,
+    "r": 0.8693877551020408,
+    "f1": 0.8676171079429734,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Ledger DB Upgrade",
+    "Checkout Incident",
+    "Vegas Trip",
+    "Monitoring Renewals",
+    "On-Call Ops",
+    "Reference Docs",
+    "Personal Admin",
+    "Reading and News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    12,
+    12,
+    9,
+    9,
+    5,
+    6,
+    7,
+    5,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2603,
+     "headers_ms": 1002,
+     "ttfb_ms": 1002,
+     "first_token_ms": 1002,
+     "stop_reason": "end_turn",
+     "input_tokens": 3627,
+     "output_tokens": 302,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1192
+     },
+     "usage_raw": {
+      "input_tokens": 3627,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 302,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Ledger DB Upgrade",
+      "ids": [
+       0,
+       1,
+       2,
+       15,
+       17,
+       21,
+       29,
+       31,
+       42,
+       46,
+       47,
+       49
+      ]
+     },
+     {
+      "name": "Checkout Incident",
+      "ids": [
+       3,
+       10,
+       16,
+       19,
+       26,
+       34,
+       38,
+       50,
+       51,
+       56,
+       65,
+       48
+      ]
+     },
+     {
+      "name": "Vegas Trip",
+      "ids": [
+       8,
+       9,
+       23,
+       28,
+       37,
+       39,
+       41,
+       57,
+       61
+      ]
+     },
+     {
+      "name": "Monitoring Renewals",
+      "ids": [
+       6,
+       14,
+       20,
+       27,
+       36,
+       45,
+       54,
+       55,
+       60
+      ]
+     },
+     {
+      "name": "On-Call Ops",
+      "ids": [
+       5,
+       30,
+       62,
+       7,
+       13
+      ]
+     },
+     {
+      "name": "Reference Docs",
+      "ids": [
+       11,
+       24,
+       25,
+       32,
+       58,
+       64
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       18,
+       22,
+       35,
+       43,
+       44,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Reading and News",
+      "ids": [
+       12,
+       33,
+       40,
+       53,
+       63
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       4
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 82,
+   "visible_tabs": 66,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61,
+    66,
+    77,
+    82
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    78,
+    79,
+    80,
+    81
+   ],
+   "schedule": {
+    "position": 5,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:36:43.722Z"
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 0,
+   "tabs": 57,
+   "failed": false,
+   "wall_ms": 4798,
+   "input_tokens": 3271,
+   "output_tokens": 284,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009382,
+   "score": {
+    "p": 0.9611111111111111,
+    "r": 0.9885714285714285,
+    "f1": 0.9746478873239437,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Checkout Incident",
+    "Database Upgrade",
+    "Vegas Trip",
+    "Monitoring Costs",
+    "Ops Reference",
+    "Keyboard Purchase",
+    "Personal Admin",
+    "On-Call Schedule",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    10,
+    9,
+    6,
+    8,
+    1,
+    5,
+    3,
+    5
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4798,
+     "headers_ms": 3115,
+     "ttfb_ms": 3115,
+     "first_token_ms": 3115,
+     "stop_reason": "end_turn",
+     "input_tokens": 3271,
+     "output_tokens": 284,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1084
+     },
+     "usage_raw": {
+      "input_tokens": 3271,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 284,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Checkout Incident",
+      "ids": [
+       0,
+       8,
+       12,
+       14,
+       19,
+       31,
+       45,
+       46,
+       47,
+       10
+      ]
+     },
+     {
+      "name": "Database Upgrade",
+      "ids": [
+       1,
+       3,
+       11,
+       13,
+       23,
+       26,
+       36,
+       39,
+       42,
+       43
+      ]
+     },
+     {
+      "name": "Vegas Trip",
+      "ids": [
+       7,
+       22,
+       32,
+       33,
+       35,
+       48,
+       50,
+       52,
+       30
+      ]
+     },
+     {
+      "name": "Monitoring Costs",
+      "ids": [
+       4,
+       15,
+       21,
+       24,
+       40,
+       49
+      ]
+     },
+     {
+      "name": "Ops Reference",
+      "ids": [
+       5,
+       17,
+       18,
+       27,
+       41,
+       44,
+       51,
+       25
+      ]
+     },
+     {
+      "name": "Keyboard Purchase",
+      "ids": [
+       2
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       16,
+       29,
+       37,
+       38,
+       56
+      ]
+     },
+     {
+      "name": "On-Call Schedule",
+      "ids": [
+       6,
+       20,
+       54
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       9,
+       28,
+       34,
+       53,
+       55
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 82,
+   "visible_tabs": 57,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46,
+    59,
+    67,
+    68,
+    69,
+    71,
+    74,
+    75,
+    80,
+    81
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    70,
+    72,
+    73,
+    76,
+    77,
+    78,
+    79,
+    82
+   ],
+   "schedule": {
+    "position": 6,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:36:48.521Z"
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 0,
+   "tabs": 41,
+   "failed": false,
+   "wall_ms": 2511,
+   "input_tokens": 2458,
+   "output_tokens": 233,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007246,
+   "score": {
+    "p": 0.9186046511627907,
+    "r": 0.8977272727272727,
+    "f1": 0.9080459770114941,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Checkout Incident",
+    "Postgres Upgrade",
+    "Las Vegas Trip",
+    "Ops Reference",
+    "Cost and Billing",
+    "On-call Admin",
+    "Personal Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    6,
+    6,
+    7,
+    3,
+    2,
+    3,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2511,
+     "headers_ms": 936,
+     "ttfb_ms": 936,
+     "first_token_ms": 936,
+     "stop_reason": "end_turn",
+     "input_tokens": 2458,
+     "output_tokens": 233,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2458,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 233,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Checkout Incident",
+      "ids": [
+       0,
+       3,
+       4,
+       11,
+       12,
+       14,
+       22,
+       33
+      ]
+     },
+     {
+      "name": "Postgres Upgrade",
+      "ids": [
+       1,
+       2,
+       18,
+       21,
+       30,
+       31
+      ]
+     },
+     {
+      "name": "Las Vegas Trip",
+      "ids": [
+       8,
+       17,
+       25,
+       26,
+       28,
+       34
+      ]
+     },
+     {
+      "name": "Ops Reference",
+      "ids": [
+       6,
+       9,
+       15,
+       29,
+       32,
+       37,
+       40
+      ]
+     },
+     {
+      "name": "Cost and Billing",
+      "ids": [
+       20,
+       24,
+       36
+      ]
+     },
+     {
+      "name": "On-call Admin",
+      "ids": [
+       16,
+       19
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       13,
+       23,
+       38
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       5,
+       7,
+       10,
+       27,
+       35,
+       39
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 82,
+   "visible_tabs": 41,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64,
+    67,
+    70,
+    71,
+    72,
+    75,
+    76,
+    77,
+    78,
+    81,
+    82
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    23,
+    25,
+    31,
+    33,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62,
+    65,
+    66,
+    68,
+    69,
+    73,
+    74,
+    79,
+    80
+   ],
+   "schedule": {
+    "position": 7,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:36:51.032Z"
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 0,
+   "tabs": 74,
+   "failed": false,
+   "wall_ms": 2621,
+   "input_tokens": 3958,
+   "output_tokens": 302,
+   "thinking_tokens": 0,
+   "cost_usd": 0.010936,
+   "score": {
+    "p": 0.9730639730639731,
+    "r": 0.9444444444444444,
+    "f1": 0.9585406301824213,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "INC-2291 Incident",
+    "Ledger-DB Upgrade",
+    "Vegas Trip",
+    "Monitoring Renewals",
+    "On-call Ops",
+    "Dev References",
+    "Personal Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    13,
+    12,
+    11,
+    9,
+    5,
+    8,
+    8,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2621,
+     "headers_ms": 888,
+     "ttfb_ms": 888,
+     "first_token_ms": 888,
+     "stop_reason": "end_turn",
+     "input_tokens": 3958,
+     "output_tokens": 302,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1288
+     },
+     "usage_raw": {
+      "input_tokens": 3958,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 302,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "INC-2291 Incident",
+      "ids": [
+       0,
+       4,
+       12,
+       18,
+       22,
+       28,
+       37,
+       41,
+       56,
+       57,
+       63,
+       72,
+       3
+      ]
+     },
+     {
+      "name": "Ledger-DB Upgrade",
+      "ids": [
+       1,
+       2,
+       7,
+       17,
+       19,
+       23,
+       34,
+       46,
+       49,
+       52,
+       53,
+       54
+      ]
+     },
+     {
+      "name": "Vegas Trip",
+      "ids": [
+       10,
+       11,
+       25,
+       31,
+       40,
+       42,
+       43,
+       45,
+       58,
+       64,
+       67
+      ]
+     },
+     {
+      "name": "Monitoring Renewals",
+      "ids": [
+       8,
+       16,
+       30,
+       33,
+       39,
+       50,
+       61,
+       66,
+       62
+      ]
+     },
+     {
+      "name": "On-call Ops",
+      "ids": [
+       6,
+       29,
+       32,
+       69,
+       70
+      ]
+     },
+     {
+      "name": "Dev References",
+      "ids": [
+       9,
+       13,
+       26,
+       27,
+       35,
+       51,
+       55,
+       71
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       20,
+       24,
+       38,
+       47,
+       48,
+       59,
+       65,
+       73
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       5,
+       14,
+       15,
+       21,
+       36,
+       44,
+       60,
+       68
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 82,
+   "visible_tabs": 74,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43,
+    63,
+    73
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82
+   ],
+   "schedule": {
+    "position": 8,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:36:53.655Z"
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 0,
+   "tabs": 44,
+   "failed": false,
+   "wall_ms": 5959,
+   "input_tokens": 2828,
+   "output_tokens": 237,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008026,
+   "score": {
+    "p": 0.8725490196078431,
+    "r": 0.7416666666666667,
+    "f1": 0.8018018018018018,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Croatia Vacation",
+    "Car Purchase",
+    "School and Kids",
+    "Hungarian Recipes",
+    "Meals and Groceries",
+    "Taxes and Finances",
+    "Munich News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    5,
+    6,
+    9,
+    4,
+    5,
+    6,
+    6,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 5959,
+     "headers_ms": 4520,
+     "ttfb_ms": 4521,
+     "first_token_ms": 4521,
+     "stop_reason": "end_turn",
+     "input_tokens": 2828,
+     "output_tokens": 237,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2828,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 237,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Croatia Vacation",
+      "ids": [
+       13,
+       15,
+       18,
+       21,
+       24
+      ]
+     },
+     {
+      "name": "Car Purchase",
+      "ids": [
+       10,
+       22,
+       39,
+       40,
+       41,
+       42
+      ]
+     },
+     {
+      "name": "School and Kids",
+      "ids": [
+       1,
+       2,
+       4,
+       14,
+       20,
+       23,
+       25,
+       28,
+       29
+      ]
+     },
+     {
+      "name": "Hungarian Recipes",
+      "ids": [
+       3,
+       5,
+       17,
+       33
+      ]
+     },
+     {
+      "name": "Meals and Groceries",
+      "ids": [
+       7,
+       8,
+       12,
+       19,
+       27
+      ]
+     },
+     {
+      "name": "Taxes and Finances",
+      "ids": [
+       6,
+       9,
+       11,
+       26,
+       34,
+       35
+      ]
+     },
+     {
+      "name": "Munich News",
+      "ids": [
+       0,
+       30,
+       32,
+       31,
+       36,
+       38
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       16,
+       37,
+       43
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 63,
+   "visible_tabs": 44,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    32,
+    37,
+    43,
+    44,
+    46,
+    59
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63
+   ],
+   "schedule": {
+    "position": 9,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:36:59.617Z"
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 0,
+   "tabs": 31,
+   "failed": false,
+   "wall_ms": 2060,
+   "input_tokens": 2153,
+   "output_tokens": 187,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006176,
+   "score": {
+    "p": 1,
+    "r": 0.9523809523809523,
+    "f1": 0.975609756097561,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Croatia Trip",
+    "Car Purchase",
+    "Hungarian Recipes",
+    "Kids School",
+    "Taxes and Finances",
+    "News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    6,
+    3,
+    4,
+    4,
+    6,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2060,
+     "headers_ms": 743,
+     "ttfb_ms": 744,
+     "first_token_ms": 744,
+     "stop_reason": "end_turn",
+     "input_tokens": 2153,
+     "output_tokens": 187,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2153,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 187,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Croatia Trip",
+      "ids": [
+       3,
+       4,
+       13,
+       16,
+       17,
+       19
+      ]
+     },
+     {
+      "name": "Car Purchase",
+      "ids": [
+       1,
+       2,
+       18,
+       28,
+       29,
+       30
+      ]
+     },
+     {
+      "name": "Hungarian Recipes",
+      "ids": [
+       6,
+       14,
+       26
+      ]
+     },
+     {
+      "name": "Kids School",
+      "ids": [
+       5,
+       15,
+       22,
+       23
+      ]
+     },
+     {
+      "name": "Taxes and Finances",
+      "ids": [
+       7,
+       10,
+       12,
+       27
+      ]
+     },
+     {
+      "name": "News",
+      "ids": [
+       0,
+       8,
+       11,
+       20,
+       24,
+       25
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       9,
+       21
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 63,
+   "visible_tabs": 31,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62
+   ],
+   "schedule": {
+    "position": 10,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:37:01.678Z"
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 0,
+   "tabs": 57,
+   "failed": false,
+   "wall_ms": 3337,
+   "input_tokens": 3522,
+   "output_tokens": 290,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009944,
+   "score": {
+    "p": 0.95,
+    "r": 0.7487684729064039,
+    "f1": 0.8374655647382919,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Car Purchase",
+    "Croatia Trip",
+    "School & Kids",
+    "Hungarian Recipes",
+    "Meal Planning",
+    "Finances & Taxes",
+    "Insurance",
+    "Munich News",
+    "Leisure",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    9,
+    9,
+    4,
+    5,
+    6,
+    2,
+    5,
+    5,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3337,
+     "headers_ms": 1609,
+     "ttfb_ms": 1609,
+     "first_token_ms": 1609,
+     "stop_reason": "end_turn",
+     "input_tokens": 3522,
+     "output_tokens": 290,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1084
+     },
+     "usage_raw": {
+      "input_tokens": 3522,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 290,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Car Purchase",
+      "ids": [
+       2,
+       3,
+       18,
+       26,
+       34,
+       38,
+       53,
+       54,
+       55,
+       56
+      ]
+     },
+     {
+      "name": "Croatia Trip",
+      "ids": [
+       4,
+       5,
+       23,
+       24,
+       25,
+       29,
+       30,
+       33,
+       35
+      ]
+     },
+     {
+      "name": "School & Kids",
+      "ids": [
+       1,
+       6,
+       7,
+       9,
+       32,
+       36,
+       40,
+       41,
+       42
+      ]
+     },
+     {
+      "name": "Hungarian Recipes",
+      "ids": [
+       8,
+       10,
+       28,
+       46
+      ]
+     },
+     {
+      "name": "Meal Planning",
+      "ids": [
+       11,
+       15,
+       20,
+       31,
+       39
+      ]
+     },
+     {
+      "name": "Finances & Taxes",
+      "ids": [
+       13,
+       16,
+       19,
+       37,
+       47,
+       48
+      ]
+     },
+     {
+      "name": "Insurance",
+      "ids": [
+       22,
+       52
+      ]
+     },
+     {
+      "name": "Munich News",
+      "ids": [
+       0,
+       17,
+       43,
+       45,
+       49
+      ]
+     },
+     {
+      "name": "Leisure",
+      "ids": [
+       14,
+       50,
+       51,
+       44,
+       12
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       21,
+       27
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 63,
+   "visible_tabs": 57,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43,
+    63
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62
+   ],
+   "schedule": {
+    "position": 11,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:37:05.019Z"
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 0,
+   "tabs": 50,
+   "failed": false,
+   "wall_ms": 2798,
+   "input_tokens": 3236,
+   "output_tokens": 260,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009072,
+   "score": {
+    "p": 0.9603174603174603,
+    "r": 0.7960526315789473,
+    "f1": 0.8705035971223022,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Car Purchase",
+    "Croatia Trip",
+    "School Letters",
+    "School Transfer",
+    "Hungarian School",
+    "Recipes and Meals",
+    "Taxes and Banking",
+    "Munich News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    8,
+    6,
+    3,
+    1,
+    7,
+    7,
+    7,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2798,
+     "headers_ms": 943,
+     "ttfb_ms": 943,
+     "first_token_ms": 943,
+     "stop_reason": "end_turn",
+     "input_tokens": 3236,
+     "output_tokens": 260,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 3236,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 260,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Car Purchase",
+      "ids": [
+       1,
+       2,
+       15,
+       23,
+       34,
+       46,
+       47,
+       48
+      ]
+     },
+     {
+      "name": "Croatia Trip",
+      "ids": [
+       3,
+       19,
+       21,
+       22,
+       26,
+       29,
+       30,
+       31
+      ]
+     },
+     {
+      "name": "School Letters",
+      "ids": [
+       5,
+       20,
+       32,
+       37,
+       38,
+       6
+      ]
+     },
+     {
+      "name": "School Transfer",
+      "ids": [
+       0,
+       28,
+       36
+      ]
+     },
+     {
+      "name": "Hungarian School",
+      "ids": [
+       4
+      ]
+     },
+     {
+      "name": "Recipes and Meals",
+      "ids": [
+       8,
+       12,
+       25,
+       27,
+       35,
+       41,
+       17
+      ]
+     },
+     {
+      "name": "Taxes and Banking",
+      "ids": [
+       7,
+       10,
+       13,
+       16,
+       33,
+       42,
+       43
+      ]
+     },
+     {
+      "name": "Munich News",
+      "ids": [
+       9,
+       14,
+       39,
+       40,
+       44,
+       45,
+       49
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       11,
+       18,
+       24
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 63,
+   "visible_tabs": 50,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63
+   ],
+   "schedule": {
+    "position": 12,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:37:07.820Z"
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 0,
+   "tabs": 33,
+   "failed": false,
+   "wall_ms": 4744,
+   "input_tokens": 2026,
+   "output_tokens": 204,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006092,
+   "score": {
+    "p": 0.7058823529411765,
+    "r": 0.8135593220338984,
+    "f1": 0.7559055118110236,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Monitor Shopping",
+    "Tidewater Festival Site",
+    "Hearth & Rye Branding",
+    "Business Finances",
+    "Webflow Learning",
+    "Stock Imagery",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    5,
+    9,
+    6,
+    1,
+    2,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4744,
+     "headers_ms": 3228,
+     "ttfb_ms": 3228,
+     "first_token_ms": 3228,
+     "stop_reason": "end_turn",
+     "input_tokens": 2026,
+     "output_tokens": 204,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2026,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 204,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Monitor Shopping",
+      "ids": [
+       0,
+       7,
+       19,
+       22,
+       30,
+       32
+      ]
+     },
+     {
+      "name": "Tidewater Festival Site",
+      "ids": [
+       1,
+       4,
+       18,
+       20,
+       26
+      ]
+     },
+     {
+      "name": "Hearth & Rye Branding",
+      "ids": [
+       2,
+       3,
+       5,
+       6,
+       8,
+       13,
+       14,
+       23,
+       24
+      ]
+     },
+     {
+      "name": "Business Finances",
+      "ids": [
+       10,
+       11,
+       15,
+       27,
+       29,
+       31
+      ]
+     },
+     {
+      "name": "Webflow Learning",
+      "ids": [
+       9
+      ]
+     },
+     {
+      "name": "Stock Imagery",
+      "ids": [
+       25,
+       28
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       12,
+       16,
+       17,
+       21
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 66,
+   "visible_tabs": 33,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62,
+    65,
+    66
+   ],
+   "schedule": {
+    "position": 13,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:37:12.564Z"
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 0,
+   "tabs": 59,
+   "failed": false,
+   "wall_ms": 2891,
+   "input_tokens": 3295,
+   "output_tokens": 313,
+   "thinking_tokens": 0,
+   "cost_usd": 0.00972,
+   "score": {
+    "p": 0.9221556886227545,
+    "r": 0.7368421052631579,
+    "f1": 0.8191489361702128,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Hearth & Rye Rebrand",
+    "Tidewater Festival Site",
+    "Monitor Purchase",
+    "Typeface Licensing",
+    "Design Inspiration",
+    "Colour Accessibility",
+    "Stock Imagery",
+    "Business Finances",
+    "Freelance Life",
+    "Review Later"
+   ],
+   "group_sizes": [
+    12,
+    8,
+    8,
+    5,
+    6,
+    3,
+    3,
+    8,
+    3,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2891,
+     "headers_ms": 1010,
+     "ttfb_ms": 1010,
+     "first_token_ms": 1010,
+     "stop_reason": "end_turn",
+     "input_tokens": 3295,
+     "output_tokens": 313,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1108
+     },
+     "usage_raw": {
+      "input_tokens": 3295,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 313,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Hearth & Rye Rebrand",
+      "ids": [
+       10,
+       11,
+       22,
+       26,
+       27,
+       29,
+       30,
+       35,
+       40,
+       43,
+       50,
+       56
+      ]
+     },
+     {
+      "name": "Tidewater Festival Site",
+      "ids": [
+       4,
+       13,
+       33,
+       41,
+       42,
+       45,
+       48,
+       54
+      ]
+     },
+     {
+      "name": "Monitor Purchase",
+      "ids": [
+       0,
+       8,
+       28,
+       34,
+       37,
+       39,
+       55,
+       58
+      ]
+     },
+     {
+      "name": "Typeface Licensing",
+      "ids": [
+       1,
+       2,
+       5,
+       20,
+       25
+      ]
+     },
+     {
+      "name": "Design Inspiration",
+      "ids": [
+       6,
+       9,
+       12,
+       14,
+       23,
+       36
+      ]
+     },
+     {
+      "name": "Colour Accessibility",
+      "ids": [
+       3,
+       7,
+       47
+      ]
+     },
+     {
+      "name": "Stock Imagery",
+      "ids": [
+       24,
+       44,
+       52
+      ]
+     },
+     {
+      "name": "Business Finances",
+      "ids": [
+       15,
+       16,
+       17,
+       31,
+       46,
+       51,
+       53,
+       57
+      ]
+     },
+     {
+      "name": "Freelance Life",
+      "ids": [
+       18,
+       32,
+       38
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       19,
+       21,
+       49
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 66,
+   "visible_tabs": 59,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43,
+    63
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64,
+    65,
+    66
+   ],
+   "schedule": {
+    "position": 14,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:37:15.457Z"
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 0,
+   "tabs": 53,
+   "failed": false,
+   "wall_ms": 2315,
+   "input_tokens": 2949,
+   "output_tokens": 247,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008368,
+   "score": {
+    "p": 0.776595744680851,
+    "r": 0.8202247191011236,
+    "f1": 0.7978142076502731,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tidewater Website",
+    "Hearth & Rye Rebrand",
+    "Typeface Licensing",
+    "Monitor Purchase",
+    "Stock Imagery",
+    "Tax & Accounts",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    13,
+    7,
+    7,
+    3,
+    9,
+    5
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2315,
+     "headers_ms": 998,
+     "ttfb_ms": 998,
+     "first_token_ms": 998,
+     "stop_reason": "end_turn",
+     "input_tokens": 2949,
+     "output_tokens": 247,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1036
+     },
+     "usage_raw": {
+      "input_tokens": 2949,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 247,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tidewater Website",
+      "ids": [
+       1,
+       3,
+       31,
+       39,
+       40,
+       42,
+       45,
+       11,
+       44
+      ]
+     },
+     {
+      "name": "Hearth & Rye Rebrand",
+      "ids": [
+       8,
+       9,
+       19,
+       25,
+       33,
+       38,
+       46,
+       51,
+       10,
+       12,
+       21,
+       34,
+       27
+      ]
+     },
+     {
+      "name": "Typeface Licensing",
+      "ids": [
+       0,
+       2,
+       4,
+       5,
+       18,
+       23,
+       50
+      ]
+     },
+     {
+      "name": "Monitor Purchase",
+      "ids": [
+       6,
+       7,
+       26,
+       32,
+       35,
+       37,
+       49
+      ]
+     },
+     {
+      "name": "Stock Imagery",
+      "ids": [
+       22,
+       41,
+       47
+      ]
+     },
+     {
+      "name": "Tax & Accounts",
+      "ids": [
+       13,
+       14,
+       15,
+       20,
+       24,
+       28,
+       43,
+       48,
+       52
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       16,
+       17,
+       29,
+       30,
+       36
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 66,
+   "visible_tabs": 53,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61,
+    66
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65
+   ],
+   "schedule": {
+    "position": 15,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:37:17.772Z"
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 0,
+   "tabs": 46,
+   "failed": false,
+   "wall_ms": 4393,
+   "input_tokens": 2748,
+   "output_tokens": 220,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007696,
+   "score": {
+    "p": 0.7307692307692307,
+    "r": 0.9047619047619048,
+    "f1": 0.8085106382978723,
+    "groups": 6
+   },
+   "groups": 6,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Hearth & Rye Rebrand",
+    "Tidewater Festival Site",
+    "Monitor Purchase",
+    "Tax and Accounts",
+    "Stock Imagery Licences",
+    "Review Later"
+   ],
+   "group_sizes": [
+    13,
+    8,
+    6,
+    10,
+    2,
+    7
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4393,
+     "headers_ms": 2460,
+     "ttfb_ms": 2460,
+     "first_token_ms": 2460,
+     "stop_reason": "end_turn",
+     "input_tokens": 2748,
+     "output_tokens": 220,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2748,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 220,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Hearth & Rye Rebrand",
+      "ids": [
+       7,
+       13,
+       17,
+       24,
+       27,
+       37,
+       43,
+       18,
+       25,
+       5,
+       1,
+       2,
+       30
+      ]
+     },
+     {
+      "name": "Tidewater Festival Site",
+      "ids": [
+       28,
+       29,
+       32,
+       35,
+       40,
+       21,
+       34,
+       3
+      ]
+     },
+     {
+      "name": "Monitor Purchase",
+      "ids": [
+       0,
+       4,
+       6,
+       23,
+       41,
+       45
+      ]
+     },
+     {
+      "name": "Tax and Accounts",
+      "ids": [
+       9,
+       10,
+       14,
+       16,
+       19,
+       22,
+       33,
+       38,
+       39,
+       44
+      ]
+     },
+     {
+      "name": "Stock Imagery Licences",
+      "ids": [
+       15,
+       31
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       8,
+       11,
+       12,
+       20,
+       26,
+       36,
+       42
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 66,
+   "visible_tabs": 46,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    31,
+    32,
+    37,
+    43,
+    44,
+    46,
+    59
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66
+   ],
+   "schedule": {
+    "position": 16,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:37:22.167Z"
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 0,
+   "tabs": 180,
+   "failed": false,
+   "wall_ms": 7450,
+   "input_tokens": 8237,
+   "output_tokens": 548,
+   "thinking_tokens": 0,
+   "cost_usd": 0.021954,
+   "score": {
+    "p": 0.9221604447974583,
+    "r": 0.9127358490566038,
+    "f1": 0.9174239431054918,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Offline Mode Launch",
+    "Enterprise SSO",
+    "Pricing v3",
+    "Lisbon Offsite",
+    "Product Hiring",
+    "Competitor Analysis",
+    "Product Reading",
+    "Metrics & Analytics",
+    "Home Errands",
+    "Review Later"
+   ],
+   "group_sizes": [
+    22,
+    19,
+    12,
+    16,
+    17,
+    15,
+    22,
+    25,
+    16,
+    16
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 7450,
+     "headers_ms": 4033,
+     "ttfb_ms": 4033,
+     "first_token_ms": 4033,
+     "stop_reason": "end_turn",
+     "input_tokens": 8237,
+     "output_tokens": 548,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 2560
+     },
+     "usage_raw": {
+      "input_tokens": 8237,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 548,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Offline Mode Launch",
+      "ids": [
+       2,
+       3,
+       14,
+       35,
+       50,
+       68,
+       75,
+       81,
+       92,
+       102,
+       103,
+       105,
+       109,
+       121,
+       127,
+       130,
+       143,
+       157,
+       159,
+       164,
+       170,
+       172
+      ]
+     },
+     {
+      "name": "Enterprise SSO",
+      "ids": [
+       10,
+       25,
+       36,
+       39,
+       45,
+       67,
+       69,
+       73,
+       76,
+       82,
+       87,
+       98,
+       99,
+       112,
+       125,
+       129,
+       145,
+       151,
+       173
+      ]
+     },
+     {
+      "name": "Pricing v3",
+      "ids": [
+       13,
+       30,
+       33,
+       60,
+       66,
+       86,
+       91,
+       93,
+       100,
+       136,
+       142,
+       152
+      ]
+     },
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       0,
+       1,
+       22,
+       27,
+       32,
+       42,
+       44,
+       51,
+       55,
+       123,
+       134,
+       148,
+       153,
+       160,
+       163,
+       174
+      ]
+     },
+     {
+      "name": "Product Hiring",
+      "ids": [
+       5,
+       15,
+       17,
+       20,
+       21,
+       46,
+       77,
+       78,
+       80,
+       83,
+       95,
+       114,
+       122,
+       133,
+       139,
+       161,
+       166
+      ]
+     },
+     {
+      "name": "Competitor Analysis",
+      "ids": [
+       43,
+       47,
+       57,
+       61,
+       70,
+       108,
+       118,
+       135,
+       140,
+       155,
+       158,
+       171,
+       178,
+       53,
+       40
+      ]
+     },
+     {
+      "name": "Product Reading",
+      "ids": [
+       6,
+       18,
+       23,
+       28,
+       31,
+       52,
+       54,
+       59,
+       62,
+       63,
+       71,
+       79,
+       84,
+       85,
+       106,
+       111,
+       144,
+       154,
+       156,
+       165,
+       65,
+       120
+      ]
+     },
+     {
+      "name": "Metrics & Analytics",
+      "ids": [
+       4,
+       16,
+       24,
+       41,
+       48,
+       74,
+       90,
+       104,
+       110,
+       113,
+       131,
+       146,
+       175,
+       176,
+       179,
+       141,
+       7,
+       8,
+       9,
+       12,
+       37,
+       97,
+       117,
+       132,
+       119
+      ]
+     },
+     {
+      "name": "Home Errands",
+      "ids": [
+       19,
+       26,
+       29,
+       34,
+       72,
+       88,
+       96,
+       115,
+       124,
+       137,
+       138,
+       147,
+       150,
+       116,
+       58,
+       38
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       11,
+       49,
+       56,
+       64,
+       89,
+       94,
+       101,
+       107,
+       126,
+       128,
+       149,
+       162,
+       167,
+       168,
+       169,
+       177
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 200,
+   "visible_tabs": 180,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43,
+    63,
+    73,
+    90,
+    104,
+    108,
+    115,
+    118,
+    119,
+    126,
+    141,
+    143,
+    162,
+    179,
+    193
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    105,
+    106,
+    107,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    116,
+    117,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    142,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    163,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    180,
+    181,
+    182,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    194,
+    195,
+    196,
+    197,
+    198,
+    199,
+    200
+   ],
+   "schedule": {
+    "position": 17,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:37:29.619Z"
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 0,
+   "tabs": 160,
+   "failed": false,
+   "wall_ms": 4159,
+   "input_tokens": 7337,
+   "output_tokens": 506,
+   "thinking_tokens": 0,
+   "cost_usd": 0.019734,
+   "score": {
+    "p": 0.8767535070140281,
+    "r": 0.8519961051606622,
+    "f1": 0.8641975308641976,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Lisbon Offsite",
+    "Offline Mode",
+    "Enterprise SSO",
+    "Pricing v3",
+    "Competitor Analysis",
+    "Product Analytics",
+    "PM Job Hunt",
+    "Designer Hiring",
+    "Home Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    13,
+    16,
+    17,
+    15,
+    16,
+    20,
+    19,
+    9,
+    15,
+    20
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4159,
+     "headers_ms": 1082,
+     "ttfb_ms": 1082,
+     "first_token_ms": 1082,
+     "stop_reason": "end_turn",
+     "input_tokens": 7337,
+     "output_tokens": 506,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 2320
+     },
+     "usage_raw": {
+      "input_tokens": 7337,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 506,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       0,
+       17,
+       23,
+       28,
+       37,
+       45,
+       93,
+       111,
+       120,
+       132,
+       136,
+       143,
+       36
+      ]
+     },
+     {
+      "name": "Offline Mode",
+      "ids": [
+       2,
+       7,
+       10,
+       30,
+       42,
+       64,
+       69,
+       78,
+       90,
+       95,
+       116,
+       118,
+       139,
+       141,
+       150,
+       152
+      ]
+     },
+     {
+      "name": "Enterprise SSO",
+      "ids": [
+       6,
+       21,
+       31,
+       34,
+       58,
+       59,
+       65,
+       73,
+       86,
+       87,
+       101,
+       113,
+       114,
+       129,
+       134,
+       154,
+       38
+      ]
+     },
+     {
+      "name": "Pricing v3",
+      "ids": [
+       9,
+       25,
+       50,
+       57,
+       77,
+       79,
+       88,
+       94,
+       115,
+       122,
+       126,
+       127,
+       135,
+       142,
+       153
+      ]
+     },
+     {
+      "name": "Competitor Analysis",
+      "ids": [
+       5,
+       35,
+       40,
+       44,
+       48,
+       51,
+       56,
+       60,
+       84,
+       107,
+       121,
+       124,
+       137,
+       140,
+       151,
+       158
+      ]
+     },
+     {
+      "name": "Product Analytics",
+      "ids": [
+       3,
+       12,
+       20,
+       41,
+       68,
+       76,
+       80,
+       92,
+       98,
+       99,
+       102,
+       119,
+       130,
+       145,
+       155,
+       156,
+       159,
+       128,
+       8,
+       100
+      ]
+     },
+     {
+      "name": "PM Job Hunt",
+      "ids": [
+       11,
+       16,
+       18,
+       70,
+       1,
+       4,
+       24,
+       26,
+       43,
+       49,
+       53,
+       61,
+       67,
+       72,
+       96,
+       138,
+       146,
+       52,
+       14
+      ]
+     },
+     {
+      "name": "Designer Hiring",
+      "ids": [
+       13,
+       55,
+       66,
+       82,
+       103,
+       110,
+       123,
+       144,
+       39
+      ]
+     },
+     {
+      "name": "Home Admin",
+      "ids": [
+       15,
+       22,
+       27,
+       29,
+       33,
+       62,
+       74,
+       83,
+       104,
+       105,
+       112,
+       131,
+       133,
+       148,
+       106
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       19,
+       32,
+       46,
+       47,
+       54,
+       63,
+       71,
+       75,
+       81,
+       85,
+       89,
+       91,
+       97,
+       108,
+       109,
+       117,
+       147,
+       149,
+       157,
+       125
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 200,
+   "visible_tabs": 160,
+   "hidden_ids": [
+    1,
+    5,
+    7,
+    9,
+    10,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    48,
+    50,
+    56,
+    58,
+    61,
+    66,
+    77,
+    82,
+    86,
+    89,
+    92,
+    96,
+    116,
+    123,
+    124,
+    137,
+    144,
+    147,
+    150,
+    151,
+    155,
+    156,
+    161,
+    168,
+    173,
+    182,
+    183,
+    184,
+    195
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    8,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    78,
+    79,
+    80,
+    81,
+    83,
+    84,
+    85,
+    87,
+    88,
+    90,
+    91,
+    93,
+    94,
+    95,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    145,
+    146,
+    148,
+    149,
+    152,
+    153,
+    154,
+    157,
+    158,
+    159,
+    160,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    169,
+    170,
+    171,
+    172,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    196,
+    197,
+    198,
+    199,
+    200
+   ],
+   "schedule": {
+    "position": 18,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:37:33.781Z"
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 0,
+   "tabs": 140,
+   "failed": false,
+   "wall_ms": 6238,
+   "input_tokens": 6599,
+   "output_tokens": 471,
+   "thinking_tokens": 0,
+   "cost_usd": 0.017908,
+   "score": {
+    "p": 0.8944519621109608,
+    "r": 0.8896366083445492,
+    "f1": 0.8920377867746289,
+    "groups": 11
+   },
+   "groups": 10,
+   "left_out": 1,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Lisbon Offsite",
+    "SCIM SSO Enterprise",
+    "Offline Mode Launch",
+    "Pricing Redesign",
+    "Competitor Research",
+    "PM Job Hunt",
+    "Hiring Designer",
+    "Product Analytics",
+    "Home Errands",
+    "Review Later"
+   ],
+   "group_sizes": [
+    13,
+    14,
+    17,
+    13,
+    15,
+    14,
+    11,
+    13,
+    28,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 6238,
+     "headers_ms": 3289,
+     "ttfb_ms": 3289,
+     "first_token_ms": 3289,
+     "stop_reason": "end_turn",
+     "input_tokens": 6599,
+     "output_tokens": 471,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 2080
+     },
+     "usage_raw": {
+      "input_tokens": 6599,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 471,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       1,
+       13,
+       17,
+       31,
+       33,
+       40,
+       43,
+       81,
+       97,
+       114,
+       119,
+       127,
+       135
+      ]
+     },
+     {
+      "name": "SCIM SSO Enterprise",
+      "ids": [
+       7,
+       27,
+       51,
+       53,
+       55,
+       62,
+       64,
+       74,
+       75,
+       86,
+       100,
+       111,
+       117,
+       34
+      ]
+     },
+     {
+      "name": "Offline Mode Launch",
+      "ids": [
+       8,
+       26,
+       39,
+       52,
+       57,
+       61,
+       77,
+       79,
+       84,
+       95,
+       98,
+       101,
+       123,
+       125,
+       132,
+       133,
+       85
+      ]
+     },
+     {
+      "name": "Pricing Redesign",
+      "ids": [
+       3,
+       20,
+       23,
+       68,
+       76,
+       103,
+       109,
+       110,
+       118,
+       126,
+       134,
+       41,
+       0
+      ]
+     },
+     {
+      "name": "Competitor Research",
+      "ids": [
+       6,
+       24,
+       29,
+       32,
+       36,
+       46,
+       54,
+       72,
+       73,
+       92,
+       107,
+       108,
+       121,
+       124,
+       138
+      ]
+     },
+     {
+      "name": "PM Job Hunt",
+      "ids": [
+       9,
+       14,
+       21,
+       42,
+       47,
+       48,
+       63,
+       120,
+       82,
+       122,
+       11,
+       18,
+       59,
+       94
+      ]
+     },
+     {
+      "name": "Hiring Designer",
+      "ids": [
+       2,
+       10,
+       35,
+       58,
+       71,
+       88,
+       96,
+       102,
+       106,
+       130,
+       50
+      ]
+     },
+     {
+      "name": "Product Analytics",
+      "ids": [
+       15,
+       37,
+       60,
+       67,
+       69,
+       80,
+       87,
+       112,
+       129,
+       136,
+       137,
+       139,
+       56
+      ]
+     },
+     {
+      "name": "Home Errands",
+      "ids": [
+       4,
+       5,
+       12,
+       16,
+       19,
+       22,
+       25,
+       28,
+       65,
+       89,
+       90,
+       104,
+       105,
+       113,
+       115,
+       116,
+       38,
+       66,
+       45,
+       99,
+       44,
+       128,
+       131,
+       70,
+       78,
+       91,
+       93,
+       49
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       30
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 200,
+   "visible_tabs": 140,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46,
+    59,
+    67,
+    68,
+    69,
+    71,
+    74,
+    75,
+    80,
+    81,
+    85,
+    86,
+    89,
+    94,
+    95,
+    96,
+    102,
+    103,
+    107,
+    113,
+    119,
+    120,
+    123,
+    126,
+    127,
+    140,
+    141,
+    142,
+    143,
+    144,
+    149,
+    150,
+    152,
+    153,
+    161,
+    163,
+    181,
+    183,
+    184,
+    187,
+    188,
+    191,
+    194,
+    198
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    70,
+    72,
+    73,
+    76,
+    77,
+    78,
+    79,
+    82,
+    83,
+    84,
+    87,
+    88,
+    90,
+    91,
+    92,
+    93,
+    97,
+    98,
+    99,
+    100,
+    101,
+    104,
+    105,
+    106,
+    108,
+    109,
+    110,
+    111,
+    112,
+    114,
+    115,
+    116,
+    117,
+    118,
+    121,
+    122,
+    124,
+    125,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    145,
+    146,
+    147,
+    148,
+    151,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    162,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    182,
+    185,
+    186,
+    189,
+    190,
+    192,
+    193,
+    195,
+    196,
+    197,
+    199,
+    200
+   ],
+   "schedule": {
+    "position": 19,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:37:40.021Z"
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 0,
+   "tabs": 100,
+   "failed": false,
+   "wall_ms": 3775,
+   "input_tokens": 4926,
+   "output_tokens": 382,
+   "thinking_tokens": 0,
+   "cost_usd": 0.013672,
+   "score": {
+    "p": 0.8758782201405152,
+    "r": 0.8657407407407407,
+    "f1": 0.870779976717113,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Offline Mode Launch",
+    "Pricing v3",
+    "Enterprise SSO",
+    "Competitor Research",
+    "Lisbon Offsite",
+    "Hiring",
+    "Product Metrics",
+    "Product Reading",
+    "Home & Personal",
+    "Review Later"
+   ],
+   "group_sizes": [
+    14,
+    15,
+    4,
+    12,
+    10,
+    10,
+    8,
+    12,
+    13,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3775,
+     "headers_ms": 1398,
+     "ttfb_ms": 1398,
+     "first_token_ms": 1398,
+     "stop_reason": "end_turn",
+     "input_tokens": 4926,
+     "output_tokens": 382,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1600
+     },
+     "usage_raw": {
+      "input_tokens": 4926,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 382,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Offline Mode Launch",
+      "ids": [
+       0,
+       2,
+       3,
+       8,
+       41,
+       52,
+       61,
+       62,
+       65,
+       70,
+       76,
+       87,
+       88,
+       96
+      ]
+     },
+     {
+      "name": "Pricing v3",
+      "ids": [
+       7,
+       9,
+       27,
+       34,
+       38,
+       49,
+       51,
+       59,
+       74,
+       78,
+       80,
+       82,
+       89,
+       97,
+       19
+      ]
+     },
+     {
+      "name": "Enterprise SSO",
+      "ids": [
+       23,
+       42,
+       73,
+       75
+      ]
+     },
+     {
+      "name": "Competitor Research",
+      "ids": [
+       24,
+       25,
+       30,
+       32,
+       35,
+       37,
+       57,
+       58,
+       64,
+       86,
+       95,
+       81
+      ]
+     },
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       14,
+       15,
+       18,
+       26,
+       28,
+       31,
+       71,
+       83,
+       91,
+       98
+      ]
+     },
+     {
+      "name": "Hiring",
+      "ids": [
+       5,
+       10,
+       13,
+       43,
+       45,
+       46,
+       55,
+       67,
+       90,
+       92
+      ]
+     },
+     {
+      "name": "Product Metrics",
+      "ids": [
+       4,
+       11,
+       53,
+       63,
+       66,
+       77,
+       99,
+       69
+      ]
+     },
+     {
+      "name": "Product Reading",
+      "ids": [
+       1,
+       12,
+       16,
+       29,
+       39,
+       44,
+       47,
+       48,
+       85,
+       54,
+       60,
+       94
+      ]
+     },
+     {
+      "name": "Home & Personal",
+      "ids": [
+       6,
+       17,
+       20,
+       21,
+       22,
+       33,
+       50,
+       56,
+       68,
+       72,
+       79,
+       84,
+       93
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       36,
+       40
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 200,
+   "visible_tabs": 100,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64,
+    67,
+    70,
+    71,
+    72,
+    75,
+    76,
+    77,
+    78,
+    81,
+    82,
+    87,
+    90,
+    91,
+    92,
+    97,
+    99,
+    100,
+    103,
+    110,
+    111,
+    115,
+    118,
+    119,
+    120,
+    121,
+    122,
+    125,
+    127,
+    128,
+    129,
+    131,
+    133,
+    134,
+    136,
+    138,
+    141,
+    144,
+    145,
+    146,
+    150,
+    151,
+    152,
+    153,
+    155,
+    157,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    169,
+    170,
+    171,
+    172,
+    175,
+    177,
+    180,
+    182,
+    184,
+    185,
+    187,
+    190,
+    194,
+    196,
+    197,
+    198,
+    199
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    23,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62,
+    65,
+    66,
+    68,
+    69,
+    73,
+    74,
+    79,
+    80,
+    83,
+    84,
+    85,
+    86,
+    88,
+    89,
+    93,
+    94,
+    95,
+    96,
+    98,
+    101,
+    102,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    112,
+    113,
+    114,
+    116,
+    117,
+    123,
+    124,
+    126,
+    130,
+    132,
+    135,
+    137,
+    139,
+    140,
+    142,
+    143,
+    147,
+    148,
+    149,
+    154,
+    156,
+    158,
+    159,
+    160,
+    167,
+    168,
+    173,
+    174,
+    176,
+    178,
+    179,
+    181,
+    183,
+    186,
+    188,
+    189,
+    191,
+    192,
+    193,
+    195,
+    200
+   ],
+   "schedule": {
+    "position": 20,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:37:43.797Z"
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 0,
+   "tabs": 43,
+   "failed": false,
+   "wall_ms": 2408,
+   "input_tokens": 2543,
+   "output_tokens": 216,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007246,
+   "score": {
+    "p": 0.6530612244897959,
+    "r": 0.7191011235955056,
+    "f1": 0.6844919786096256,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Dishwasher Purchase",
+    "Home Move",
+    "School Move",
+    "Christmas Gifts",
+    "Christmas Dinner",
+    "Theatre Trip",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    10,
+    5,
+    8,
+    3,
+    2,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2408,
+     "headers_ms": 801,
+     "ttfb_ms": 802,
+     "first_token_ms": 802,
+     "stop_reason": "end_turn",
+     "input_tokens": 2543,
+     "output_tokens": 216,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2543,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 216,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Dishwasher Purchase",
+      "ids": [
+       0,
+       4,
+       7,
+       13,
+       20,
+       21,
+       22
+      ]
+     },
+     {
+      "name": "Home Move",
+      "ids": [
+       2,
+       5,
+       6,
+       8,
+       10,
+       14,
+       15,
+       16,
+       17,
+       41
+      ]
+     },
+     {
+      "name": "School Move",
+      "ids": [
+       19,
+       26,
+       28,
+       34,
+       42
+      ]
+     },
+     {
+      "name": "Christmas Gifts",
+      "ids": [
+       11,
+       24,
+       29,
+       31,
+       33,
+       37,
+       38,
+       9
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       1,
+       30,
+       40
+      ]
+     },
+     {
+      "name": "Theatre Trip",
+      "ids": [
+       12,
+       18
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       23,
+       25,
+       27,
+       32,
+       35,
+       36,
+       39
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 54,
+   "visible_tabs": 43,
+   "hidden_ids": [
+    1,
+    5,
+    7,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 21,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:37:46.206Z"
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 0,
+   "tabs": 38,
+   "failed": false,
+   "wall_ms": 4121,
+   "input_tokens": 2299,
+   "output_tokens": 208,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006678,
+   "score": {
+    "p": 0.6904761904761905,
+    "r": 0.8787878787878788,
+    "f1": 0.7733333333333333,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Moving Home",
+    "School Places",
+    "Dishwasher Purchase",
+    "Christmas Dinner",
+    "Christmas Gifts",
+    "Cinderella Outing",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    6,
+    4,
+    4,
+    5,
+    2,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4121,
+     "headers_ms": 2824,
+     "ttfb_ms": 2824,
+     "first_token_ms": 2824,
+     "stop_reason": "end_turn",
+     "input_tokens": 2299,
+     "output_tokens": 208,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2299,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 208,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Moving Home",
+      "ids": [
+       2,
+       4,
+       5,
+       6,
+       11,
+       12,
+       13,
+       24,
+       30,
+       36,
+       19
+      ]
+     },
+     {
+      "name": "School Places",
+      "ids": [
+       0,
+       15,
+       21,
+       23,
+       29,
+       37
+      ]
+     },
+     {
+      "name": "Dishwasher Purchase",
+      "ids": [
+       1,
+       7,
+       16,
+       20
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       25,
+       26,
+       33,
+       35
+      ]
+     },
+     {
+      "name": "Christmas Gifts",
+      "ids": [
+       9,
+       18,
+       27,
+       32,
+       31
+      ]
+     },
+     {
+      "name": "Cinderella Outing",
+      "ids": [
+       10,
+       14
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       8,
+       17,
+       22,
+       28,
+       34
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 54,
+   "visible_tabs": 38,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 22,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:37:50.328Z"
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 0,
+   "tabs": 27,
+   "failed": false,
+   "wall_ms": 2789,
+   "input_tokens": 1799,
+   "output_tokens": 142,
+   "thinking_tokens": 0,
+   "cost_usd": 0.005018,
+   "score": {
+    "p": 0.5735294117647058,
+    "r": 1,
+    "f1": 0.7289719626168224,
+    "groups": 5
+   },
+   "groups": 5,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "House Move",
+    "School Places",
+    "Christmas Dinner",
+    "Panto Outing",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    4,
+    5,
+    4,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2789,
+     "headers_ms": 1582,
+     "ttfb_ms": 1582,
+     "first_token_ms": 1582,
+     "stop_reason": "end_turn",
+     "input_tokens": 1799,
+     "output_tokens": 142,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 1799,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 142,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "House Move",
+      "ids": [
+       3,
+       5,
+       6,
+       7,
+       8,
+       9,
+       12,
+       18,
+       2,
+       23,
+       22
+      ]
+     },
+     {
+      "name": "School Places",
+      "ids": [
+       0,
+       16,
+       20,
+       21
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       1,
+       19,
+       24,
+       26,
+       11
+      ]
+     },
+     {
+      "name": "Panto Outing",
+      "ids": [
+       10,
+       13,
+       4,
+       15
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       14,
+       17,
+       25
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 54,
+   "visible_tabs": 27,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52
+   ],
+   "schedule": {
+    "position": 23,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:37:53.117Z"
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 0,
+   "tabs": 49,
+   "failed": false,
+   "wall_ms": 2552,
+   "input_tokens": 2812,
+   "output_tokens": 243,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008054,
+   "score": {
+    "p": 0.6709677419354839,
+    "r": 0.8387096774193549,
+    "f1": 0.7455197132616488,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "House Move",
+    "Dishwasher Purchase",
+    "School Place",
+    "Christmas Dinner",
+    "Gifts and Games",
+    "Book Wilding",
+    "Christmas Plans",
+    "Review Later"
+   ],
+   "group_sizes": [
+    15,
+    7,
+    4,
+    4,
+    7,
+    3,
+    5,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2552,
+     "headers_ms": 968,
+     "ttfb_ms": 969,
+     "first_token_ms": 969,
+     "stop_reason": "end_turn",
+     "input_tokens": 2812,
+     "output_tokens": 243,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2812,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 243,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "House Move",
+      "ids": [
+       4,
+       6,
+       9,
+       10,
+       12,
+       14,
+       18,
+       19,
+       20,
+       21,
+       22,
+       41,
+       47,
+       3,
+       34
+      ]
+     },
+     {
+      "name": "Dishwasher Purchase",
+      "ids": [
+       1,
+       11,
+       17,
+       24,
+       25,
+       26,
+       30
+      ]
+     },
+     {
+      "name": "School Place",
+      "ids": [
+       0,
+       31,
+       39,
+       48
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       2,
+       35,
+       44,
+       46
+      ]
+     },
+     {
+      "name": "Gifts and Games",
+      "ids": [
+       15,
+       28,
+       36,
+       38,
+       42,
+       43,
+       7
+      ]
+     },
+     {
+      "name": "Book Wilding",
+      "ids": [
+       13,
+       29,
+       33
+      ]
+     },
+     {
+      "name": "Christmas Plans",
+      "ids": [
+       5,
+       8,
+       16,
+       23,
+       32
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       27,
+       37,
+       40,
+       45
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 54,
+   "visible_tabs": 49,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 24,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:37:55.670Z"
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 0,
+   "tabs": 48,
+   "failed": false,
+   "wall_ms": 2317,
+   "input_tokens": 2753,
+   "output_tokens": 255,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008056,
+   "score": {
+    "p": 0.9354838709677419,
+    "r": 0.8969072164948454,
+    "f1": 0.9157894736842105,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "EGU Conference Trip",
+    "Funding Bid",
+    "Zotero Library",
+    "ENV204 Teaching",
+    "School Streets Air Quality",
+    "Bioretention Hydrology",
+    "Urban Heat Walking",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    6,
+    5,
+    8,
+    5,
+    6,
+    5,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2317,
+     "headers_ms": 793,
+     "ttfb_ms": 793,
+     "first_token_ms": 793,
+     "stop_reason": "end_turn",
+     "input_tokens": 2753,
+     "output_tokens": 255,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2753,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 255,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "EGU Conference Trip",
+      "ids": [
+       0,
+       2,
+       4,
+       17,
+       26,
+       37,
+       45
+      ]
+     },
+     {
+      "name": "Funding Bid",
+      "ids": [
+       18,
+       21,
+       25,
+       27,
+       41,
+       44
+      ]
+     },
+     {
+      "name": "Zotero Library",
+      "ids": [
+       5,
+       11,
+       12,
+       23,
+       29
+      ]
+     },
+     {
+      "name": "ENV204 Teaching",
+      "ids": [
+       6,
+       9,
+       19,
+       20,
+       30,
+       39,
+       40,
+       32
+      ]
+     },
+     {
+      "name": "School Streets Air Quality",
+      "ids": [
+       3,
+       22,
+       34,
+       43,
+       42
+      ]
+     },
+     {
+      "name": "Bioretention Hydrology",
+      "ids": [
+       7,
+       14,
+       15,
+       33,
+       35,
+       36
+      ]
+     },
+     {
+      "name": "Urban Heat Walking",
+      "ids": [
+       10,
+       13,
+       16,
+       31,
+       46
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       8,
+       24,
+       28,
+       38,
+       47
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 69,
+   "visible_tabs": 48,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46,
+    59,
+    67,
+    68,
+    69
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66
+   ],
+   "schedule": {
+    "position": 25,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:37:57.988Z"
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 0,
+   "tabs": 34,
+   "failed": false,
+   "wall_ms": 2554,
+   "input_tokens": 2069,
+   "output_tokens": 199,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006128,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Grant Application",
+    "Vienna Trip",
+    "Tree Shade Literature",
+    "Reference Management",
+    "ENV204 Teaching",
+    "School Streets Air",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    5,
+    5,
+    5,
+    5,
+    4,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2554,
+     "headers_ms": 1334,
+     "ttfb_ms": 1334,
+     "first_token_ms": 1334,
+     "stop_reason": "end_turn",
+     "input_tokens": 2069,
+     "output_tokens": 199,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2069,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 199,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Grant Application",
+      "ids": [
+       0,
+       2,
+       15,
+       19,
+       20,
+       22,
+       28
+      ]
+     },
+     {
+      "name": "Vienna Trip",
+      "ids": [
+       3,
+       5,
+       14,
+       17,
+       27
+      ]
+     },
+     {
+      "name": "Tree Shade Literature",
+      "ids": [
+       8,
+       9,
+       11,
+       13,
+       30
+      ]
+     },
+     {
+      "name": "Reference Management",
+      "ids": [
+       6,
+       12,
+       18,
+       23,
+       33
+      ]
+     },
+     {
+      "name": "ENV204 Teaching",
+      "ids": [
+       1,
+       4,
+       7,
+       10,
+       26
+      ]
+     },
+     {
+      "name": "School Streets Air",
+      "ids": [
+       16,
+       25,
+       29,
+       32
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       21,
+       24,
+       31
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 69,
+   "visible_tabs": 34,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    51,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64,
+    67
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    52,
+    58,
+    59,
+    60,
+    62,
+    65,
+    66,
+    68,
+    69
+   ],
+   "schedule": {
+    "position": 26,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:38:00.543Z"
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 2968,
+   "input_tokens": 3364,
+   "output_tokens": 284,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009568,
+   "score": {
+    "p": 0.9581151832460733,
+    "r": 0.9581151832460733,
+    "f1": 0.9581151832460733,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Grant Application",
+    "Vienna Conference Trip",
+    "Zotero Library Migration",
+    "Teaching Marking",
+    "Street Tree Heat",
+    "School Streets Air Quality",
+    "Bioretention Rain Gardens",
+    "Personal"
+   ],
+   "group_sizes": [
+    9,
+    8,
+    7,
+    9,
+    9,
+    9,
+    8,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2968,
+     "headers_ms": 1268,
+     "ttfb_ms": 1268,
+     "first_token_ms": 1269,
+     "stop_reason": "end_turn",
+     "input_tokens": 3364,
+     "output_tokens": 284,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1144
+     },
+     "usage_raw": {
+      "input_tokens": 3364,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 284,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Grant Application",
+      "ids": [
+       0,
+       2,
+       28,
+       31,
+       34,
+       35,
+       36,
+       39,
+       53
+      ]
+     },
+     {
+      "name": "Vienna Conference Trip",
+      "ids": [
+       3,
+       5,
+       8,
+       27,
+       32,
+       48,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Zotero Library Migration",
+      "ids": [
+       9,
+       18,
+       19,
+       21,
+       33,
+       40,
+       61
+      ]
+     },
+     {
+      "name": "Teaching Marking",
+      "ids": [
+       4,
+       15,
+       29,
+       30,
+       41,
+       43,
+       50,
+       51,
+       38
+      ]
+     },
+     {
+      "name": "Street Tree Heat",
+      "ids": [
+       6,
+       11,
+       13,
+       16,
+       17,
+       22,
+       26,
+       42,
+       57
+      ]
+     },
+     {
+      "name": "School Streets Air Quality",
+      "ids": [
+       7,
+       12,
+       25,
+       37,
+       45,
+       54,
+       55,
+       60,
+       14
+      ]
+     },
+     {
+      "name": "Bioretention Rain Gardens",
+      "ids": [
+       10,
+       20,
+       23,
+       24,
+       44,
+       46,
+       47,
+       59
+      ]
+     },
+     {
+      "name": "Personal",
+      "ids": [
+       1,
+       58,
+       49
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 69,
+   "visible_tabs": 62,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43,
+    63
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69
+   ],
+   "schedule": {
+    "position": 27,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:38:03.511Z"
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 0,
+   "tabs": 55,
+   "failed": false,
+   "wall_ms": 2773,
+   "input_tokens": 3053,
+   "output_tokens": 263,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008736,
+   "score": {
+    "p": 1,
+    "r": 0.96,
+    "f1": 0.9795918367346939,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "EGU Vienna Trip",
+    "Grant Application",
+    "GIS Teaching",
+    "Shade Heat Study",
+    "School Streets Air",
+    "Rain Garden Pilot",
+    "Reference Managers",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    8,
+    8,
+    9,
+    7,
+    9,
+    4,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2773,
+     "headers_ms": 1220,
+     "ttfb_ms": 1220,
+     "first_token_ms": 1220,
+     "stop_reason": "end_turn",
+     "input_tokens": 3053,
+     "output_tokens": 263,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1060
+     },
+     "usage_raw": {
+      "input_tokens": 3053,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 263,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "EGU Vienna Trip",
+      "ids": [
+       4,
+       6,
+       25,
+       30,
+       32,
+       44,
+       46,
+       50
+      ]
+     },
+     {
+      "name": "Grant Application",
+      "ids": [
+       2,
+       26,
+       28,
+       31,
+       33,
+       36,
+       47,
+       49
+      ]
+     },
+     {
+      "name": "GIS Teaching",
+      "ids": [
+       1,
+       3,
+       7,
+       13,
+       27,
+       35,
+       38,
+       45
+      ]
+     },
+     {
+      "name": "Shade Heat Study",
+      "ids": [
+       5,
+       9,
+       11,
+       14,
+       15,
+       19,
+       24,
+       39,
+       51
+      ]
+     },
+     {
+      "name": "School Streets Air",
+      "ids": [
+       10,
+       23,
+       29,
+       34,
+       41,
+       48,
+       53
+      ]
+     },
+     {
+      "name": "Rain Garden Pilot",
+      "ids": [
+       8,
+       18,
+       20,
+       21,
+       22,
+       40,
+       42,
+       43,
+       52
+      ]
+     },
+     {
+      "name": "Reference Managers",
+      "ids": [
+       16,
+       17,
+       37,
+       54
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       0,
+       12
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 69,
+   "visible_tabs": 55,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61,
+    66
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65,
+    67,
+    68,
+    69
+   ],
+   "schedule": {
+    "position": 28,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:38:06.286Z"
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 0,
+   "tabs": 27,
+   "failed": false,
+   "wall_ms": 2067,
+   "input_tokens": 1900,
+   "output_tokens": 169,
+   "thinking_tokens": 0,
+   "cost_usd": 0.00549,
+   "score": {
+    "p": 0.8846153846153846,
+    "r": 0.8846153846153846,
+    "f1": 0.8846153846153846,
+    "groups": 6
+   },
+   "groups": 6,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Apartment Hunting",
+    "Visa Renewal",
+    "Japanese Study",
+    "Cooking Recipes",
+    "Money Transfers",
+    "Local Updates"
+   ],
+   "group_sizes": [
+    6,
+    4,
+    7,
+    4,
+    3,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2067,
+     "headers_ms": 860,
+     "ttfb_ms": 860,
+     "first_token_ms": 860,
+     "stop_reason": "end_turn",
+     "input_tokens": 1900,
+     "output_tokens": 169,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 1900,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 169,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Apartment Hunting",
+      "ids": [
+       7,
+       9,
+       10,
+       11,
+       15,
+       23
+      ]
+     },
+     {
+      "name": "Visa Renewal",
+      "ids": [
+       3,
+       19,
+       20,
+       25
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       4,
+       12,
+       14,
+       16,
+       24,
+       26,
+       8
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       0,
+       1,
+       6,
+       21
+      ]
+     },
+     {
+      "name": "Money Transfers",
+      "ids": [
+       2,
+       18,
+       22
+      ]
+     },
+     {
+      "name": "Local Updates",
+      "ids": [
+       5,
+       13,
+       17
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 54,
+   "visible_tabs": 27,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52
+   ],
+   "schedule": {
+    "position": 29,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:38:08.353Z"
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 0,
+   "tabs": 49,
+   "failed": false,
+   "wall_ms": 2369,
+   "input_tokens": 2947,
+   "output_tokens": 229,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008184,
+   "score": {
+    "p": 0.8515625,
+    "r": 0.7956204379562044,
+    "f1": 0.8226415094339622,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Residence Renewal",
+    "Japanese Bank",
+    "Apartment Hunting",
+    "Japanese Study",
+    "Home Cooking",
+    "Yokohama Local",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    6,
+    7,
+    8,
+    7,
+    10,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2369,
+     "headers_ms": 1075,
+     "ttfb_ms": 1075,
+     "first_token_ms": 1075,
+     "stop_reason": "end_turn",
+     "input_tokens": 2947,
+     "output_tokens": 229,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2947,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 229,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Residence Renewal",
+      "ids": [
+       4,
+       27,
+       29,
+       35,
+       47,
+       48,
+       7,
+       31
+      ]
+     },
+     {
+      "name": "Japanese Bank",
+      "ids": [
+       9,
+       34,
+       3,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Apartment Hunting",
+      "ids": [
+       14,
+       16,
+       17,
+       18,
+       22,
+       32,
+       41
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       5,
+       8,
+       11,
+       12,
+       19,
+       28,
+       44,
+       46
+      ]
+     },
+     {
+      "name": "Home Cooking",
+      "ids": [
+       0,
+       1,
+       2,
+       10,
+       15,
+       39,
+       43
+      ]
+     },
+     {
+      "name": "Yokohama Local",
+      "ids": [
+       6,
+       13,
+       21,
+       23,
+       24,
+       25,
+       26,
+       33,
+       36,
+       37
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       30,
+       42,
+       45
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 54,
+   "visible_tabs": 49,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 30,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:38:10.723Z"
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 0,
+   "tabs": 43,
+   "failed": false,
+   "wall_ms": 2885,
+   "input_tokens": 2653,
+   "output_tokens": 231,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007616,
+   "score": {
+    "p": 0.9368421052631579,
+    "r": 0.7946428571428571,
+    "f1": 0.8599033816425121,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Apartment Hunting",
+    "Visa Renewal",
+    "Bank and Money",
+    "Japanese Study",
+    "Cooking and Groceries",
+    "Local News",
+    "Getting Around",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    6,
+    6,
+    7,
+    5,
+    7,
+    3,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2885,
+     "headers_ms": 1352,
+     "ttfb_ms": 1352,
+     "first_token_ms": 1352,
+     "stop_reason": "end_turn",
+     "input_tokens": 2653,
+     "output_tokens": 231,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2653,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 231,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Apartment Hunting",
+      "ids": [
+       6,
+       10,
+       12,
+       13,
+       14,
+       19,
+       27,
+       36
+      ]
+     },
+     {
+      "name": "Visa Renewal",
+      "ids": [
+       23,
+       25,
+       26,
+       30,
+       41,
+       42
+      ]
+     },
+     {
+      "name": "Bank and Money",
+      "ids": [
+       2,
+       4,
+       5,
+       16,
+       33,
+       35
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       3,
+       7,
+       8,
+       15,
+       24,
+       28,
+       40
+      ]
+     },
+     {
+      "name": "Cooking and Groceries",
+      "ids": [
+       0,
+       1,
+       11,
+       34,
+       38
+      ]
+     },
+     {
+      "name": "Local News",
+      "ids": [
+       18,
+       20,
+       21,
+       22,
+       29,
+       31,
+       32
+      ]
+     },
+     {
+      "name": "Getting Around",
+      "ids": [
+       9,
+       17,
+       37
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       39
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 54,
+   "visible_tabs": 43,
+   "hidden_ids": [
+    1,
+    5,
+    7,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 31,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:38:13.608Z"
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 0,
+   "tabs": 38,
+   "failed": false,
+   "wall_ms": 2472,
+   "input_tokens": 2466,
+   "output_tokens": 214,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007072,
+   "score": {
+    "p": 0.8666666666666667,
+    "r": 0.8552631578947368,
+    "f1": 0.8609271523178809,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Apartment Hunting",
+    "Visa Renewal",
+    "Bank and City Admin",
+    "Japanese Study",
+    "Cooking and Groceries",
+    "Daily Life Yokohama",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    5,
+    4,
+    8,
+    6,
+    6,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2472,
+     "headers_ms": 977,
+     "ttfb_ms": 977,
+     "first_token_ms": 977,
+     "stop_reason": "end_turn",
+     "input_tokens": 2466,
+     "output_tokens": 214,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2466,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 214,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Apartment Hunting",
+      "ids": [
+       6,
+       10,
+       11,
+       15,
+       22,
+       30
+      ]
+     },
+     {
+      "name": "Visa Renewal",
+      "ids": [
+       17,
+       19,
+       26,
+       36,
+       37
+      ]
+     },
+     {
+      "name": "Bank and City Admin",
+      "ids": [
+       4,
+       21,
+       24,
+       13
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       3,
+       7,
+       12,
+       18,
+       23,
+       33,
+       34,
+       35
+      ]
+     },
+     {
+      "name": "Cooking and Groceries",
+      "ids": [
+       0,
+       1,
+       5,
+       9,
+       29,
+       32
+      ]
+     },
+     {
+      "name": "Daily Life Yokohama",
+      "ids": [
+       2,
+       8,
+       14,
+       16,
+       27,
+       28
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       20,
+       25,
+       31
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 54,
+   "visible_tabs": 38,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+   ],
+   "schedule": {
+    "position": 32,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:38:16.081Z"
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 0,
+   "tabs": 67,
+   "failed": false,
+   "wall_ms": 5468,
+   "input_tokens": 3632,
+   "output_tokens": 278,
+   "thinking_tokens": 0,
+   "cost_usd": 0.010044,
+   "score": {
+    "p": 0.8805970149253731,
+    "r": 0.8805970149253731,
+    "f1": 0.8805970149253731,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Crypto Tax",
+    "Porto Trip",
+    "Hades II",
+    "Gaming Headset",
+    "Office Headphones",
+    "Peak District Walk",
+    "ISA Investing",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    11,
+    10,
+    5,
+    10,
+    7,
+    7,
+    9
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 5468,
+     "headers_ms": 3556,
+     "ttfb_ms": 3556,
+     "first_token_ms": 3556,
+     "stop_reason": "end_turn",
+     "input_tokens": 3632,
+     "output_tokens": 278,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1204
+     },
+     "usage_raw": {
+      "input_tokens": 3632,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 278,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Crypto Tax",
+      "ids": [
+       0,
+       1,
+       9,
+       26,
+       33,
+       34,
+       38,
+       62
+      ]
+     },
+     {
+      "name": "Porto Trip",
+      "ids": [
+       2,
+       11,
+       15,
+       17,
+       18,
+       31,
+       49,
+       51,
+       52,
+       59,
+       60
+      ]
+     },
+     {
+      "name": "Hades II",
+      "ids": [
+       3,
+       6,
+       8,
+       21,
+       28,
+       42,
+       46,
+       54,
+       63,
+       65
+      ]
+     },
+     {
+      "name": "Gaming Headset",
+      "ids": [
+       4,
+       12,
+       47,
+       53,
+       37
+      ]
+     },
+     {
+      "name": "Office Headphones",
+      "ids": [
+       5,
+       10,
+       13,
+       19,
+       22,
+       24,
+       30,
+       40,
+       50,
+       61
+      ]
+     },
+     {
+      "name": "Peak District Walk",
+      "ids": [
+       20,
+       27,
+       29,
+       35,
+       39,
+       43,
+       44
+      ]
+     },
+     {
+      "name": "ISA Investing",
+      "ids": [
+       14,
+       16,
+       32,
+       45,
+       48,
+       56,
+       58
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       7,
+       23,
+       25,
+       36,
+       41,
+       55,
+       57,
+       64,
+       66
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 74,
+   "visible_tabs": 67,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43,
+    63,
+    73
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    74
+   ],
+   "schedule": {
+    "position": 33,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:38:21.551Z"
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 0,
+   "tabs": 59,
+   "failed": false,
+   "wall_ms": 2562,
+   "input_tokens": 3283,
+   "output_tokens": 266,
+   "thinking_tokens": 0,
+   "cost_usd": 0.009226,
+   "score": {
+    "p": 0.8626373626373627,
+    "r": 0.9691358024691358,
+    "f1": 0.9127906976744187,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Porto Trip",
+    "Peak District Walk",
+    "Hades II Gaming",
+    "Headphones Shopping",
+    "PC Build",
+    "Crypto Tracking",
+    "ISA Investing",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    9,
+    9,
+    12,
+    1,
+    6,
+    8,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2562,
+     "headers_ms": 954,
+     "ttfb_ms": 954,
+     "first_token_ms": 955,
+     "stop_reason": "end_turn",
+     "input_tokens": 3283,
+     "output_tokens": 266,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1108
+     },
+     "usage_raw": {
+      "input_tokens": 3283,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 266,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Porto Trip",
+      "ids": [
+       1,
+       7,
+       11,
+       13,
+       14,
+       26,
+       43,
+       44,
+       51,
+       57
+      ]
+     },
+     {
+      "name": "Peak District Walk",
+      "ids": [
+       16,
+       19,
+       23,
+       25,
+       30,
+       34,
+       36,
+       38,
+       48
+      ]
+     },
+     {
+      "name": "Hades II Gaming",
+      "ids": [
+       2,
+       17,
+       18,
+       24,
+       37,
+       40,
+       46,
+       54,
+       56
+      ]
+     },
+     {
+      "name": "Headphones Shopping",
+      "ids": [
+       3,
+       8,
+       9,
+       15,
+       20,
+       28,
+       31,
+       32,
+       35,
+       41,
+       45,
+       52
+      ]
+     },
+     {
+      "name": "PC Build",
+      "ids": [
+       4
+      ]
+     },
+     {
+      "name": "Crypto Tracking",
+      "ids": [
+       0,
+       5,
+       22,
+       29,
+       33,
+       53
+      ]
+     },
+     {
+      "name": "ISA Investing",
+      "ids": [
+       6,
+       10,
+       12,
+       27,
+       39,
+       42,
+       47,
+       50
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       21,
+       49,
+       55,
+       58
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 74,
+   "visible_tabs": 59,
+   "hidden_ids": [
+    1,
+    5,
+    7,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61,
+    66
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74
+   ],
+   "schedule": {
+    "position": 34,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:38:24.115Z"
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 0,
+   "tabs": 52,
+   "failed": false,
+   "wall_ms": 2337,
+   "input_tokens": 2990,
+   "output_tokens": 233,
+   "thinking_tokens": 0,
+   "cost_usd": 0.00831,
+   "score": {
+    "p": 0.8445945945945946,
+    "r": 0.9328358208955224,
+    "f1": 0.8865248226950355,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Crypto Taxes",
+    "ISA Investing",
+    "Porto Trip",
+    "Peak District Walk",
+    "Headphones Shopping",
+    "Hades II",
+    "Review Later"
+   ],
+   "group_sizes": [
+    4,
+    7,
+    9,
+    9,
+    8,
+    8,
+    7
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2336,
+     "headers_ms": 1109,
+     "ttfb_ms": 1110,
+     "first_token_ms": 1110,
+     "stop_reason": "end_turn",
+     "input_tokens": 2990,
+     "output_tokens": 233,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2990,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 233,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Crypto Taxes",
+      "ids": [
+       0,
+       1,
+       4,
+       24
+      ]
+     },
+     {
+      "name": "ISA Investing",
+      "ids": [
+       6,
+       10,
+       22,
+       34,
+       37,
+       44,
+       47
+      ]
+     },
+     {
+      "name": "Porto Trip",
+      "ids": [
+       7,
+       9,
+       11,
+       21,
+       38,
+       40,
+       41,
+       48,
+       51
+      ]
+     },
+     {
+      "name": "Peak District Walk",
+      "ids": [
+       13,
+       15,
+       17,
+       19,
+       26,
+       29,
+       32,
+       33,
+       45
+      ]
+     },
+     {
+      "name": "Headphones Shopping",
+      "ids": [
+       5,
+       12,
+       20,
+       23,
+       25,
+       28,
+       36,
+       39
+      ]
+     },
+     {
+      "name": "Hades II",
+      "ids": [
+       2,
+       3,
+       18,
+       31,
+       35,
+       42,
+       49,
+       50
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       8,
+       14,
+       16,
+       27,
+       30,
+       43,
+       46
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 74,
+   "visible_tabs": 52,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46,
+    59,
+    67,
+    68,
+    69,
+    71,
+    74
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    15,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    70,
+    72,
+    73
+   ],
+   "schedule": {
+    "position": 35,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:38:26.453Z"
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 0,
+   "tabs": 37,
+   "failed": false,
+   "wall_ms": 2912,
+   "input_tokens": 2297,
+   "output_tokens": 211,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006704,
+   "score": {
+    "p": 0.691358024691358,
+    "r": 0.9491525423728814,
+    "f1": 0.7999999999999998,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Porto Trip",
+    "Headphone Shopping",
+    "Hades II Troubleshooting",
+    "Crypto Taxes",
+    "Savings and Investing",
+    "Peak District Hike",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    9,
+    4,
+    4,
+    7,
+    4,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2912,
+     "headers_ms": 1571,
+     "ttfb_ms": 1571,
+     "first_token_ms": 1571,
+     "stop_reason": "end_turn",
+     "input_tokens": 2297,
+     "output_tokens": 211,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2297,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 211,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Porto Trip",
+      "ids": [
+       1,
+       11,
+       20,
+       27,
+       32,
+       35
+      ]
+     },
+     {
+      "name": "Headphone Shopping",
+      "ids": [
+       3,
+       4,
+       6,
+       8,
+       12,
+       16,
+       22,
+       28,
+       33
+      ]
+     },
+     {
+      "name": "Hades II Troubleshooting",
+      "ids": [
+       2,
+       14,
+       26,
+       29
+      ]
+     },
+     {
+      "name": "Crypto Taxes",
+      "ids": [
+       0,
+       17,
+       18,
+       34
+      ]
+     },
+     {
+      "name": "Savings and Investing",
+      "ids": [
+       7,
+       9,
+       10,
+       15,
+       25,
+       30,
+       31
+      ]
+     },
+     {
+      "name": "Peak District Hike",
+      "ids": [
+       19,
+       21,
+       23,
+       24
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       5,
+       13,
+       36
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 74,
+   "visible_tabs": 37,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63,
+    64,
+    67,
+    70,
+    71,
+    72
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62,
+    65,
+    66,
+    68,
+    69,
+    73,
+    74
+   ],
+   "schedule": {
+    "position": 36,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:38:29.366Z"
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 0,
+   "tabs": 44,
+   "failed": false,
+   "wall_ms": 2760,
+   "input_tokens": 2531,
+   "output_tokens": 251,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007572,
+   "score": {
+    "p": 0.7473684210526316,
+    "r": 0.6339285714285714,
+    "f1": 0.6859903381642513,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Bookkeeping and VAT",
+    "Hiring Packing Assistant",
+    "Customer Support",
+    "Online Shop Maintenance",
+    "Christmas Dispatch",
+    "Stock and Supplies",
+    "Marketing Analytics",
+    "Review Later"
+   ],
+   "group_sizes": [
+    5,
+    7,
+    5,
+    8,
+    5,
+    9,
+    3,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2760,
+     "headers_ms": 1151,
+     "ttfb_ms": 1151,
+     "first_token_ms": 1151,
+     "stop_reason": "end_turn",
+     "input_tokens": 2531,
+     "output_tokens": 251,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2531,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 251,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Bookkeeping and VAT",
+      "ids": [
+       0,
+       9,
+       10,
+       17,
+       27
+      ]
+     },
+     {
+      "name": "Hiring Packing Assistant",
+      "ids": [
+       4,
+       5,
+       13,
+       20,
+       25,
+       30,
+       38
+      ]
+     },
+     {
+      "name": "Customer Support",
+      "ids": [
+       6,
+       12,
+       14,
+       15,
+       42
+      ]
+     },
+     {
+      "name": "Online Shop Maintenance",
+      "ids": [
+       3,
+       7,
+       18,
+       21,
+       31,
+       37,
+       39,
+       40
+      ]
+     },
+     {
+      "name": "Christmas Dispatch",
+      "ids": [
+       2,
+       32,
+       35,
+       36,
+       41
+      ]
+     },
+     {
+      "name": "Stock and Supplies",
+      "ids": [
+       22,
+       24,
+       26,
+       29,
+       33,
+       43,
+       34,
+       19,
+       8
+      ]
+     },
+     {
+      "name": "Marketing Analytics",
+      "ids": [
+       11,
+       16,
+       23
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       28
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 55,
+   "visible_tabs": 44,
+   "hidden_ids": [
+    1,
+    5,
+    7,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55
+   ],
+   "schedule": {
+    "position": 37,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:38:32.127Z"
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 0,
+   "tabs": 38,
+   "failed": false,
+   "wall_ms": 6180,
+   "input_tokens": 2221,
+   "output_tokens": 224,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006682,
+   "score": {
+    "p": 0.8666666666666667,
+    "r": 0.7142857142857143,
+    "f1": 0.7831325301204819,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Finance Reconciliation",
+    "Email Marketing",
+    "Shop Setup",
+    "Hiring Packer",
+    "Customer Support",
+    "Stock Supplies",
+    "Christmas Orders",
+    "Review Later"
+   ],
+   "group_sizes": [
+    3,
+    5,
+    8,
+    5,
+    7,
+    4,
+    4,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 6180,
+     "headers_ms": 4509,
+     "ttfb_ms": 4509,
+     "first_token_ms": 4510,
+     "stop_reason": "end_turn",
+     "input_tokens": 2221,
+     "output_tokens": 224,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2221,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 224,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Finance Reconciliation",
+      "ids": [
+       0,
+       1,
+       21
+      ]
+     },
+     {
+      "name": "Email Marketing",
+      "ids": [
+       2,
+       8,
+       12,
+       19,
+       24
+      ]
+     },
+     {
+      "name": "Shop Setup",
+      "ids": [
+       3,
+       7,
+       13,
+       15,
+       26,
+       30,
+       33,
+       35
+      ]
+     },
+     {
+      "name": "Hiring Packer",
+      "ids": [
+       4,
+       5,
+       18,
+       25,
+       31
+      ]
+     },
+     {
+      "name": "Customer Support",
+      "ids": [
+       6,
+       9,
+       10,
+       11,
+       23,
+       34,
+       36
+      ]
+     },
+     {
+      "name": "Stock Supplies",
+      "ids": [
+       17,
+       20,
+       29,
+       37
+      ]
+     },
+     {
+      "name": "Christmas Orders",
+      "ids": [
+       14,
+       16,
+       27,
+       28
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       22,
+       32
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 55,
+   "visible_tabs": 38,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    37,
+    43,
+    44,
+    46
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55
+   ],
+   "schedule": {
+    "position": 38,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:38:38.308Z"
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 0,
+   "tabs": 27,
+   "failed": false,
+   "wall_ms": 2017,
+   "input_tokens": 1809,
+   "output_tokens": 187,
+   "thinking_tokens": 0,
+   "cost_usd": 0.005488,
+   "score": {
+    "p": 0.46511627906976744,
+    "r": 0.5128205128205128,
+    "f1": 0.4878048780487805,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 1,
+   "group_names": [
+    "VAT & Finance",
+    "Store Admin",
+    "Order 1492 Issue",
+    "December Campaign",
+    "Staff Hiring",
+    "Packaging Supplies",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    5,
+    4,
+    6,
+    1,
+    3,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2017,
+     "headers_ms": 960,
+     "ttfb_ms": 960,
+     "first_token_ms": 960,
+     "stop_reason": "end_turn",
+     "input_tokens": 1809,
+     "output_tokens": 187,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 1809,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 187,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "VAT & Finance",
+      "ids": [
+       0,
+       3,
+       9,
+       15,
+       20,
+       19
+      ]
+     },
+     {
+      "name": "Store Admin",
+      "ids": [
+       4,
+       13,
+       25,
+       18,
+       24
+      ]
+     },
+     {
+      "name": "Order 1492 Issue",
+      "ids": [
+       7,
+       10,
+       12,
+       26
+      ]
+     },
+     {
+      "name": "December Campaign",
+      "ids": [
+       2,
+       5,
+       22,
+       23,
+       6,
+       21
+      ]
+     },
+     {
+      "name": "Staff Hiring",
+      "ids": [
+       11,
+       19
+      ]
+     },
+     {
+      "name": "Packaging Supplies",
+      "ids": [
+       14,
+       17,
+       8
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       16
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 55,
+   "visible_tabs": 27,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52
+   ],
+   "schedule": {
+    "position": 39,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:38:40.325Z"
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 0,
+   "tabs": 49,
+   "failed": false,
+   "wall_ms": 3601,
+   "input_tokens": 2696,
+   "output_tokens": 241,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007802,
+   "score": {
+    "p": 0.8993288590604027,
+    "r": 0.9115646258503401,
+    "f1": 0.9054054054054055,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Bookkeeping & VAT",
+    "Hiring Packing Assistant",
+    "Christmas Order Push",
+    "Stock Reordering",
+    "Shop Site Maintenance",
+    "Customer Issues",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    8,
+    9,
+    8,
+    9,
+    6,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3601,
+     "headers_ms": 1857,
+     "ttfb_ms": 1857,
+     "first_token_ms": 1857,
+     "stop_reason": "end_turn",
+     "input_tokens": 2696,
+     "output_tokens": 241,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2696,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 241,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Bookkeeping & VAT",
+      "ids": [
+       0,
+       1,
+       3,
+       12,
+       13,
+       20,
+       21,
+       31
+      ]
+     },
+     {
+      "name": "Hiring Packing Assistant",
+      "ids": [
+       6,
+       8,
+       16,
+       23,
+       28,
+       34,
+       42,
+       9
+      ]
+     },
+     {
+      "name": "Christmas Order Push",
+      "ids": [
+       2,
+       5,
+       29,
+       39,
+       10,
+       36,
+       38,
+       14,
+       19
+      ]
+     },
+     {
+      "name": "Stock Reordering",
+      "ids": [
+       25,
+       27,
+       30,
+       32,
+       37,
+       40,
+       48,
+       11
+      ]
+     },
+     {
+      "name": "Shop Site Maintenance",
+      "ids": [
+       4,
+       7,
+       22,
+       24,
+       35,
+       41,
+       44,
+       46,
+       43
+      ]
+     },
+     {
+      "name": "Customer Issues",
+      "ids": [
+       15,
+       17,
+       18,
+       33,
+       45,
+       47
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       26
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 55,
+   "visible_tabs": 49,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55
+   ],
+   "schedule": {
+    "position": 40,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:38:43.926Z"
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 44,
+   "failed": false,
+   "wall_ms": 3025,
+   "input_tokens": 2408,
+   "output_tokens": 254,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007356,
+   "score": {
+    "p": 0.967741935483871,
+    "r": 0.9,
+    "f1": 0.9326424870466321,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "Embeddings Model",
+    "LLM APIs",
+    "WireGuard VPN Server",
+    "Swift App Development",
+    "MacBook Purchase",
+    "Business Admin",
+    "Tech News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    2,
+    5,
+    7,
+    6,
+    4,
+    4,
+    4,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3025,
+     "headers_ms": 1502,
+     "ttfb_ms": 1502,
+     "first_token_ms": 1502,
+     "stop_reason": "end_turn",
+     "input_tokens": 2408,
+     "output_tokens": 254,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2408,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 254,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       8,
+       16,
+       18,
+       21,
+       24,
+       29,
+       42
+      ]
+     },
+     {
+      "name": "Embeddings Model",
+      "ids": [
+       4,
+       5
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       9,
+       10,
+       12,
+       36,
+       43
+      ]
+     },
+     {
+      "name": "WireGuard VPN Server",
+      "ids": [
+       6,
+       11,
+       15,
+       20,
+       22,
+       31,
+       33
+      ]
+     },
+     {
+      "name": "Swift App Development",
+      "ids": [
+       23,
+       25,
+       26,
+       27,
+       32,
+       37
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       19,
+       30,
+       34,
+       40
+      ]
+     },
+     {
+      "name": "Business Admin",
+      "ids": [
+       3,
+       14,
+       28,
+       38
+      ]
+     },
+     {
+      "name": "Tech News",
+      "ids": [
+       1,
+       2,
+       7,
+       17
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       13,
+       35,
+       39,
+       41
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 63,
+   "visible_tabs": 44,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    32,
+    37,
+    43,
+    44,
+    46,
+    59
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62,
+    63
+   ],
+   "schedule": {
+    "position": 41,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:38:46.952Z"
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 31,
+   "failed": false,
+   "wall_ms": 3618,
+   "input_tokens": 1851,
+   "output_tokens": 237,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006072,
+   "score": {
+    "p": 0.9545454545454546,
+    "r": 1,
+    "f1": 0.9767441860465117,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "WireGuard Server Setup",
+    "Tabsort Extension",
+    "AI Embeddings",
+    "iOS App Release",
+    "Calendar and Mail",
+    "Media and Entertainment",
+    "Tax and Finance",
+    "Trip to Cambridge",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    5,
+    4,
+    3,
+    3,
+    2,
+    1,
+    2,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3618,
+     "headers_ms": 1815,
+     "ttfb_ms": 1815,
+     "first_token_ms": 1815,
+     "stop_reason": "end_turn",
+     "input_tokens": 1851,
+     "output_tokens": 237,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 1851,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 237,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "WireGuard Server Setup",
+      "ids": [
+       7,
+       9,
+       11,
+       12,
+       15,
+       24,
+       26
+      ]
+     },
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       3,
+       16,
+       19,
+       30
+      ]
+     },
+     {
+      "name": "AI Embeddings",
+      "ids": [
+       2,
+       6,
+       10,
+       17
+      ]
+     },
+     {
+      "name": "iOS App Release",
+      "ids": [
+       4,
+       21,
+       25
+      ]
+     },
+     {
+      "name": "Calendar and Mail",
+      "ids": [
+       1,
+       20,
+       27
+      ]
+     },
+     {
+      "name": "Media and Entertainment",
+      "ids": [
+       8,
+       13
+      ]
+     },
+     {
+      "name": "Tax and Finance",
+      "ids": [
+       23
+      ]
+     },
+     {
+      "name": "Trip to Cambridge",
+      "ids": [
+       22,
+       28
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       5,
+       14,
+       18,
+       29
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 63,
+   "visible_tabs": 31,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    63
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62
+   ],
+   "schedule": {
+    "position": 42,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:38:50.571Z"
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 57,
+   "failed": false,
+   "wall_ms": 2987,
+   "input_tokens": 2903,
+   "output_tokens": 258,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008386,
+   "score": {
+    "p": 0.8227848101265823,
+    "r": 0.935251798561151,
+    "f1": 0.8754208754208755,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "LLM APIs",
+    "MacBook Purchase",
+    "Server Setup",
+    "Swift App Development",
+    "Company Admin",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    9,
+    6,
+    9,
+    6,
+    6,
+    4,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2987,
+     "headers_ms": 1310,
+     "ttfb_ms": 1310,
+     "first_token_ms": 1310,
+     "stop_reason": "end_turn",
+     "input_tokens": 2903,
+     "output_tokens": 258,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1084
+     },
+     "usage_raw": {
+      "input_tokens": 2903,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 258,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       4,
+       56,
+       15,
+       30,
+       35,
+       42,
+       27,
+       1
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       13,
+       16,
+       18,
+       20,
+       33,
+       49,
+       9,
+       10,
+       3
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       26,
+       29,
+       31,
+       43,
+       47,
+       54
+      ]
+     },
+     {
+      "name": "Server Setup",
+      "ids": [
+       14,
+       17,
+       19,
+       25,
+       32,
+       34,
+       44,
+       46,
+       6
+      ]
+     },
+     {
+      "name": "Swift App Development",
+      "ids": [
+       5,
+       36,
+       37,
+       39,
+       45,
+       50
+      ]
+     },
+     {
+      "name": "Company Admin",
+      "ids": [
+       7,
+       8,
+       22,
+       41,
+       51,
+       24
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       12,
+       21,
+       23,
+       38
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       11,
+       28,
+       40,
+       48,
+       52,
+       53,
+       55
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 63,
+   "visible_tabs": 57,
+   "hidden_ids": [
+    12,
+    26,
+    36,
+    39,
+    43,
+    63
+   ],
+   "visible_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62
+   ],
+   "schedule": {
+    "position": 43,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:38:53.561Z"
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 50,
+   "failed": false,
+   "wall_ms": 3558,
+   "input_tokens": 2596,
+   "output_tokens": 287,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008062,
+   "score": {
+    "p": 1,
+    "r": 0.9464285714285714,
+    "f1": 0.9724770642201834,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "WireGuard VPN Server",
+    "Chrome Extension Dev",
+    "LLM API Research",
+    "iOS App Dev",
+    "MacBook Purchase",
+    "Taxes and Accounting",
+    "Tech News",
+    "Entertainment",
+    "News and Weather",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    6,
+    8,
+    5,
+    6,
+    4,
+    3,
+    4,
+    3,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3558,
+     "headers_ms": 1871,
+     "ttfb_ms": 1871,
+     "first_token_ms": 1871,
+     "stop_reason": "end_turn",
+     "input_tokens": 2596,
+     "output_tokens": 287,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2596,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 287,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "WireGuard VPN Server",
+      "ids": [
+       7,
+       11,
+       14,
+       16,
+       22,
+       28,
+       41
+      ]
+     },
+     {
+      "name": "Chrome Extension Dev",
+      "ids": [
+       12,
+       24,
+       29,
+       31,
+       38,
+       48
+      ]
+     },
+     {
+      "name": "LLM API Research",
+      "ids": [
+       10,
+       13,
+       15,
+       17,
+       30,
+       44,
+       49,
+       6
+      ]
+     },
+     {
+      "name": "iOS App Dev",
+      "ids": [
+       3,
+       32,
+       33,
+       35,
+       40
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       23,
+       26,
+       27,
+       39,
+       42,
+       47
+      ]
+     },
+     {
+      "name": "Taxes and Accounting",
+      "ids": [
+       5,
+       20,
+       37,
+       45
+      ]
+     },
+     {
+      "name": "Tech News",
+      "ids": [
+       0,
+       4,
+       25
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       9,
+       18,
+       19,
+       34
+      ]
+     },
+     {
+      "name": "News and Weather",
+      "ids": [
+       8,
+       21,
+       36
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       2,
+       43,
+       46
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 63,
+   "visible_tabs": 50,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    38,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62,
+    63
+   ],
+   "schedule": {
+    "position": 44,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:38:57.120Z"
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 31,
+   "failed": false,
+   "wall_ms": 2943,
+   "input_tokens": 1911,
+   "output_tokens": 224,
+   "thinking_tokens": 0,
+   "cost_usd": 0.006062,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Job Search",
+    "Kitchen Renovation",
+    "Cooking Recipes",
+    "Running Gear",
+    "Home Admin",
+    "News Reading",
+    "Streaming Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    3,
+    2,
+    4,
+    3,
+    4,
+    4,
+    4,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2943,
+     "headers_ms": 1558,
+     "ttfb_ms": 1558,
+     "first_token_ms": 1558,
+     "stop_reason": "end_turn",
+     "input_tokens": 1911,
+     "output_tokens": 224,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 1911,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 224,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       3,
+       14,
+       15,
+       19,
+       20,
+       29
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       1,
+       7,
+       24
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       6,
+       23
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       5,
+       8,
+       11,
+       12
+      ]
+     },
+     {
+      "name": "Running Gear",
+      "ids": [
+       9,
+       17,
+       26
+      ]
+     },
+     {
+      "name": "Home Admin",
+      "ids": [
+       0,
+       2,
+       10,
+       28
+      ]
+     },
+     {
+      "name": "News Reading",
+      "ids": [
+       16,
+       18,
+       25,
+       27
+      ]
+     },
+     {
+      "name": "Streaming Entertainment",
+      "ids": [
+       4,
+       13,
+       21,
+       22
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       30
+      ]
+     }
+    ]
+   },
+   "share": 0.5,
+   "seed": 4001,
+   "window_tabs": 62,
+   "visible_tabs": 31,
+   "hidden_ids": [
+    2,
+    8,
+    9,
+    10,
+    13,
+    15,
+    17,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    39,
+    41,
+    42,
+    44,
+    48,
+    49,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61
+   ],
+   "visible_ids": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    11,
+    12,
+    14,
+    16,
+    18,
+    19,
+    21,
+    25,
+    31,
+    35,
+    36,
+    37,
+    38,
+    40,
+    43,
+    45,
+    46,
+    47,
+    50,
+    51,
+    52,
+    58,
+    59,
+    60,
+    62
+   ],
+   "schedule": {
+    "position": 45,
+    "of": 48,
+    "rank": 0,
+    "at": "2026-11-22T21:39:00.064Z"
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 56,
+   "failed": false,
+   "wall_ms": 4423,
+   "input_tokens": 2987,
+   "output_tokens": 297,
+   "thinking_tokens": 0,
+   "cost_usd": 0.008944,
+   "score": {
+    "p": 0.9349593495934959,
+    "r": 0.8712121212121212,
+    "f1": 0.9019607843137255,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Purchase",
+    "Marathon Training",
+    "Job Hunt",
+    "Cooking Recipes",
+    "Household Bills",
+    "Money Markets",
+    "Streaming Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    7,
+    5,
+    7,
+    4,
+    5,
+    6,
+    4,
+    5,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4423,
+     "headers_ms": 2740,
+     "ttfb_ms": 2740,
+     "first_token_ms": 2740,
+     "stop_reason": "end_turn",
+     "input_tokens": 2987,
+     "output_tokens": 297,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1072
+     },
+     "usage_raw": {
+      "input_tokens": 2987,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 297,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       3,
+       27,
+       29,
+       30,
+       31,
+       34,
+       36,
+       53,
+       21
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       8,
+       9,
+       20,
+       24,
+       40,
+       41,
+       49
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       25,
+       26,
+       28,
+       42,
+       48
+      ]
+     },
+     {
+      "name": "Marathon Training",
+      "ids": [
+       13,
+       19,
+       32,
+       37,
+       45,
+       46,
+       50
+      ]
+     },
+     {
+      "name": "Job Hunt",
+      "ids": [
+       7,
+       12,
+       43,
+       54
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       5,
+       11,
+       16,
+       18,
+       35
+      ]
+     },
+     {
+      "name": "Household Bills",
+      "ids": [
+       0,
+       2,
+       10,
+       15,
+       47,
+       52
+      ]
+     },
+     {
+      "name": "Money Markets",
+      "ids": [
+       6,
+       14,
+       17,
+       51
+      ]
+     },
+     {
+      "name": "Streaming Entertainment",
+      "ids": [
+       1,
+       4,
+       22,
+       38,
+       39
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       23,
+       33,
+       44,
+       55
+      ]
+     }
+    ]
+   },
+   "share": 0.1,
+   "seed": 1001,
+   "window_tabs": 62,
+   "visible_tabs": 56,
+   "hidden_ids": [
+    3,
+    12,
+    26,
+    36,
+    39,
+    43
+   ],
+   "visible_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62
+   ],
+   "schedule": {
+    "position": 46,
+    "of": 48,
+    "rank": 1,
+    "at": "2026-11-22T21:39:04.487Z"
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 50,
+   "failed": false,
+   "wall_ms": 2622,
+   "input_tokens": 2760,
+   "output_tokens": 280,
+   "thinking_tokens": 0,
+   "cost_usd": 0.00832,
+   "score": {
+    "p": 0.8990825688073395,
+    "r": 0.9245283018867925,
+    "f1": 0.9116279069767442,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Tesla Purchase",
+    "Kitchen Renovation",
+    "Job Search",
+    "Running Training",
+    "Cooking Recipes",
+    "Streaming Entertainment",
+    "Household Finances",
+    "News Reading",
+    "Review Later"
+   ],
+   "group_sizes": [
+    7,
+    5,
+    5,
+    3,
+    7,
+    5,
+    5,
+    8,
+    3,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2622,
+     "headers_ms": 935,
+     "ttfb_ms": 936,
+     "first_token_ms": 936,
+     "stop_reason": "end_turn",
+     "input_tokens": 2760,
+     "output_tokens": 280,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2760,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 280,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       20,
+       25,
+       27,
+       28,
+       32,
+       34,
+       48
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       23,
+       24,
+       26,
+       40,
+       45
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       6,
+       18,
+       22,
+       38,
+       39
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       1,
+       7,
+       10
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       11,
+       17,
+       30,
+       35,
+       42,
+       43,
+       46
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       4,
+       9,
+       14,
+       16,
+       33
+      ]
+     },
+     {
+      "name": "Streaming Entertainment",
+      "ids": [
+       0,
+       3,
+       19,
+       36,
+       37
+      ]
+     },
+     {
+      "name": "Household Finances",
+      "ids": [
+       2,
+       5,
+       8,
+       12,
+       13,
+       15,
+       44,
+       47
+      ]
+     },
+     {
+      "name": "News Reading",
+      "ids": [
+       29,
+       31,
+       41
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       21,
+       49
+      ]
+     }
+    ]
+   },
+   "share": 0.2,
+   "seed": 2001,
+   "window_tabs": 62,
+   "visible_tabs": 50,
+   "hidden_ids": [
+    1,
+    5,
+    9,
+    11,
+    24,
+    33,
+    39,
+    43,
+    50,
+    56,
+    58,
+    61
+   ],
+   "visible_ids": [
+    2,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    34,
+    35,
+    36,
+    37,
+    38,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    51,
+    52,
+    53,
+    54,
+    55,
+    57,
+    59,
+    60,
+    62
+   ],
+   "schedule": {
+    "position": 47,
+    "of": 48,
+    "rank": 2,
+    "at": "2026-11-22T21:39:07.110Z"
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 43,
+   "failed": false,
+   "wall_ms": 4225,
+   "input_tokens": 2422,
+   "output_tokens": 256,
+   "thinking_tokens": 0,
+   "cost_usd": 0.007404,
+   "score": {
+    "p": 0.927710843373494,
+    "r": 0.927710843373494,
+    "f1": 0.927710843373494,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Job Search",
+    "Electric Car",
+    "Running Training",
+    "Cooking Recipes",
+    "Money Matters",
+    "TV and Music",
+    "News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    6,
+    4,
+    4,
+    4,
+    4,
+    5,
+    3,
+    3,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 4225,
+     "headers_ms": 2616,
+     "ttfb_ms": 2616,
+     "first_token_ms": 2617,
+     "stop_reason": "end_turn",
+     "input_tokens": 2422,
+     "output_tokens": 256,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "between_tools"
+      },
+      "effort": null,
+      "note": "between_tools (Sonnet 5.5 off setting)",
+      "max_tokens": 1024
+     },
+     "usage_raw": {
+      "input_tokens": 2422,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 256,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       14,
+       17,
+       18,
+       19,
+       20,
+       24,
+       26,
+       40
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       4,
+       5,
+       15,
+       28,
+       29,
+       37
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       3,
+       6,
+       31,
+       41
+      ]
+     },
+     {
+      "name": "Electric Car",
+      "ids": [
+       16,
+       30,
+       36,
+       7
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       12,
+       33,
+       34,
+       38
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       2,
+       11,
+       23,
+       25
+      ]
+     },
+     {
+      "name": "Money Matters",
+      "ids": [
+       0,
+       8,
+       10,
+       35,
+       39
+      ]
+     },
+     {
+      "name": "TV and Music",
+      "ids": [
+       1,
+       13,
+       27
+      ]
+     },
+     {
+      "name": "News",
+      "ids": [
+       21,
+       22,
+       32
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       9,
+       42
+      ]
+     }
+    ]
+   },
+   "share": 0.3,
+   "seed": 3001,
+   "window_tabs": 62,
+   "visible_tabs": 43,
+   "hidden_ids": [
+    3,
+    4,
+    5,
+    6,
+    8,
+    14,
+    15,
+    16,
+    19,
+    23,
+    24,
+    27,
+    29,
+    32,
+    37,
+    43,
+    44,
+    46,
+    59
+   ],
+   "visible_ids": [
+    1,
+    2,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    17,
+    18,
+    20,
+    21,
+    22,
+    25,
+    26,
+    28,
+    30,
+    31,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42,
+    45,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    60,
+    61,
+    62
+   ],
+   "schedule": {
+    "position": 48,
+    "of": 48,
+    "rank": 3,
+    "at": "2026-11-22T21:39:11.335Z"
+   }
+  }
+ ]
+}

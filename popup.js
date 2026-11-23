@@ -4,15 +4,18 @@
 
 import { LearningCache } from './src/cache-engine.js';
 import {
-  checkChromeNanoStatus,
   PROVIDER_CATALOG,
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   isOpenAIResponsesOnlyModel,
-  providerSettingKey
+  planReasoningEffort,
+  isLoopbackUrl,
+  providerSettingKey,
+  resolveProvider,
+  resolveProviderEndpoint
 } from './src/ai-engine.js';
-import { isOnDeviceEngine } from './src/background-classifier.js';
-import { loadSettings } from './src/settings.js';
+import { isLocalOllama } from './src/background-classifier.js';
+import { loadSettings, saveEngineChoice } from './src/settings.js';
 
 // DOM elements
 const tabCountLabel = document.getElementById('tabCountLabel');
@@ -28,43 +31,41 @@ const strategyInputs = document.querySelectorAll('input[name="groupingStrategy"]
 const providerSelect = document.getElementById('providerSelect');
 const modelReasoningSummary = document.getElementById('modelReasoningSummary');
 const tabShortcut = document.getElementById('tabShortcut');
-const nanoHint = document.getElementById('nanoHint');
+const engineHint = document.getElementById('engineHint');
 const statRulesCount = document.getElementById('statRulesCount');
 const statLastGrouped = document.getElementById('statLastGrouped');
 const toggleOneClickMode = document.getElementById('toggleOneClickMode');
 const setupCard = document.getElementById('setupCard');
 const setupChoices = setupCard.querySelectorAll('.setup-choice');
-const setupNanoChoice = document.getElementById('setupNanoChoice');
-const setupNanoStatus = document.getElementById('setupNanoStatus');
-const setupNanoDetail = document.getElementById('setupNanoDetail');
 const setupKeepChoice = document.getElementById('setupKeepChoice');
 const setupKeepCopy = document.getElementById('setupKeepCopy');
+const planOffer = document.getElementById('planOffer');
+const btnApplyPlan = document.getElementById('btnApplyPlan');
 const providerPreferenceKeys = Object.entries(PROVIDER_CATALOG).flatMap(([id, config]) => {
   if (id === 'gemini_api') return ['geminiModel', 'geminiReasoningEffort'];
   if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort'), providerSettingKey(id, 'baseUrl')];
   return [];
 });
 const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
-// Settings that decide whether tabs may be labelled in the background.
-const BACKGROUND_SCOPE_KEYS = ['provider', 'groupingStrategy', 'backgroundPrep', 'autoGroupNewTabs', OLLAMA_BASE_URL_KEY];
 // Engines that send tab data to a provider: Gemini and compatible APIs except Ollama.
 const CLOUD_PROVIDERS = Object.keys(PROVIDER_CATALOG).filter(id => {
   const config = PROVIDER_CATALOG[id];
   return (config.mode === 'gemini' || config.mode === 'compatible') && !config.local;
 });
-const NANO_UNLOAD_COPY = Object.freeze({
-  immediately: 'releases it right after use',
-  '2m': 'releases it after 2 minutes idle',
-  '5m': 'releases it after 5 minutes idle',
-  '15m': 'releases it after 15 minutes idle',
-  '60m': 'releases it after 1 hour idle',
-  never: 'keeps it loaded'
-});
 let statusHideTimer = null;
-let setupNanoCheck = null;
 let setupBusy = false;
 let latestPopupRun = null;
 let engineStatusRevision = 0;
+// The window this popup acts on, once known; late plans are offered for it.
+// A private window's popup never looks for one.
+let popupWindowId = null;
+let popupIncognito = false;
+// Set while the status promises a late plan, until it is offered or fails.
+let planPendingWindowId = null;
+// While a cleanup runs, a late-plan event for its window waits for the
+// cleanup's response, which then settles from the verified offer lookup.
+let cleanupRunning = false;
+let planEventDuringCleanup = false;
 
 /**
  * Show status box with type
@@ -82,6 +83,40 @@ function showStatus(msg, type = 'loading') {
     statusSpinner.classList.add('hidden');
     btnGroupTabs.disabled = false;
   }
+}
+
+function showPlanOffer(visible) {
+  planOffer.classList.toggle('hidden', !visible);
+  btnApplyPlan.disabled = false;
+}
+
+/** Ask the background whether a verified late plan is waiting for this window; true when shown. */
+async function refreshPlanOffer(windowId) {
+  if (!Number.isInteger(windowId) || popupIncognito) return false;
+  const response = await chrome.runtime.sendMessage({ type: 'GET_PLAN_OFFER', windowId }).catch(() => null);
+  if (windowId !== popupWindowId || popupIncognito) return false;
+  showPlanOffer(Boolean(response?.offer));
+  return Boolean(response?.offer);
+}
+
+/**
+ * A late plan for this window was announced or failed: the verified lookup
+ * decides what shows. A status promising the plan is replaced either way.
+ */
+async function settlePlan(windowId) {
+  const offered = await refreshPlanOffer(windowId);
+  if (planPendingWindowId !== windowId) return;
+  planPendingWindowId = null;
+  if (offered) showStatus('The late grouping is ready below.', 'success');
+  else showStatus('The late grouping did not come through; the local grouping stays.', 'warning');
+  hideStatusAfter(4500);
+}
+
+function noteActiveTab(activeTab) {
+  if (!Number.isInteger(activeTab?.windowId)) return;
+  popupWindowId = activeTab.windowId;
+  popupIncognito = Boolean(activeTab.incognito);
+  if (popupIncognito) showPlanOffer(false);
 }
 
 function hideStatus() {
@@ -109,21 +144,38 @@ async function refreshTabCount() {
       const url = t.url || t.pendingUrl || '';
       return !t.pinned && url && !UNGROUPABLE_PREFIXES.some(p => url.startsWith(p));
     });
-    tabCountLabel.textContent = `${groupable.length} ${groupable.length === 1 ? 'tab' : 'tabs'} in this window`;
+    tabCountLabel.textContent = `${groupable.length} groupable ${groupable.length === 1 ? 'tab' : 'tabs'}`;
   } catch (err) {
     tabCountLabel.textContent = 'Tabs ready';
   }
 }
 
 /**
+ * The endpoint a request from this engine would really use (the resolver's
+ * answer), or null when the resolver refuses the saved address.
+ */
+function requestEndpoint(syncSettings, provider) {
+  try {
+    return resolveProviderEndpoint(provider, syncSettings[providerSettingKey(provider, 'baseUrl')]);
+  } catch {
+    return null;
+  }
+}
+
+const OLLAMA_REFUSED_HINT = 'Your saved Ollama address is not used, so cleanup runs locally with Offline smart mode and nothing is sent.';
+
+/**
  * Update active engine diagnosis badge
  */
+const PRIVATE_WINDOW_HINT = 'Private windows always use Offline smart mode: nothing is sent from them.';
+
 function renderProviderSelect() {
   providerSelect.textContent = '';
   Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
     const option = document.createElement('option');
     option.value = id;
-    option.textContent = provider.mode === 'local' || provider.local
+    // Ollama can be on this device or another server, so it carries no suffix.
+    option.textContent = provider.mode === 'local'
       ? `${provider.name} · local`
       : provider.name;
     providerSelect.append(option);
@@ -135,7 +187,7 @@ function renderProviderSelect() {
 function renderConfiguredProvider(config, lastRun, provider, model) {
   engineBadge.className = 'badge';
   engineBadge.textContent = `${provider === 'gemini_api' ? 'Gemini' : config.name} configured`;
-  nanoHint.textContent += ' Connection not verified.';
+  engineHint.textContent += ' Connection not verified.';
   if (lastRun?.provider !== provider || lastRun.strategy !== 'task' || lastRun.model !== model) return;
   const failures = {
     auth: ['danger', 'Last run: auth failed', 'Last cleanup ran offline because authentication failed. Check the API key in Settings and try again.'],
@@ -147,7 +199,7 @@ function renderConfiguredProvider(config, lastRun, provider, model) {
   if (!failure) return;
   engineBadge.className = `badge ${failure[0]}`;
   engineBadge.textContent = failure[1];
-  nanoHint.textContent += ` ${failure[2]}`;
+  engineHint.textContent += ` ${failure[2]}`;
 }
 
 async function refreshEngineStatus() {
@@ -160,23 +212,30 @@ async function refreshEngineStatus() {
   const secrets = syncSettings;
   const lastRun = latestPopupRun || runData.foldnex_last_run;
 
-  const provider = syncSettings.provider || 'gemini_nano';
+  const provider = resolveProvider(syncSettings.provider);
   const groupingStrategy = syncSettings.groupingStrategy === 'site' ? 'site' : 'task';
-  const config = PROVIDER_CATALOG[provider] || PROVIDER_CATALOG.gemini_nano;
+  const config = PROVIDER_CATALOG[provider];
   strategyInputs.forEach(input => { input.checked = input.value === groupingStrategy; });
   providerSelect.value = provider;
   providerSelect.disabled = groupingStrategy === 'site';
   modelReasoningSummary.classList.add('hidden');
 
   if (groupingStrategy === 'site') {
-    nanoHint.classList.remove('hidden');
-    nanoHint.textContent = 'Groups locally by address. X, Reddit, and Slack become Socials; ChatGPT and Grok become AI.';
+    engineHint.classList.remove('hidden');
+    engineHint.textContent = 'Groups locally by address. X, Reddit and Slack start in Socials; ChatGPT and Grok in AI · Assistants.';
     engineBadge.className = 'badge ready';
     engineBadge.textContent = 'Local · no AI';
     return;
   }
 
-  nanoHint.textContent = 'Runs locally in Chrome. No tab data leaves this device.';
+  // A private window never sends anything, whatever engine is saved (D40).
+  if (popupIncognito && provider !== 'offline') {
+    engineHint.classList.remove('hidden');
+    engineHint.textContent = PRIVATE_WINDOW_HINT;
+    engineBadge.className = 'badge ready';
+    engineBadge.textContent = 'Local';
+    return;
+  }
 
   if (provider === 'gemini_api' || config.mode === 'compatible') {
     const model = provider === 'gemini_api'
@@ -185,8 +244,12 @@ async function refreshEngineStatus() {
     const savedEffort = provider === 'gemini_api'
       ? syncSettings.geminiReasoningEffort
       : syncSettings[providerSettingKey(provider, 'reasoningEffort')];
-    const effort = getEffectiveReasoningEffort(provider, model, savedEffort);
-    const adjustable = getReasoningEffortOptions(provider, model).length > 0;
+    // By task, a cleanup sends one plan request at the model's lowest effort,
+    // whatever is saved; show the effort it sends.
+    const effort = groupingStrategy === 'task'
+      ? planReasoningEffort(provider, model)
+      : getEffectiveReasoningEffort(provider, model, savedEffort);
+    const adjustable = groupingStrategy !== 'task' && getReasoningEffortOptions(provider, model).length > 0;
     const effortLabel = provider === 'openai' && isOpenAIResponsesOnlyModel(model)
       ? 'Unavailable in Foldnex'
       : effort
@@ -194,31 +257,13 @@ async function refreshEngineStatus() {
         : 'Provider default';
     modelReasoningSummary.textContent = `${model} · Reasoning: ${effortLabel}`;
     modelReasoningSummary.classList.remove('hidden');
-  } else if (provider === 'gemini_nano') {
-    modelReasoningSummary.textContent = 'Reasoning: Managed by Chrome';
-    modelReasoningSummary.classList.remove('hidden');
   }
 
   const hasGeminiKey = Boolean(secrets.geminiApiKey);
 
-  if (provider === 'gemini_nano') {
-    nanoHint.classList.remove('hidden');
-    const nanoStatus = await checkChromeNanoStatus();
-    if (revision !== engineStatusRevision) return;
-    if (nanoStatus.status === 'ready') {
-      engineBadge.className = 'badge ready';
-      engineBadge.textContent = 'Nano available';
-      nanoHint.textContent += ' If the model needs loading, cleanup can use temporary local groups while it warms. Run cleanup again to use the prepared labels.';
-    } else if (nanoStatus.status === 'downloadable' || nanoStatus.status === 'downloading') {
-      engineBadge.className = 'badge warning';
-      engineBadge.textContent = 'Downloading';
-    } else {
-      engineBadge.className = 'badge danger';
-      engineBadge.textContent = 'Setup needed';
-    }
-  } else if (provider === 'gemini_api') {
-    nanoHint.classList.remove('hidden');
-    nanoHint.textContent = 'Cloud mode sends complete tab titles and host/path hints to Google Gemini when you group.';
+  if (provider === 'gemini_api') {
+    engineHint.classList.remove('hidden');
+    engineHint.textContent = 'Cloud mode sends tab titles (up to 160 characters) and host/path hints to Google Gemini when you group.';
     if (hasGeminiKey) {
       renderConfiguredProvider(config, lastRun, provider, syncSettings.geminiModel || config.defaultModel);
     } else {
@@ -226,16 +271,25 @@ async function refreshEngineStatus() {
       engineBadge.textContent = 'Key missing';
     }
   } else if (config.mode === 'compatible') {
-    nanoHint.classList.remove('hidden');
-    nanoHint.textContent = isOnDeviceEngine(syncSettings)
-      ? 'Runs through the Ollama server on this device. No tab data is sent to a cloud provider.'
-      : `Cloud mode sends complete tab titles and host/path hints to ${config.name} when you group.`;
+    engineHint.classList.remove('hidden');
+    const endpoint = requestEndpoint(syncSettings, provider);
+    if (!endpoint) {
+      modelReasoningSummary.classList.add('hidden');
+      engineHint.textContent = OLLAMA_REFUSED_HINT;
+      engineBadge.className = 'badge ready';
+      engineBadge.textContent = 'Local';
+      return;
+    }
+    // Only Ollama keeps a saved address; a fixed provider is named alone.
+    engineHint.textContent = isLoopbackUrl(endpoint)
+      ? 'Sends tab titles and host/path hints to the Ollama server on this device when you group. That server can itself run cloud models.'
+      : `Cloud mode sends tab titles (up to 160 characters) and host/path hints to ${config.name}${provider === 'ollama' ? ` at ${new URL(endpoint).host}` : ''} when you group.`;
     const apiKey = secrets[providerSettingKey(provider, 'apiKey')];
     const hasAuth = Boolean(apiKey || (provider === 'openai' && secrets.openaiOAuthToken));
     if (provider === 'openai' && isOpenAIResponsesOnlyModel(syncSettings.openaiModel || config.defaultModel)) {
       engineBadge.className = 'badge danger';
       engineBadge.textContent = 'Model unavailable';
-      nanoHint.textContent = 'Choose an OpenAI Chat Completions model in settings.';
+      engineHint.textContent = 'Choose an OpenAI Chat Completions model in settings.';
     } else if (hasAuth || config.keyOptional) {
       renderConfiguredProvider(config, lastRun, provider, syncSettings[providerSettingKey(provider, 'model')] || config.defaultModel);
     } else {
@@ -243,7 +297,7 @@ async function refreshEngineStatus() {
       engineBadge.textContent = 'Key missing';
     }
   } else if (provider === 'offline') {
-    nanoHint.classList.add('hidden');
+    engineHint.classList.add('hidden');
     engineBadge.className = 'badge ready';
     engineBadge.textContent = 'Local';
   }
@@ -274,9 +328,8 @@ async function refreshStats() {
   }
 }
 
-/** Setup choice that matches a saved engine: cloud, nano, offline, or keep (Ollama). */
+/** Setup choice that matches a saved engine: cloud, offline, or keep (Ollama). */
 function setupChoiceFor(provider) {
-  if (provider === 'gemini_nano') return 'nano';
   if (provider === 'offline') return 'offline';
   if (provider === 'ollama') return 'keep';
   return CLOUD_PROVIDERS.includes(provider) ? 'cloud' : null;
@@ -291,12 +344,13 @@ function apiKeyStorageKey(provider) {
  * by an earlier version is marked Current.
  */
 async function refreshSetupCard() {
-  const settings = await chrome.storage.sync.get(['setupChoice', 'provider', 'modelUnloadAfter', OLLAMA_BASE_URL_KEY]);
+  const settings = await chrome.storage.sync.get(['setupChoice', 'provider', OLLAMA_BASE_URL_KEY]);
   if (settings.setupChoice) {
     setupCard.classList.add('hidden');
     return;
   }
-  const current = settings.provider ? setupChoiceFor(settings.provider) : null;
+  // A saved engine that no longer exists (Gemini Nano) shows as Offline smart mode.
+  const current = settings.provider ? setupChoiceFor(resolveProvider(settings.provider)) : null;
   setupChoices.forEach(choice => {
     if (choice === setupKeepChoice) return;
     const isCurrent = choice.dataset.choice === current;
@@ -306,30 +360,13 @@ async function refreshSetupCard() {
   });
   setupKeepChoice.classList.toggle('hidden', current !== 'keep');
   // Ollama at another address is not on this device: say where titles go.
-  setupKeepCopy.textContent = current !== 'keep' || isOnDeviceEngine(settings)
-    ? 'Runs through the Ollama server on this device.'
-    : 'Runs through your Ollama server at another address. Page titles and a short site hint are sent to it when you group.';
-  const unload = NANO_UNLOAD_COPY[settings.modelUnloadAfter] || NANO_UNLOAD_COPY['5m'];
-  setupNanoDetail.textContent = `Uses about 3 GB of memory while the model is loaded and ${unload} (change in Settings). The first load takes 15-25 seconds.`;
+  const ollamaEndpoint = requestEndpoint(settings, 'ollama');
+  setupKeepCopy.textContent = current !== 'keep' || (ollamaEndpoint && isLoopbackUrl(ollamaEndpoint))
+    ? 'Runs through the Ollama server on this device, which can itself run cloud models.'
+    : ollamaEndpoint
+      ? 'Runs through your Ollama server at another address. Page titles and a short site hint are sent to it when you group.'
+      : OLLAMA_REFUSED_HINT;
   setupCard.classList.remove('hidden');
-  refreshSetupNanoAvailability();
-}
-
-/** Same Prompt API check as Settings; an unavailable model disables the choice with its reason. */
-async function refreshSetupNanoAvailability() {
-  setupNanoCheck ??= checkChromeNanoStatus();
-  const status = await setupNanoCheck;
-  const unavailable = status.status === 'unavailable';
-  if (unavailable) setupNanoChoice.setAttribute('aria-disabled', 'true');
-  else setupNanoChoice.removeAttribute('aria-disabled');
-  if (unavailable) {
-    setupNanoStatus.textContent = `Not available: ${String(status.detail || 'Prompt API unavailable')}.`;
-  } else if (status.status === 'downloadable' || status.status === 'downloading') {
-    setupNanoStatus.textContent = 'Chrome needs a one-time model download first. Settings opens to start it.';
-  } else {
-    setupNanoStatus.textContent = '';
-  }
-  setupNanoStatus.classList.toggle('hidden', !setupNanoStatus.textContent);
 }
 
 /** Open Settings at the engine section, reusing an open Settings tab. */
@@ -370,11 +407,11 @@ async function chooseCloudSetup() {
   const keyed = [provider, 'openai', ...CLOUD_PROVIDERS]
     .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
   if (keyed) {
-    await chrome.storage.sync.set({ provider: keyed, setupChoice: 'cloud' });
+    await saveEngineChoice({ provider: keyed, setupChoice: 'cloud' });
     finishSetup(`${PROVIDER_CATALOG[keyed].name} selected with your saved key.`);
     return;
   }
-  await chrome.storage.sync.set({ setupChoice: 'cloud' });
+  await saveEngineChoice({ setupChoice: 'cloud' });
   finishSetup('Add an API key in Settings to finish.');
   await openEngineSettings();
 }
@@ -382,29 +419,18 @@ async function chooseCloudSetup() {
 async function chooseSetup(choice) {
   if (choice === 'cloud') {
     await chooseCloudSetup();
-  } else if (choice === 'nano') {
-    setupNanoCheck ??= checkChromeNanoStatus();
-    const status = await setupNanoCheck;
-    if (status.status === 'unavailable') return;
-    await chrome.storage.sync.set({ provider: 'gemini_nano', backgroundPrep: true, setupChoice: 'nano' });
-    if (status.status === 'downloadable' || status.status === 'downloading') {
-      finishSetup('Gemini Nano selected. Start its download in Settings.');
-      await openEngineSettings();
-    } else {
-      finishSetup('Gemini Nano selected. Its first load takes 15-25 seconds.');
-    }
   } else if (choice === 'offline') {
-    await chrome.storage.sync.set({ provider: 'offline', setupChoice: 'offline' });
+    await saveEngineChoice({ provider: 'offline', setupChoice: 'offline' });
     finishSetup('Offline mode selected. Tabs are grouped on this computer.');
   } else if (choice === 'keep') {
     const settings = await chrome.storage.sync.get(['provider', OLLAMA_BASE_URL_KEY]);
-    await chrome.storage.sync.set({ setupChoice: isOnDeviceEngine(settings) ? 'nano' : 'cloud' });
+    await saveEngineChoice({ setupChoice: isLocalOllama(settings) ? 'offline' : 'cloud' });
     finishSetup('Keeping Ollama.');
   }
 }
 
 setupChoices.forEach(choice => choice.addEventListener('click', async () => {
-  if (setupBusy || choice.getAttribute('aria-disabled') === 'true') return;
+  if (setupBusy) return;
   setupBusy = true;
   try {
     await chooseSetup(choice.dataset.choice);
@@ -418,55 +444,41 @@ setupChoices.forEach(choice => choice.addEventListener('click', async () => {
 const REVIEW_CODES = new Set(['generic', 'regional', 'too_many']);
 
 /**
- * Whether saved settings let the worker label tabs in the background: an
- * on-device engine with Prepare in background or Auto-group on, or a cloud
- * engine with Auto-group on. By site category and Offline never label.
+ * The upkeep line: the last model plan kept and its new tabs placed on this
+ * device. Only what happened, then that no request was sent.
  */
-function backgroundLabellingAllowed(settings = {}) {
-  if (settings.groupingStrategy === 'site') return false;
-  const provider = settings.provider || 'gemini_nano';
-  if (provider === 'offline' || !PROVIDER_CATALOG[provider]) return false;
-  // On-device engines finish a cleanup's leftover tabs even without background preparation.
-  if (isOnDeviceEngine(settings)) return true;
-  return Boolean(settings.autoGroupNewTabs);
-}
-
-/**
- * Extra status sentences: tabs placed by address, and a model still loading.
- * The background promise needs both the worker's `provisionalInBackground`
- * and settings that allow background labelling; otherwise the popup points
- * to the next cleanup.
- */
-function resultNotes(res, inBackground = false) {
-  let notes = '';
-  const provisional = Number(res.provisionalTabs) || 0;
-  if (provisional > 0) {
-    const placed = provisional === 1 ? '1 tab placed by address' : `${provisional} tabs placed by address`;
-    if (res.incognito) {
-      notes += ` ${placed}.`;
-    } else {
-      notes += inBackground
-        ? ` ${placed}; background labelling prepares a later cleanup.`
-        : ` ${placed}; run another cleanup to try labelling ${provisional === 1 ? 'it' : 'them'} again.`;
-    }
-  }
-  if (res.fallbackCode === 'nano_loading') notes += ' The on-device model is still loading.';
-  return notes;
+function upkeepLine(res) {
+  const attached = Number(res.upkeepAttached) || 0;
+  const review = Number(res.upkeepReview) || 0;
+  const loose = Number(res.unplacedTabs) || 0;
+  const added = [
+    attached > 0 ? `${attached === 1 ? '1 new tab' : `${attached} new tabs`} to existing groups` : '',
+    review > 0 ? `${review === 1 ? '1 tab' : `${review} tabs`} to Review Later` : ''
+  ].filter(Boolean);
+  const clauses = [
+    added.length > 0 ? `Added ${added.join(', ')}` : '',
+    loose > 0 ? `${loose === 1 ? '1 tab' : `${loose} tabs`} left ungrouped` : ''
+  ].filter(Boolean);
+  return `${clauses.length > 0 ? clauses.join('; ') : 'Kept the groups'}; no request sent.`;
 }
 
 // Event: Group tabs with actionable fallback diagnostics
 btnGroupTabs.addEventListener('click', async () => {
   showStatus('Analyzing tabs & organizing...', 'loading');
+  cleanupRunning = true;
+  planEventDuringCleanup = false;
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    noteActiveTab(activeTab);
+    planPendingWindowId = null;
 
-    // Every engine, Nano included, runs in the background worker. It owns the
-    // grouping lock and pauses background classification so the click gets
-    // the model immediately.
+    // Every engine runs in the background worker. It owns the grouping lock
+    // and pauses Auto-group while the cleanup runs.
     const response = await chrome.runtime.sendMessage({
       type: 'TRIGGER_GROUPING',
       windowId: activeTab?.windowId
     });
+    // A refused run (busy) leaves any offer strip as it was.
     if (!response?.success) throw new Error(response?.error || 'Grouping failed');
     const res = response.result;
     if (res.provider) latestPopupRun = res;
@@ -477,6 +489,30 @@ btnGroupTabs.addEventListener('click', async () => {
       : duplicates > 1
         ? ` Removed ${duplicates} duplicate tabs.`
         : '';
+    // Duplicates are closed before the offer or pending request is checked.
+    const unchangedLead = duplicates > 0 ? duplicateSummary.trim() : 'Nothing changed.';
+    if (res.planOffer) {
+      // The window is unchanged and its late plan is still waiting.
+      showPlanOffer(true);
+      showStatus(`${unchangedLead} The late grouping for this window is waiting below.`, 'warning');
+      hideStatusAfter(4500);
+      return;
+    }
+    showPlanOffer(false);
+    if (res.planPending && res.groupsCreated === 0) {
+      // The late request for this unchanged window is still out; nothing was sent or moved.
+      planPendingWindowId = res.windowId ?? popupWindowId;
+      showStatus(`${unchangedLead} The model is still answering; its grouping will be offered here.`, 'warning');
+      return;
+    }
+
+    if (res.source === 'plan-upkeep') {
+      showStatus(`${upkeepLine(res)}${duplicateSummary}`, 'success');
+      refreshTabCount();
+      refreshStats();
+      hideStatusAfter(3500);
+      return;
+    }
 
     if (res.groupsCreated === 0) {
       if (duplicates > 0) {
@@ -488,22 +524,27 @@ btnGroupTabs.addEventListener('click', async () => {
       return;
     }
 
-    if (res.fallbackUsed) {
+    const unplaced = Number(res.unplacedTabs) || 0;
+    const unplacedNote = unplaced > 0
+      ? ` ${unplaced === 1 ? '1 tab' : `${unplaced} tabs`} left ungrouped.`
+      : '';
+    if (res.planReviewOnly) {
+      // A valid answer, not a provider failure: the model filed everything under Review Later.
+      showStatus(`No usable task group survived validation, only Review Later. Created ${res.groupsCreated} groups locally.${duplicateSummary}`, 'warning');
+    } else if (res.fallbackUsed) {
       let reasonSnippet = 'AI unavailable';
       if (res.fallbackCode === 'quota') {
         reasonSnippet = 'AI quota exceeded';
       } else if (res.fallbackCode === 'auth') {
-        reasonSnippet = 'Invalid API key';
+        reasonSnippet = 'API key missing or rejected';
       } else if (res.fallbackCode === 'timeout') {
         reasonSnippet = 'AI timed out';
-      } else if (res.fallbackCode === 'nano_unavailable') {
-        reasonSnippet = 'local model unavailable';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else {
-      const inBackground = Boolean(res.provisionalInBackground)
-        && backgroundLabellingAllowed(await chrome.storage.sync.get(BACKGROUND_SCOPE_KEYS).catch(() => ({})));
-      const notes = resultNotes(res, inBackground);
+      const notes = unplacedNote
+        + (res.planPending ? ' The model is still answering; its grouping will be offered here.' : '');
+      if (res.planPending) planPendingWindowId = res.windowId ?? popupWindowId;
       // 'oversized' alone is a diagnostic, not something to review.
       const review = (res.qualityCodes || []).some(code => REVIEW_CODES.has(code));
       showStatus(
@@ -514,10 +555,61 @@ btnGroupTabs.addEventListener('click', async () => {
 
     refreshTabCount();
     refreshStats();
-    hideStatusAfter(res.provisionalTabs > 0 ? 6000 : 3500);
+    if (!res.planPending) hideStatusAfter(3500);
   } catch (error) {
     showStatus(error.message || 'Grouping failed. Check options.', 'error');
+  } finally {
+    cleanupRunning = false;
+    // A late plan announced or failed before the response: settle from the verified lookup.
+    if (planEventDuringCleanup) {
+      planEventDuringCleanup = false;
+      await settlePlan(popupWindowId).catch(() => {});
+    }
   }
+});
+
+// Event: Apply a late plan. The background checks the window is unchanged.
+btnApplyPlan.addEventListener('click', async () => {
+  btnApplyPlan.disabled = true;
+  showStatus('Applying the late grouping...', 'loading');
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'APPLY_PLAN_OFFER', windowId: popupWindowId });
+    if (!response?.success) throw new Error(response?.error || 'Could not apply the late grouping');
+    const res = response.result;
+    showPlanOffer(false);
+    if (res?.success) {
+      showStatus(`Applied the late grouping: ${res.groupsCreated} groups.`, 'success');
+      refreshTabCount();
+      refreshStats();
+    } else if (res?.reason === 'changed') {
+      showStatus('The window changed, so the late grouping was dropped. Run a cleanup again.', 'warning');
+    } else if (res?.reason === 'failed') {
+      if (!res.groupsCreated) showPlanOffer(true);
+      // Chrome can create some groups before refusing the rest.
+      showStatus(res.groupsCreated > 0
+        ? `Chrome applied only part of the late grouping: ${res.groupsCreated === 1 ? '1 group' : `${res.groupsCreated} groups`} created.`
+        : res.message || 'Chrome refused the late grouping, so it was not applied.', 'error');
+    } else {
+      showStatus('No late grouping is waiting for this window.', 'warning');
+    }
+    hideStatusAfter(4500);
+  } catch (error) {
+    btnApplyPlan.disabled = false;
+    showStatus(error.message || 'Could not apply the late grouping.', 'error');
+  }
+});
+
+// A late plan that lands or fails while the popup is open: re-read it through
+// the verified lookup, which drops it if the window changed meanwhile, and end
+// the status's promise. During a cleanup the event waits for its response.
+chrome.runtime.onMessage?.addListener(message => {
+  if (!Number.isInteger(message?.windowId) || message.windowId !== popupWindowId || popupIncognito) return;
+  if (message.type !== 'PLAN_OFFER_READY' && message.type !== 'PLAN_OFFER_FAILED') return;
+  if (cleanupRunning) {
+    planEventDuringCleanup = true;
+    return;
+  }
+  settlePlan(message.windowId).catch(() => {});
 });
 
 // Event: Ungroup
@@ -525,7 +617,11 @@ btnUngroup.addEventListener('click', async () => {
   showStatus('Ungrouping tabs...', 'loading');
   chrome.runtime.sendMessage({ type: 'UNGROUP_ALL' }, (response) => {
     if (response?.success) {
-      showStatus('All tabs ungrouped', 'success');
+      // Ungroup ends the window's late plan and clears its offer.
+      planPendingWindowId = null;
+      showPlanOffer(false);
+      const count = Number(response.result?.ungroupedCount);
+      showStatus(Number.isFinite(count) ? `Ungrouped ${count === 1 ? '1 tab' : `${count} tabs`}` : 'Groups removed', 'success');
       refreshTabCount();
       hideStatusAfter(2000);
     } else {
@@ -543,7 +639,7 @@ strategyInputs.forEach(input => input.addEventListener('change', async () => {
 
 providerSelect.addEventListener('change', async (e) => {
   const newProvider = e.target.value;
-  await chrome.storage.sync.set({ provider: newProvider });
+  await saveEngineChoice({ provider: newProvider });
   await refreshEngineStatus();
 });
 
@@ -567,7 +663,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.provider || changes.groupingStrategy || providerPreferenceKeys.some(key => changes[key])) {
       refreshEngineStatus();
     }
-    if (changes.setupChoice || changes.provider || changes.modelUnloadAfter || changes[OLLAMA_BASE_URL_KEY]) {
+    if (changes.setupChoice || changes.provider || changes[OLLAMA_BASE_URL_KEY]) {
       refreshSetupCard().catch(() => {});
     }
     if (changes.oneClickIconMode !== undefined) {
@@ -587,10 +683,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
-  // Warm the on-device model and label this window's tabs first while the
-  // user reads the popup. Nothing is sent to a cloud engine.
+  // Opening the popup prepares nothing: it only reads a late plan waiting for this window.
   chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    .then(([activeTab]) => chrome.runtime.sendMessage({ type: 'PREPARE_GROUPING', windowId: activeTab?.windowId }))
+    .then(([activeTab]) => {
+      noteActiveTab(activeTab);
+      return refreshPlanOffer(popupWindowId);
+    })
     .catch(() => {});
   renderProviderSelect();
   chrome.commands.getAll().then(commands => {

@@ -1,0 +1,833 @@
+{
+ "started": "2026-11-22T18-21-20",
+ "model": "claude-opus-5-5",
+ "mode": "plan",
+ "thinking": "off",
+ "effort": null,
+ "thinking_sent": null,
+ "effort_sent": "low",
+ "thinking_note": "Opus 5.5 cannot disable thinking: thinking omitted, effort low",
+ "windows": [
+  "dev",
+  "life"
+ ],
+ "repeats": 2,
+ "api_version": "2026-10-21",
+ "max_cost_usd": 0.4,
+ "cost_usd": 0.07530400000000001,
+ "stopped_early": false,
+ "stability": [
+  {
+   "window": "dev",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9703504043126685
+  },
+  {
+   "window": "life",
+   "a": 0,
+   "b": 1,
+   "f1": 1
+  }
+ ],
+ "units": [
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 3582,
+   "input_tokens": 3143,
+   "output_tokens": 304,
+   "thinking_tokens": 0,
+   "cost_usd": 0.018652,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "LLM APIs",
+    "WireGuard Server",
+    "iOS App",
+    "Company Admin",
+    "MacBook Purchase",
+    "News Reading",
+    "Entertainment",
+    "Email & Calendar",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    9,
+    8,
+    7,
+    6,
+    6,
+    5,
+    4,
+    5,
+    4
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3581,
+     "headers_ms": 1497,
+     "ttfb_ms": 1497,
+     "first_token_ms": 1497,
+     "stop_reason": "end_turn",
+     "input_tokens": 3143,
+     "output_tokens": 304,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": null,
+      "effort": "low",
+      "note": "Opus 5.5 cannot disable thinking: thinking omitted, effort low",
+      "max_tokens": 1156
+     },
+     "usage_raw": {
+      "input_tokens": 3143,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 304,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       4,
+       16,
+       29,
+       32,
+       35,
+       39,
+       47,
+       61
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       9,
+       10,
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "WireGuard Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "iOS App",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "Company Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "News Reading",
+      "ids": [
+       1,
+       6,
+       12,
+       26,
+       30
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       13,
+       22,
+       24,
+       43
+      ]
+     },
+     {
+      "name": "Email & Calendar",
+      "ids": [
+       2,
+       42,
+       53,
+       57,
+       60
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       37,
+       45,
+       58
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 3391,
+   "input_tokens": 3270,
+   "output_tokens": 298,
+   "thinking_tokens": 0,
+   "cost_usd": 0.01904,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Job Search",
+    "Tesla Purchase",
+    "Marathon Training",
+    "Recipes",
+    "Bills & Finances",
+    "News",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    7,
+    6,
+    6,
+    7,
+    6,
+    6,
+    5,
+    5,
+    3
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3390,
+     "headers_ms": 1357,
+     "ttfb_ms": 1358,
+     "first_token_ms": 1358,
+     "stop_reason": "end_turn",
+     "input_tokens": 3270,
+     "output_tokens": 298,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": null,
+      "effort": "low",
+      "note": "Opus 5.5 cannot disable thinking: thinking omitted, effort low",
+      "max_tokens": 1144
+     },
+     "usage_raw": {
+      "input_tokens": 3270,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 298,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59,
+       23
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       28,
+       29,
+       31,
+       48,
+       54,
+       12
+      ]
+     },
+     {
+      "name": "Marathon Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Bills & Finances",
+      "ids": [
+       0,
+       3,
+       7,
+       19,
+       53,
+       58
+      ]
+     },
+     {
+      "name": "News",
+      "ids": [
+       16,
+       35,
+       37,
+       50,
+       57
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       17,
+       26,
+       61
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 3150,
+   "input_tokens": 3143,
+   "output_tokens": 300,
+   "thinking_tokens": 0,
+   "cost_usd": 0.018572,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Extension",
+    "LLM APIs",
+    "WireGuard Server",
+    "iOS App",
+    "Company Admin",
+    "MacBook Purchase",
+    "Tech News",
+    "Communication",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    9,
+    9,
+    7,
+    6,
+    6,
+    5,
+    5,
+    4,
+    3
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3150,
+     "headers_ms": 1104,
+     "ttfb_ms": 1104,
+     "first_token_ms": 1104,
+     "stop_reason": "end_turn",
+     "input_tokens": 3143,
+     "output_tokens": 300,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": null,
+      "effort": "low",
+      "note": "Opus 5.5 cannot disable thinking: thinking omitted, effort low",
+      "max_tokens": 1156
+     },
+     "usage_raw": {
+      "input_tokens": 3143,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 300,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Extension",
+      "ids": [
+       0,
+       4,
+       16,
+       29,
+       32,
+       35,
+       39,
+       47,
+       61
+      ]
+     },
+     {
+      "name": "LLM APIs",
+      "ids": [
+       9,
+       10,
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "WireGuard Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51,
+       37
+      ]
+     },
+     {
+      "name": "iOS App",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "Company Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Tech News",
+      "ids": [
+       1,
+       6,
+       12,
+       26,
+       30
+      ]
+     },
+     {
+      "name": "Communication",
+      "ids": [
+       2,
+       42,
+       53,
+       57,
+       60
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       13,
+       22,
+       24,
+       43
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       45,
+       58
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 1,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 3431,
+   "input_tokens": 3270,
+   "output_tokens": 298,
+   "thinking_tokens": 0,
+   "cost_usd": 0.01904,
+   "score": {
+    "p": 1,
+    "r": 1,
+    "f1": 1,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Purchase",
+    "Job Search",
+    "Marathon Training",
+    "Recipes",
+    "Bills & Finances",
+    "News",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    7,
+    6,
+    6,
+    7,
+    6,
+    6,
+    5,
+    5,
+    3
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3430,
+     "headers_ms": 1432,
+     "ttfb_ms": 1432,
+     "first_token_ms": 1432,
+     "stop_reason": "end_turn",
+     "input_tokens": 3270,
+     "output_tokens": 298,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": null,
+      "effort": "low",
+      "note": "Opus 5.5 cannot disable thinking: thinking omitted, effort low",
+      "max_tokens": 1144
+     },
+     "usage_raw": {
+      "input_tokens": 3270,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 298,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 0
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59,
+       23
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Purchase",
+      "ids": [
+       28,
+       29,
+       31,
+       54,
+       48,
+       12
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Marathon Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Bills & Finances",
+      "ids": [
+       0,
+       3,
+       7,
+       19,
+       53,
+       58
+      ]
+     },
+     {
+      "name": "News",
+      "ids": [
+       16,
+       35,
+       37,
+       50,
+       57
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       17,
+       26,
+       61
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

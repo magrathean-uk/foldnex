@@ -29,4 +29,4 @@ npm run package:store
 
 `README.md`, `CHANGELOG.md`, `docs/user-guide.md`, `docs/architecture/product.md`, `docs/legal/privacy.md`, `docs/legal/terms.md` and `docs/development/chromewebstore.md` describe permissions and provider behaviour. `store-assets/manifest.json` records screenshot provenance. Original captures and promotional assets are separate from the runtime archive.
 
-[NEXT-RELEASE-URLS.md](NEXT-RELEASE-URLS.md) records the planned move to product sites at `https://magrathean.uk/solutions/<slug>/` and support addresses at `contact+<slug>@magrathean.uk`.
+Product links use `https://magrathean.uk/solutions/foldnex/` (and `/privacy/`, `/terms/`); support is `contact+foldnex@magrathean.uk`.

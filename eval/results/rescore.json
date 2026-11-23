@@ -1,0 +1,2279 @@
+{
+  "policy": {
+    "applied": "Each tab in at most one group (first placement wins, unknown ids ignored). Omitted tabs and tabs in a group named \"Review Later\" (any case) are unassigned. At most ten groups, the Review Later pool counting as one when any tab is unassigned: the largest groups stay (ties by first appearance), the tabs of the rest are unassigned.",
+    "tasked": "Pairwise F1 over pairs of tabs with a gold task; unassigned tabs are singletons.",
+    "all": "Pairwise F1 over every tab; a tab without a gold task is a gold singleton; unassigned tabs are singletons.",
+    "recorded": "As the original reports scored it: plan answers as given (first placement wins, omitted ids singletons, any number of folders), local clusters as the ten largest clusters of 2+ tabs, tasked tabs only.",
+    "tenWindows": "Every window except dev and life, which were used to draft the plan prompt.",
+    "pooled": "Sensitivity only: the applied result with all unassigned tabs pooled as one real group."
+  },
+  "windows": [
+    "a-designer",
+    "a-hoarder",
+    "a-household",
+    "a-oncall",
+    "a-student",
+    "b-academic",
+    "b-expat",
+    "b-messy",
+    "b-move",
+    "b-shop",
+    "dev",
+    "life"
+  ],
+  "tenWindows": [
+    "a-designer",
+    "a-hoarder",
+    "a-household",
+    "a-oncall",
+    "a-student",
+    "b-academic",
+    "b-expat",
+    "b-messy",
+    "b-move",
+    "b-shop"
+  ],
+  "rows": [
+    {
+      "id": "rules",
+      "label": "Rules only (offline today)",
+      "kind": "local",
+      "twelve": {
+        "recordedTasked": 0.2552,
+        "asGivenAll": 0.2237,
+        "appliedTasked": 0.2015,
+        "appliedAll": 0.1902,
+        "pooledTasked": 0.2552,
+        "pooledAll": 0.2237,
+        "unassigned": 33.25,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.2541,
+        "asGivenAll": 0.2186,
+        "appliedTasked": 0.1878,
+        "appliedAll": 0.1768,
+        "pooledTasked": 0.2541,
+        "pooledAll": 0.2186,
+        "unassigned": 34.9,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.31,
+          "asGivenAll": 0.3022,
+          "appliedTasked": 0.2883,
+          "appliedAll": 0.2743,
+          "pooledTasked": 0.31,
+          "pooledAll": 0.3022,
+          "unassigned": 26,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.2671,
+          "asGivenAll": 0.2182,
+          "appliedTasked": 0.2361,
+          "appliedAll": 0.2057,
+          "pooledTasked": 0.2671,
+          "pooledAll": 0.2182,
+          "unassigned": 81,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.2389,
+          "asGivenAll": 0.2054,
+          "appliedTasked": 0.0308,
+          "appliedAll": 0.0301,
+          "pooledTasked": 0.2389,
+          "pooledAll": 0.2054,
+          "unassigned": 45,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.2778,
+          "asGivenAll": 0.2396,
+          "appliedTasked": 0.2374,
+          "appliedAll": 0.2259,
+          "pooledTasked": 0.2778,
+          "pooledAll": 0.2396,
+          "unassigned": 35,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.2318,
+          "asGivenAll": 0.2197,
+          "appliedTasked": 0.2006,
+          "appliedAll": 0.1844,
+          "pooledTasked": 0.2318,
+          "pooledAll": 0.2197,
+          "unassigned": 20,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.2116,
+          "asGivenAll": 0.1696,
+          "appliedTasked": 0.1484,
+          "appliedAll": 0.1415,
+          "pooledTasked": 0.2116,
+          "pooledAll": 0.1696,
+          "unassigned": 29,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.267,
+          "asGivenAll": 0.2003,
+          "appliedTasked": 0.2069,
+          "appliedAll": 0.2017,
+          "pooledTasked": 0.267,
+          "pooledAll": 0.2003,
+          "unassigned": 27,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.2127,
+          "asGivenAll": 0.1623,
+          "appliedTasked": 0.161,
+          "appliedAll": 0.1538,
+          "pooledTasked": 0.2127,
+          "pooledAll": 0.1623,
+          "unassigned": 41,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.2552,
+          "asGivenAll": 0.2279,
+          "appliedTasked": 0.1379,
+          "appliedAll": 0.1319,
+          "pooledTasked": 0.2552,
+          "pooledAll": 0.2279,
+          "unassigned": 29,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.2684,
+          "asGivenAll": 0.2409,
+          "appliedTasked": 0.2303,
+          "appliedAll": 0.2188,
+          "pooledTasked": 0.2684,
+          "pooledAll": 0.2409,
+          "unassigned": 16,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.3043,
+          "asGivenAll": 0.2937,
+          "appliedTasked": 0.3333,
+          "appliedAll": 0.3149,
+          "pooledTasked": 0.3043,
+          "pooledAll": 0.2937,
+          "unassigned": 21,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.2169,
+          "asGivenAll": 0.2041,
+          "appliedTasked": 0.2075,
+          "appliedAll": 0.1991,
+          "pooledTasked": 0.2169,
+          "pooledAll": 0.2041,
+          "unassigned": 29,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "gold",
+      "label": "Gold categories through today's planner",
+      "kind": "local",
+      "twelve": {
+        "recordedTasked": 0.475,
+        "asGivenAll": 0.4392,
+        "appliedTasked": 0.4744,
+        "appliedAll": 0.4405,
+        "pooledTasked": 0.475,
+        "pooledAll": 0.4392,
+        "unassigned": 3.25,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.4328,
+        "asGivenAll": 0.3978,
+        "appliedTasked": 0.432,
+        "appliedAll": 0.3993,
+        "pooledTasked": 0.4328,
+        "pooledAll": 0.3978,
+        "unassigned": 3.9,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.4406,
+          "asGivenAll": 0.4238,
+          "appliedTasked": 0.4406,
+          "appliedAll": 0.4238,
+          "pooledTasked": 0.4406,
+          "pooledAll": 0.4238,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.4186,
+          "asGivenAll": 0.3423,
+          "appliedTasked": 0.4035,
+          "appliedAll": 0.3402,
+          "pooledTasked": 0.4186,
+          "pooledAll": 0.3423,
+          "unassigned": 24,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.6417,
+          "asGivenAll": 0.6075,
+          "appliedTasked": 0.6417,
+          "appliedAll": 0.6075,
+          "pooledTasked": 0.6417,
+          "pooledAll": 0.6075,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.4413,
+          "asGivenAll": 0.4236,
+          "appliedTasked": 0.4413,
+          "appliedAll": 0.4252,
+          "pooledTasked": 0.4413,
+          "pooledAll": 0.4236,
+          "unassigned": 3,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.5459,
+          "asGivenAll": 0.5021,
+          "appliedTasked": 0.5459,
+          "appliedAll": 0.5021,
+          "pooledTasked": 0.5459,
+          "pooledAll": 0.5021,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.2947,
+          "asGivenAll": 0.2824,
+          "appliedTasked": 0.2947,
+          "appliedAll": 0.2824,
+          "pooledTasked": 0.2947,
+          "pooledAll": 0.2824,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.3972,
+          "asGivenAll": 0.3508,
+          "appliedTasked": 0.3972,
+          "appliedAll": 0.3508,
+          "pooledTasked": 0.3972,
+          "pooledAll": 0.3508,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.4747,
+          "asGivenAll": 0.4455,
+          "appliedTasked": 0.4747,
+          "appliedAll": 0.4498,
+          "pooledTasked": 0.4747,
+          "pooledAll": 0.4455,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.4161,
+          "asGivenAll": 0.3669,
+          "appliedTasked": 0.4175,
+          "appliedAll": 0.3701,
+          "pooledTasked": 0.4161,
+          "pooledAll": 0.3669,
+          "unassigned": 3,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.2571,
+          "asGivenAll": 0.233,
+          "appliedTasked": 0.2628,
+          "appliedAll": 0.2408,
+          "pooledTasked": 0.2571,
+          "pooledAll": 0.233,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.6995,
+          "asGivenAll": 0.6649,
+          "appliedTasked": 0.6995,
+          "appliedAll": 0.6649,
+          "pooledTasked": 0.6995,
+          "pooledAll": 0.6649,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.6729,
+          "asGivenAll": 0.6279,
+          "appliedTasked": 0.6729,
+          "appliedAll": 0.6279,
+          "pooledTasked": 0.6729,
+          "pooledAll": 0.6279,
+          "unassigned": 0,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "lexical-title",
+      "label": "Clusters on title words only (held-out settings)",
+      "kind": "local",
+      "settings": {
+        "a-designer": "title-t0.02",
+        "a-hoarder": "title-t0.02",
+        "a-household": "title-t0.02",
+        "a-oncall": "title-t0.02",
+        "a-student": "title-t0.02",
+        "b-academic": "title-t0.03",
+        "b-expat": "title-t0.02",
+        "b-messy": "title-t0.02",
+        "b-move": "title-t0.02",
+        "b-shop": "title-t0.02",
+        "dev": "title-t0.02",
+        "life": "title-t0.02"
+      },
+      "twelve": {
+        "recordedTasked": 0.3547,
+        "asGivenAll": 0.3373,
+        "appliedTasked": 0.3524,
+        "appliedAll": 0.3351,
+        "pooledTasked": 0.3507,
+        "pooledAll": 0.2931,
+        "unassigned": 27.5833,
+        "capped": 1.9167
+      },
+      "ten": {
+        "recordedTasked": 0.3504,
+        "asGivenAll": 0.3307,
+        "appliedTasked": 0.3476,
+        "appliedAll": 0.328,
+        "pooledTasked": 0.3595,
+        "pooledAll": 0.2992,
+        "unassigned": 27.5,
+        "capped": 2.2
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.4807,
+          "asGivenAll": 0.4807,
+          "appliedTasked": 0.4773,
+          "appliedAll": 0.4773,
+          "pooledTasked": 0.4742,
+          "pooledAll": 0.3993,
+          "unassigned": 17,
+          "capped": 1
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.3148,
+          "asGivenAll": 0.3095,
+          "appliedTasked": 0.3148,
+          "appliedAll": 0.3095,
+          "pooledTasked": 0.3088,
+          "pooledAll": 0.2179,
+          "unassigned": 84,
+          "capped": 12
+        },
+        "a-household": {
+          "recordedTasked": 0.2037,
+          "asGivenAll": 0.1924,
+          "appliedTasked": 0.2037,
+          "appliedAll": 0.1924,
+          "pooledTasked": 0.3191,
+          "pooledAll": 0.2879,
+          "unassigned": 30,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.3263,
+          "asGivenAll": 0.3208,
+          "appliedTasked": 0.3231,
+          "appliedAll": 0.3176,
+          "pooledTasked": 0.314,
+          "pooledAll": 0.2587,
+          "unassigned": 34,
+          "capped": 5
+        },
+        "a-student": {
+          "recordedTasked": 0.3403,
+          "asGivenAll": 0.3184,
+          "appliedTasked": 0.3353,
+          "appliedAll": 0.3137,
+          "pooledTasked": 0.3277,
+          "pooledAll": 0.2815,
+          "unassigned": 20,
+          "capped": 1
+        },
+        "b-academic": {
+          "recordedTasked": 0.3323,
+          "asGivenAll": 0.32,
+          "appliedTasked": 0.3161,
+          "appliedAll": 0.3043,
+          "pooledTasked": 0.3105,
+          "pooledAll": 0.24,
+          "unassigned": 28,
+          "capped": 3
+        },
+        "b-expat": {
+          "recordedTasked": 0.2615,
+          "asGivenAll": 0.2244,
+          "appliedTasked": 0.2615,
+          "appliedAll": 0.2244,
+          "pooledTasked": 0.3081,
+          "pooledAll": 0.2574,
+          "unassigned": 19,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.5447,
+          "asGivenAll": 0.4926,
+          "appliedTasked": 0.5447,
+          "appliedAll": 0.4926,
+          "pooledTasked": 0.5251,
+          "pooledAll": 0.4345,
+          "unassigned": 15,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.4807,
+          "asGivenAll": 0.4516,
+          "appliedTasked": 0.4807,
+          "appliedAll": 0.4516,
+          "pooledTasked": 0.4677,
+          "pooledAll": 0.4085,
+          "unassigned": 9,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.2188,
+          "asGivenAll": 0.1965,
+          "appliedTasked": 0.2188,
+          "appliedAll": 0.1965,
+          "pooledTasked": 0.2398,
+          "pooledAll": 0.2061,
+          "unassigned": 19,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.2432,
+          "asGivenAll": 0.2422,
+          "appliedTasked": 0.2432,
+          "appliedAll": 0.2432,
+          "pooledTasked": 0.2033,
+          "pooledAll": 0.1699,
+          "unassigned": 32,
+          "capped": 1
+        },
+        "life": {
+          "recordedTasked": 0.5095,
+          "asGivenAll": 0.4981,
+          "appliedTasked": 0.5095,
+          "appliedAll": 0.4981,
+          "pooledTasked": 0.4101,
+          "pooledAll": 0.356,
+          "unassigned": 24,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "cluster-4M",
+      "label": "Clusters with the 4M table (idf, wl 1, tau 0.2)",
+      "kind": "local",
+      "settings": {
+        "a-designer": "4M|cluster|idf-wl1-t0.2",
+        "a-hoarder": "4M|cluster|idf-wl1-t0.2",
+        "a-household": "4M|cluster|idf-wl1-t0.2",
+        "a-oncall": "4M|cluster|idf-wl1-t0.2",
+        "a-student": "4M|cluster|idf-wl1-t0.2",
+        "b-academic": "4M|cluster|idf-wl1-t0.2",
+        "b-expat": "4M|cluster|idf-wl1-t0.2",
+        "b-messy": "4M|cluster|idf-wl1-t0.2",
+        "b-move": "4M|cluster|idf-wl1-t0.2",
+        "b-shop": "4M|cluster|idf-wl1-t0.2",
+        "dev": "4M|cluster|idf-wl1-t0.2",
+        "life": "4M|cluster|idf-wl1-t0.2"
+      },
+      "twelve": {
+        "recordedTasked": 0.4209,
+        "asGivenAll": 0.3912,
+        "appliedTasked": 0.4192,
+        "appliedAll": 0.3896,
+        "pooledTasked": 0.4133,
+        "pooledAll": 0.3698,
+        "unassigned": 10.5833,
+        "capped": 2.25
+      },
+      "ten": {
+        "recordedTasked": 0.3977,
+        "asGivenAll": 0.367,
+        "appliedTasked": 0.3971,
+        "appliedAll": 0.3665,
+        "pooledTasked": 0.3968,
+        "pooledAll": 0.3547,
+        "unassigned": 10.6,
+        "capped": 2.2
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.5127,
+          "asGivenAll": 0.4966,
+          "appliedTasked": 0.5127,
+          "appliedAll": 0.4978,
+          "pooledTasked": 0.5119,
+          "pooledAll": 0.4609,
+          "unassigned": 12,
+          "capped": 2
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.3446,
+          "asGivenAll": 0.3165,
+          "appliedTasked": 0.3412,
+          "appliedAll": 0.3138,
+          "pooledTasked": 0.3417,
+          "pooledAll": 0.2671,
+          "unassigned": 61,
+          "capped": 17
+        },
+        "a-household": {
+          "recordedTasked": 0.2651,
+          "asGivenAll": 0.2396,
+          "appliedTasked": 0.2651,
+          "appliedAll": 0.2396,
+          "pooledTasked": 0.2646,
+          "pooledAll": 0.2391,
+          "unassigned": 3,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.3202,
+          "asGivenAll": 0.3145,
+          "appliedTasked": 0.3205,
+          "appliedAll": 0.3148,
+          "pooledTasked": 0.3205,
+          "pooledAll": 0.3123,
+          "unassigned": 6,
+          "capped": 1
+        },
+        "a-student": {
+          "recordedTasked": 0.4698,
+          "asGivenAll": 0.4412,
+          "appliedTasked": 0.4664,
+          "appliedAll": 0.4379,
+          "pooledTasked": 0.4605,
+          "pooledAll": 0.4175,
+          "unassigned": 8,
+          "capped": 2
+        },
+        "b-academic": {
+          "recordedTasked": 0.3762,
+          "asGivenAll": 0.3363,
+          "appliedTasked": 0.3762,
+          "appliedAll": 0.3363,
+          "pooledTasked": 0.3762,
+          "pooledAll": 0.3358,
+          "unassigned": 2,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.2652,
+          "asGivenAll": 0.2033,
+          "appliedTasked": 0.2652,
+          "appliedAll": 0.2033,
+          "pooledTasked": 0.2645,
+          "pooledAll": 0.2028,
+          "unassigned": 3,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.6224,
+          "asGivenAll": 0.5811,
+          "appliedTasked": 0.6224,
+          "appliedAll": 0.5811,
+          "pooledTasked": 0.6215,
+          "pooledAll": 0.5727,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.4242,
+          "asGivenAll": 0.3938,
+          "appliedTasked": 0.4242,
+          "appliedAll": 0.3938,
+          "pooledTasked": 0.4295,
+          "pooledAll": 0.3926,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.3767,
+          "asGivenAll": 0.3469,
+          "appliedTasked": 0.3767,
+          "appliedAll": 0.3469,
+          "pooledTasked": 0.3767,
+          "pooledAll": 0.3461,
+          "unassigned": 2,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.443,
+          "asGivenAll": 0.4094,
+          "appliedTasked": 0.444,
+          "appliedAll": 0.4102,
+          "pooledTasked": 0.4389,
+          "pooledAll": 0.4061,
+          "unassigned": 5,
+          "capped": 1
+        },
+        "life": {
+          "recordedTasked": 0.6304,
+          "asGivenAll": 0.6148,
+          "appliedTasked": 0.6154,
+          "appliedAll": 0.6,
+          "pooledTasked": 0.5527,
+          "pooledAll": 0.485,
+          "unassigned": 16,
+          "capped": 4
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-5-5|labels|off",
+      "label": "Haiku labels",
+      "kind": "provider",
+      "file": "claude-haiku-5-5_labels_off_2026-11-22T18-28-40.json",
+      "twelve": {
+        "recordedTasked": 0.4528,
+        "asGivenAll": 0.4176,
+        "appliedTasked": 0.4517,
+        "appliedAll": 0.4197,
+        "pooledTasked": 0.4528,
+        "pooledAll": 0.4176,
+        "unassigned": 4.3333,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.4314,
+        "asGivenAll": 0.3947,
+        "appliedTasked": 0.4296,
+        "appliedAll": 0.3961,
+        "pooledTasked": 0.4314,
+        "pooledAll": 0.3947,
+        "unassigned": 4.7,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.4568,
+          "asGivenAll": 0.4338,
+          "appliedTasked": 0.4568,
+          "appliedAll": 0.4342,
+          "pooledTasked": 0.4568,
+          "pooledAll": 0.4338,
+          "unassigned": 1,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.3749,
+          "asGivenAll": 0.3076,
+          "appliedTasked": 0.3704,
+          "appliedAll": 0.3168,
+          "pooledTasked": 0.3749,
+          "pooledAll": 0.3076,
+          "unassigned": 29,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.5391,
+          "asGivenAll": 0.5084,
+          "appliedTasked": 0.5391,
+          "appliedAll": 0.5084,
+          "pooledTasked": 0.5391,
+          "pooledAll": 0.5084,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.3667,
+          "asGivenAll": 0.3446,
+          "appliedTasked": 0.3597,
+          "appliedAll": 0.3435,
+          "pooledTasked": 0.3667,
+          "pooledAll": 0.3446,
+          "unassigned": 6,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.5199,
+          "asGivenAll": 0.4784,
+          "appliedTasked": 0.5205,
+          "appliedAll": 0.4801,
+          "pooledTasked": 0.5199,
+          "pooledAll": 0.4784,
+          "unassigned": 1.5,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.3394,
+          "asGivenAll": 0.3222,
+          "appliedTasked": 0.3394,
+          "appliedAll": 0.3222,
+          "pooledTasked": 0.3394,
+          "pooledAll": 0.3222,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.425,
+          "asGivenAll": 0.3717,
+          "appliedTasked": 0.425,
+          "appliedAll": 0.3717,
+          "pooledTasked": 0.425,
+          "pooledAll": 0.3717,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.5617,
+          "asGivenAll": 0.5161,
+          "appliedTasked": 0.5617,
+          "appliedAll": 0.522,
+          "pooledTasked": 0.5617,
+          "pooledAll": 0.5161,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.4515,
+          "asGivenAll": 0.4077,
+          "appliedTasked": 0.4476,
+          "appliedAll": 0.4071,
+          "pooledTasked": 0.4515,
+          "pooledAll": 0.4077,
+          "unassigned": 3.5,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.2787,
+          "asGivenAll": 0.256,
+          "appliedTasked": 0.2758,
+          "appliedAll": 0.2552,
+          "pooledTasked": 0.2787,
+          "pooledAll": 0.256,
+          "unassigned": 2,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.5412,
+          "asGivenAll": 0.5238,
+          "appliedTasked": 0.5412,
+          "appliedAll": 0.5238,
+          "pooledTasked": 0.5412,
+          "pooledAll": 0.5238,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.5784,
+          "asGivenAll": 0.5405,
+          "appliedTasked": 0.5837,
+          "appliedAll": 0.5512,
+          "pooledTasked": 0.5784,
+          "pooledAll": 0.5405,
+          "unassigned": 5,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-5-5|plan|off",
+      "label": "Haiku plan, thinking off",
+      "kind": "provider",
+      "file": "claude-haiku-5-5_plan_off_2026-11-22T18-29-32.json",
+      "twelve": {
+        "recordedTasked": 0.6672,
+        "asGivenAll": 0.5933,
+        "appliedTasked": 0.6743,
+        "appliedAll": 0.6212,
+        "pooledTasked": 0.6619,
+        "pooledAll": 0.5798,
+        "unassigned": 9.9583,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.6348,
+        "asGivenAll": 0.5575,
+        "appliedTasked": 0.6416,
+        "appliedAll": 0.5851,
+        "pooledTasked": 0.6296,
+        "pooledAll": 0.5425,
+        "unassigned": 11,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.5606,
+          "asGivenAll": 0.4531,
+          "appliedTasked": 0.5606,
+          "appliedAll": 0.4531,
+          "pooledTasked": 0.5606,
+          "pooledAll": 0.4531,
+          "unassigned": 0,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.5993,
+          "asGivenAll": 0.5425,
+          "appliedTasked": 0.6236,
+          "appliedAll": 0.5969,
+          "pooledTasked": 0.5607,
+          "pooledAll": 0.4095,
+          "unassigned": 60.5,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.6073,
+          "asGivenAll": 0.5147,
+          "appliedTasked": 0.6073,
+          "appliedAll": 0.5147,
+          "pooledTasked": 0.6073,
+          "pooledAll": 0.5147,
+          "unassigned": 0.5,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.6552,
+          "asGivenAll": 0.5665,
+          "appliedTasked": 0.6715,
+          "appliedAll": 0.666,
+          "pooledTasked": 0.6451,
+          "pooledAll": 0.5546,
+          "unassigned": 21,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.7689,
+          "asGivenAll": 0.696,
+          "appliedTasked": 0.7775,
+          "appliedAll": 0.721,
+          "pooledTasked": 0.7689,
+          "pooledAll": 0.696,
+          "unassigned": 6,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.8292,
+          "asGivenAll": 0.7432,
+          "appliedTasked": 0.8374,
+          "appliedAll": 0.8027,
+          "pooledTasked": 0.8292,
+          "pooledAll": 0.7432,
+          "unassigned": 9.5,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.5514,
+          "asGivenAll": 0.4802,
+          "appliedTasked": 0.5617,
+          "appliedAll": 0.5141,
+          "pooledTasked": 0.5485,
+          "pooledAll": 0.4757,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.7387,
+          "asGivenAll": 0.649,
+          "appliedTasked": 0.7387,
+          "appliedAll": 0.6511,
+          "pooledTasked": 0.7387,
+          "pooledAll": 0.649,
+          "unassigned": 2.5,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.5288,
+          "asGivenAll": 0.4814,
+          "appliedTasked": 0.5296,
+          "appliedAll": 0.4835,
+          "pooledTasked": 0.5288,
+          "pooledAll": 0.4814,
+          "unassigned": 2,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.5083,
+          "asGivenAll": 0.4479,
+          "appliedTasked": 0.5083,
+          "appliedAll": 0.4479,
+          "pooledTasked": 0.5083,
+          "pooledAll": 0.4479,
+          "unassigned": 1,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.8231,
+          "asGivenAll": 0.7577,
+          "appliedTasked": 0.8402,
+          "appliedAll": 0.8091,
+          "pooledTasked": 0.8115,
+          "pooledAll": 0.7456,
+          "unassigned": 7.5,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.8352,
+          "asGivenAll": 0.7869,
+          "appliedTasked": 0.8352,
+          "appliedAll": 0.7941,
+          "pooledTasked": 0.8352,
+          "pooledAll": 0.7869,
+          "unassigned": 2,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-5-5|plan|adaptive-low",
+      "label": "Haiku plan, thinking adaptive / effort low",
+      "kind": "provider",
+      "file": "claude-haiku-5-5_plan_adaptive-low_2026-11-22T18-33-38.json",
+      "twelve": {
+        "recordedTasked": 0.8318,
+        "asGivenAll": 0.7664,
+        "appliedTasked": 0.829,
+        "appliedAll": 0.8078,
+        "pooledTasked": 0.8316,
+        "pooledAll": 0.7644,
+        "unassigned": 9.2917,
+        "capped": 0.0417
+      },
+      "ten": {
+        "recordedTasked": 0.8163,
+        "asGivenAll": 0.7435,
+        "appliedTasked": 0.8133,
+        "appliedAll": 0.7881,
+        "pooledTasked": 0.816,
+        "pooledAll": 0.741,
+        "unassigned": 9.95,
+        "capped": 0.05
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.8388,
+          "asGivenAll": 0.7629,
+          "appliedTasked": 0.8396,
+          "appliedAll": 0.8396,
+          "pooledTasked": 0.8388,
+          "pooledAll": 0.7629,
+          "unassigned": 11,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.9102,
+          "asGivenAll": 0.7838,
+          "appliedTasked": 0.9125,
+          "appliedAll": 0.8745,
+          "pooledTasked": 0.9075,
+          "pooledAll": 0.7591,
+          "unassigned": 31.5,
+          "capped": 0.5
+        },
+        "a-household": {
+          "recordedTasked": 0.8248,
+          "asGivenAll": 0.7589,
+          "appliedTasked": 0.7887,
+          "appliedAll": 0.7744,
+          "pooledTasked": 0.8248,
+          "pooledAll": 0.7589,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.7974,
+          "asGivenAll": 0.7433,
+          "appliedTasked": 0.8027,
+          "appliedAll": 0.7971,
+          "pooledTasked": 0.7974,
+          "pooledAll": 0.7433,
+          "unassigned": 10,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.9024,
+          "asGivenAll": 0.8413,
+          "appliedTasked": 0.8946,
+          "appliedAll": 0.8878,
+          "pooledTasked": 0.9024,
+          "pooledAll": 0.8413,
+          "unassigned": 8.5,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.9067,
+          "asGivenAll": 0.8286,
+          "appliedTasked": 0.9087,
+          "appliedAll": 0.8772,
+          "pooledTasked": 0.9067,
+          "pooledAll": 0.8286,
+          "unassigned": 8,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.8516,
+          "asGivenAll": 0.7804,
+          "appliedTasked": 0.8516,
+          "appliedAll": 0.7939,
+          "pooledTasked": 0.8516,
+          "pooledAll": 0.7804,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.8252,
+          "asGivenAll": 0.7295,
+          "appliedTasked": 0.8266,
+          "appliedAll": 0.7841,
+          "pooledTasked": 0.8252,
+          "pooledAll": 0.7295,
+          "unassigned": 10,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.554,
+          "asGivenAll": 0.5011,
+          "appliedTasked": 0.5569,
+          "appliedAll": 0.5204,
+          "pooledTasked": 0.554,
+          "pooledAll": 0.5011,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.7515,
+          "asGivenAll": 0.7053,
+          "appliedTasked": 0.7515,
+          "appliedAll": 0.7318,
+          "pooledTasked": 0.7515,
+          "pooledAll": 0.7053,
+          "unassigned": 5.5,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.8883,
+          "asGivenAll": 0.8632,
+          "appliedTasked": 0.889,
+          "appliedAll": 0.8865,
+          "pooledTasked": 0.8883,
+          "pooledAll": 0.8632,
+          "unassigned": 6.5,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.9311,
+          "asGivenAll": 0.899,
+          "appliedTasked": 0.9259,
+          "appliedAll": 0.9259,
+          "pooledTasked": 0.9311,
+          "pooledAll": 0.899,
+          "unassigned": 5.5,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5-5|plan|off",
+      "label": "Sonnet plan, thinking off",
+      "kind": "provider",
+      "file": "claude-sonnet-5-5_plan_off_2026-11-22T18-35-01.json",
+      "twelve": {
+        "recordedTasked": 0.8626,
+        "asGivenAll": 0.7996,
+        "appliedTasked": 0.8619,
+        "appliedAll": 0.8174,
+        "pooledTasked": 0.864,
+        "pooledAll": 0.7948,
+        "unassigned": 6.375,
+        "capped": 0.0417
+      },
+      "ten": {
+        "recordedTasked": 0.8451,
+        "asGivenAll": 0.778,
+        "appliedTasked": 0.8448,
+        "appliedAll": 0.7967,
+        "pooledTasked": 0.8467,
+        "pooledAll": 0.7723,
+        "unassigned": 6.85,
+        "capped": 0.05
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.7798,
+          "asGivenAll": 0.7407,
+          "appliedTasked": 0.7798,
+          "appliedAll": 0.7471,
+          "pooledTasked": 0.7798,
+          "pooledAll": 0.7407,
+          "unassigned": 2.5,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.8059,
+          "asGivenAll": 0.7061,
+          "appliedTasked": 0.8047,
+          "appliedAll": 0.7049,
+          "pooledTasked": 0.8224,
+          "pooledAll": 0.6488,
+          "unassigned": 21.5,
+          "capped": 0.5
+        },
+        "a-household": {
+          "recordedTasked": 0.8646,
+          "asGivenAll": 0.8246,
+          "appliedTasked": 0.8646,
+          "appliedAll": 0.8354,
+          "pooledTasked": 0.8646,
+          "pooledAll": 0.8246,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.8633,
+          "asGivenAll": 0.8094,
+          "appliedTasked": 0.8626,
+          "appliedAll": 0.8457,
+          "pooledTasked": 0.8633,
+          "pooledAll": 0.8094,
+          "unassigned": 9,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.9385,
+          "asGivenAll": 0.881,
+          "appliedTasked": 0.9373,
+          "appliedAll": 0.9193,
+          "pooledTasked": 0.9385,
+          "pooledAll": 0.881,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.9197,
+          "asGivenAll": 0.846,
+          "appliedTasked": 0.9197,
+          "appliedAll": 0.8628,
+          "pooledTasked": 0.9197,
+          "pooledAll": 0.846,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.8564,
+          "asGivenAll": 0.7722,
+          "appliedTasked": 0.8564,
+          "appliedAll": 0.7765,
+          "pooledTasked": 0.8564,
+          "pooledAll": 0.7722,
+          "unassigned": 2.5,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.8813,
+          "asGivenAll": 0.7758,
+          "appliedTasked": 0.8821,
+          "appliedAll": 0.8203,
+          "pooledTasked": 0.8813,
+          "pooledAll": 0.7758,
+          "unassigned": 8.5,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.7121,
+          "asGivenAll": 0.6551,
+          "appliedTasked": 0.7121,
+          "appliedAll": 0.6812,
+          "pooledTasked": 0.7121,
+          "pooledAll": 0.6551,
+          "unassigned": 6,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.8291,
+          "asGivenAll": 0.7696,
+          "appliedTasked": 0.8291,
+          "appliedAll": 0.774,
+          "pooledTasked": 0.8291,
+          "pooledAll": 0.7696,
+          "unassigned": 2.5,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.969,
+          "asGivenAll": 0.9296,
+          "appliedTasked": 0.9676,
+          "appliedAll": 0.9484,
+          "pooledTasked": 0.969,
+          "pooledAll": 0.9296,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.9317,
+          "asGivenAll": 0.8851,
+          "appliedTasked": 0.9267,
+          "appliedAll": 0.8928,
+          "pooledTasked": 0.9317,
+          "pooledAll": 0.8851,
+          "unassigned": 4,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5-5|plan|adaptive-low",
+      "label": "Sonnet plan, thinking adaptive / effort low",
+      "kind": "provider",
+      "file": "claude-sonnet-5-5_plan_adaptive-low_2026-11-22T18-36-13.json",
+      "twelve": {
+        "recordedTasked": 0.8836,
+        "asGivenAll": 0.8132,
+        "appliedTasked": 0.8771,
+        "appliedAll": 0.8392,
+        "pooledTasked": 0.8836,
+        "pooledAll": 0.8129,
+        "unassigned": 8.4583,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.8734,
+        "asGivenAll": 0.7983,
+        "appliedTasked": 0.8688,
+        "appliedAll": 0.8295,
+        "pooledTasked": 0.8734,
+        "pooledAll": 0.7979,
+        "unassigned": 9.2,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.8293,
+          "asGivenAll": 0.7831,
+          "appliedTasked": 0.8293,
+          "appliedAll": 0.7984,
+          "pooledTasked": 0.8293,
+          "pooledAll": 0.7831,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.8909,
+          "asGivenAll": 0.7113,
+          "appliedTasked": 0.8454,
+          "appliedAll": 0.8259,
+          "pooledTasked": 0.8909,
+          "pooledAll": 0.7113,
+          "unassigned": 41,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.9249,
+          "asGivenAll": 0.8917,
+          "appliedTasked": 0.9249,
+          "appliedAll": 0.9031,
+          "pooledTasked": 0.9249,
+          "pooledAll": 0.8917,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.8608,
+          "asGivenAll": 0.8171,
+          "appliedTasked": 0.8608,
+          "appliedAll": 0.8519,
+          "pooledTasked": 0.8608,
+          "pooledAll": 0.8171,
+          "unassigned": 8.5,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.9468,
+          "asGivenAll": 0.8954,
+          "appliedTasked": 0.9468,
+          "appliedAll": 0.9368,
+          "pooledTasked": 0.9468,
+          "pooledAll": 0.8954,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.9444,
+          "asGivenAll": 0.86,
+          "appliedTasked": 0.9444,
+          "appliedAll": 0.8782,
+          "pooledTasked": 0.9444,
+          "pooledAll": 0.86,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.8127,
+          "asGivenAll": 0.758,
+          "appliedTasked": 0.8127,
+          "appliedAll": 0.7682,
+          "pooledTasked": 0.8127,
+          "pooledAll": 0.7548,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.8813,
+          "asGivenAll": 0.768,
+          "appliedTasked": 0.8821,
+          "appliedAll": 0.7961,
+          "pooledTasked": 0.8813,
+          "pooledAll": 0.768,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.7191,
+          "asGivenAll": 0.6357,
+          "appliedTasked": 0.7178,
+          "appliedAll": 0.6632,
+          "pooledTasked": 0.7191,
+          "pooledAll": 0.6357,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.9238,
+          "asGivenAll": 0.8621,
+          "appliedTasked": 0.9238,
+          "appliedAll": 0.8728,
+          "pooledTasked": 0.9238,
+          "pooledAll": 0.8621,
+          "unassigned": 3.5,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 0.9217,
+          "asGivenAll": 0.8712,
+          "appliedTasked": 0.8896,
+          "appliedAll": 0.8663,
+          "pooledTasked": 0.9217,
+          "pooledAll": 0.8712,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.9471,
+          "asGivenAll": 0.9046,
+          "appliedTasked": 0.9471,
+          "appliedAll": 0.9097,
+          "pooledTasked": 0.9471,
+          "pooledAll": 0.9046,
+          "unassigned": 2.5,
+          "capped": 0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5-5|plan|off",
+      "label": "Opus plan, effort low (thinking omitted)",
+      "kind": "provider",
+      "file": "claude-opus-5-5_plan_off_2026-11-22T18-37-34.json",
+      "twelve": {
+        "recordedTasked": 0.9174,
+        "asGivenAll": 0.8603,
+        "appliedTasked": 0.917,
+        "appliedAll": 0.8869,
+        "pooledTasked": 0.9174,
+        "pooledAll": 0.8603,
+        "unassigned": 6.9167,
+        "capped": 0
+      },
+      "ten": {
+        "recordedTasked": 0.9035,
+        "asGivenAll": 0.8421,
+        "appliedTasked": 0.9035,
+        "appliedAll": 0.8713,
+        "pooledTasked": 0.9035,
+        "pooledAll": 0.8421,
+        "unassigned": 7.5,
+        "capped": 0
+      },
+      "perWindow": {
+        "a-designer": {
+          "recordedTasked": 0.8142,
+          "asGivenAll": 0.7782,
+          "appliedTasked": 0.8142,
+          "appliedAll": 0.7951,
+          "pooledTasked": 0.8142,
+          "pooledAll": 0.7782,
+          "unassigned": 5.5,
+          "capped": 0
+        },
+        "a-hoarder": {
+          "recordedTasked": 0.9728,
+          "asGivenAll": 0.8694,
+          "appliedTasked": 0.9728,
+          "appliedAll": 0.9374,
+          "pooledTasked": 0.9728,
+          "pooledAll": 0.8694,
+          "unassigned": 23,
+          "capped": 0
+        },
+        "a-household": {
+          "recordedTasked": 0.9842,
+          "asGivenAll": 0.9451,
+          "appliedTasked": 0.9842,
+          "appliedAll": 0.9565,
+          "pooledTasked": 0.9842,
+          "pooledAll": 0.9451,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "a-oncall": {
+          "recordedTasked": 0.9598,
+          "asGivenAll": 0.9088,
+          "appliedTasked": 0.9598,
+          "appliedAll": 0.9374,
+          "pooledTasked": 0.9598,
+          "pooledAll": 0.9088,
+          "unassigned": 7.5,
+          "capped": 0
+        },
+        "a-student": {
+          "recordedTasked": 0.9691,
+          "asGivenAll": 0.9213,
+          "appliedTasked": 0.9691,
+          "appliedAll": 0.9691,
+          "pooledTasked": 0.9691,
+          "pooledAll": 0.9213,
+          "unassigned": 7.5,
+          "capped": 0
+        },
+        "b-academic": {
+          "recordedTasked": 0.9444,
+          "asGivenAll": 0.8752,
+          "appliedTasked": 0.9444,
+          "appliedAll": 0.9132,
+          "pooledTasked": 0.9444,
+          "pooledAll": 0.8752,
+          "unassigned": 7,
+          "capped": 0
+        },
+        "b-expat": {
+          "recordedTasked": 0.9151,
+          "asGivenAll": 0.8404,
+          "appliedTasked": 0.9151,
+          "appliedAll": 0.8475,
+          "pooledTasked": 0.9151,
+          "pooledAll": 0.8404,
+          "unassigned": 3,
+          "capped": 0
+        },
+        "b-messy": {
+          "recordedTasked": 0.8437,
+          "asGivenAll": 0.7706,
+          "appliedTasked": 0.8437,
+          "appliedAll": 0.8105,
+          "pooledTasked": 0.8437,
+          "pooledAll": 0.7706,
+          "unassigned": 8.5,
+          "capped": 0
+        },
+        "b-move": {
+          "recordedTasked": 0.7595,
+          "asGivenAll": 0.7056,
+          "appliedTasked": 0.7595,
+          "appliedAll": 0.7265,
+          "pooledTasked": 0.7595,
+          "pooledAll": 0.7056,
+          "unassigned": 5,
+          "capped": 0
+        },
+        "b-shop": {
+          "recordedTasked": 0.8723,
+          "asGivenAll": 0.8064,
+          "appliedTasked": 0.8723,
+          "appliedAll": 0.8195,
+          "pooledTasked": 0.8723,
+          "pooledAll": 0.8064,
+          "unassigned": 4,
+          "capped": 0
+        },
+        "dev": {
+          "recordedTasked": 1,
+          "asGivenAll": 0.9766,
+          "appliedTasked": 1,
+          "appliedAll": 0.989,
+          "pooledTasked": 1,
+          "pooledAll": 0.9766,
+          "unassigned": 3.5,
+          "capped": 0
+        },
+        "life": {
+          "recordedTasked": 0.9735,
+          "asGivenAll": 0.926,
+          "appliedTasked": 0.9688,
+          "appliedAll": 0.9408,
+          "pooledTasked": 0.9735,
+          "pooledAll": 0.926,
+          "unassigned": 4.5,
+          "capped": 0
+        }
+      }
+    }
+  ],
+  "validity": [
+    {
+      "id": "claude-haiku-5-5|labels|off",
+      "label": "Haiku labels",
+      "runs": 24,
+      "withOmitted": 0,
+      "withDuplicates": 0,
+      "withUnknown": 0,
+      "withInvalidLabels": 0,
+      "overLimit": null,
+      "maxFolders": null,
+      "worstOmission": {
+        "omitted": 0,
+        "tabs": 64,
+        "window": "a-student"
+      }
+    },
+    {
+      "id": "claude-haiku-5-5|plan|off",
+      "label": "Haiku plan, thinking off",
+      "runs": 24,
+      "withOmitted": 10,
+      "withDuplicates": 9,
+      "withUnknown": 1,
+      "withInvalidLabels": null,
+      "overLimit": 0,
+      "maxFolders": 10,
+      "worstOmission": {
+        "omitted": 75,
+        "tabs": 200,
+        "window": "a-hoarder"
+      }
+    },
+    {
+      "id": "claude-haiku-5-5|plan|adaptive-low",
+      "label": "Haiku plan, thinking adaptive / effort low",
+      "runs": 24,
+      "withOmitted": 1,
+      "withDuplicates": 0,
+      "withUnknown": 0,
+      "withInvalidLabels": null,
+      "overLimit": 1,
+      "maxFolders": 11,
+      "worstOmission": {
+        "omitted": 1,
+        "tabs": 54,
+        "window": "b-move"
+      }
+    },
+    {
+      "id": "claude-sonnet-5-5|plan|off",
+      "label": "Sonnet plan, thinking off",
+      "runs": 24,
+      "withOmitted": 1,
+      "withDuplicates": 2,
+      "withUnknown": 0,
+      "withInvalidLabels": null,
+      "overLimit": 0,
+      "maxFolders": 10,
+      "worstOmission": {
+        "omitted": 39,
+        "tabs": 200,
+        "window": "a-hoarder"
+      }
+    },
+    {
+      "id": "claude-sonnet-5-5|plan|adaptive-low",
+      "label": "Sonnet plan, thinking adaptive / effort low",
+      "runs": 24,
+      "withOmitted": 1,
+      "withDuplicates": 1,
+      "withUnknown": 0,
+      "withInvalidLabels": null,
+      "overLimit": 0,
+      "maxFolders": 10,
+      "worstOmission": {
+        "omitted": 1,
+        "tabs": 54,
+        "window": "b-expat"
+      }
+    },
+    {
+      "id": "claude-opus-5-5|plan|off",
+      "label": "Opus plan, effort low (thinking omitted)",
+      "runs": 24,
+      "withOmitted": 0,
+      "withDuplicates": 0,
+      "withUnknown": 0,
+      "withInvalidLabels": null,
+      "overLimit": 0,
+      "maxFolders": 10,
+      "worstOmission": {
+        "omitted": 0,
+        "tabs": 64,
+        "window": "a-student"
+      }
+    }
+  ],
+  "pairedHaiku": {
+    "rows": [
+      {
+        "window": "a-designer",
+        "labels": 0.4342,
+        "plan": 0.4531
+      },
+      {
+        "window": "a-hoarder",
+        "labels": 0.3168,
+        "plan": 0.5969
+      },
+      {
+        "window": "a-household",
+        "labels": 0.5084,
+        "plan": 0.5147
+      },
+      {
+        "window": "a-oncall",
+        "labels": 0.3435,
+        "plan": 0.666
+      },
+      {
+        "window": "a-student",
+        "labels": 0.4801,
+        "plan": 0.721
+      },
+      {
+        "window": "b-academic",
+        "labels": 0.3222,
+        "plan": 0.8027
+      },
+      {
+        "window": "b-expat",
+        "labels": 0.3717,
+        "plan": 0.5141
+      },
+      {
+        "window": "b-messy",
+        "labels": 0.522,
+        "plan": 0.6511
+      },
+      {
+        "window": "b-move",
+        "labels": 0.4071,
+        "plan": 0.4835
+      },
+      {
+        "window": "b-shop",
+        "labels": 0.2552,
+        "plan": 0.4479
+      },
+      {
+        "window": "dev",
+        "labels": 0.5238,
+        "plan": 0.8091
+      },
+      {
+        "window": "life",
+        "labels": 0.5512,
+        "plan": 0.7941
+      }
+    ],
+    "planBetter": 12,
+    "planBetterTen": 10,
+    "windows": 12,
+    "meanLabels": 0.4197,
+    "meanPlan": 0.6212
+  },
+  "crossCheck": [
+    {
+      "item": "Rules only (offline today): all tabs as given, 12",
+      "review": 0.224,
+      "mine": 0.2237,
+      "diff": -0.0003,
+      "note": ""
+    },
+    {
+      "item": "Gold categories through today's planner: all tabs as given, 12",
+      "review": 0.439,
+      "mine": 0.4392,
+      "diff": 0.0002,
+      "note": ""
+    },
+    {
+      "item": "Clusters with the 4M table (idf, wl 1, tau 0.2): all tabs as given, 12",
+      "review": 0.391,
+      "mine": 0.3912,
+      "diff": 0.0002,
+      "note": ""
+    },
+    {
+      "item": "Haiku labels: recorded tasked, 12",
+      "review": 0.4528,
+      "mine": 0.4528,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku labels: recorded tasked, 10",
+      "review": 0.4314,
+      "mine": 0.4314,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku labels: all tabs as given, 12",
+      "review": 0.4176,
+      "mine": 0.4176,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking off: recorded tasked, 12",
+      "review": 0.6672,
+      "mine": 0.6672,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking off: recorded tasked, 10",
+      "review": 0.6348,
+      "mine": 0.6348,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking off: all tabs as given, 12",
+      "review": 0.5933,
+      "mine": 0.5933,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking adaptive / effort low: recorded tasked, 12",
+      "review": 0.8318,
+      "mine": 0.8318,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking adaptive / effort low: recorded tasked, 10",
+      "review": 0.8163,
+      "mine": 0.8163,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Haiku plan, thinking adaptive / effort low: all tabs as given, 12",
+      "review": 0.7664,
+      "mine": 0.7664,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking off: recorded tasked, 12",
+      "review": 0.8626,
+      "mine": 0.8626,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking off: recorded tasked, 10",
+      "review": 0.8451,
+      "mine": 0.8451,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking off: all tabs as given, 12",
+      "review": 0.7996,
+      "mine": 0.7996,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking adaptive / effort low: recorded tasked, 12",
+      "review": 0.8836,
+      "mine": 0.8836,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking adaptive / effort low: recorded tasked, 10",
+      "review": 0.8734,
+      "mine": 0.8734,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Sonnet plan, thinking adaptive / effort low: all tabs as given, 12",
+      "review": 0.8132,
+      "mine": 0.8132,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Opus plan, effort low (thinking omitted): recorded tasked, 12",
+      "review": 0.9174,
+      "mine": 0.9174,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Opus plan, effort low (thinking omitted): recorded tasked, 10",
+      "review": 0.9035,
+      "mine": 0.9035,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "Opus plan, effort low (thinking omitted): all tabs as given, 12",
+      "review": 0.8603,
+      "mine": 0.8603,
+      "diff": 0,
+      "note": ""
+    },
+    {
+      "item": "4M clusters pooled and capped: tasked",
+      "review": 0.413,
+      "mine": 0.4133,
+      "diff": 0.0003,
+      "note": "unassigned tabs pooled as one real group"
+    },
+    {
+      "item": "4M clusters pooled and capped: all tabs",
+      "review": 0.37,
+      "mine": 0.3698,
+      "diff": -0.0002,
+      "note": "unassigned tabs pooled as one real group"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 10%: applied stored plan",
+      "review": 0.792,
+      "mine": 0.7899,
+      "diff": -0.0021,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 10%: plan as given",
+      "review": 0.792,
+      "mine": 0.7924,
+      "diff": 0.0004,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 20%: applied stored plan",
+      "review": 0.748,
+      "mine": 0.7466,
+      "diff": -0.0014,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 20%: plan as given",
+      "review": 0.748,
+      "mine": 0.7484,
+      "diff": 0.0004,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 30%: applied stored plan",
+      "review": 0.702,
+      "mine": 0.7006,
+      "diff": -0.0014,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 30%: plan as given",
+      "review": 0.702,
+      "mine": 0.7024,
+      "diff": 0.0004,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 50%: applied stored plan",
+      "review": 0.598,
+      "mine": 0.5985,
+      "diff": 0.0005,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Haiku plan, thinking adaptive / effort low, 50%: plan as given",
+      "review": 0.598,
+      "mine": 0.5984,
+      "diff": 0.0004,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 10%: applied stored plan",
+      "review": 0.839,
+      "mine": 0.8333,
+      "diff": -0.0057,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 10%: plan as given",
+      "review": 0.839,
+      "mine": 0.8393,
+      "diff": 0.0003,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 20%: applied stored plan",
+      "review": 0.79,
+      "mine": 0.7848,
+      "diff": -0.0052,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 20%: plan as given",
+      "review": 0.79,
+      "mine": 0.7898,
+      "diff": -0.0002,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 30%: applied stored plan",
+      "review": 0.74,
+      "mine": 0.7356,
+      "diff": -0.0044,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 30%: plan as given",
+      "review": 0.74,
+      "mine": 0.7402,
+      "diff": 0.0002,
+      "note": "Review Later kept as a group that tabs can attach to"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 50%: applied stored plan",
+      "review": 0.63,
+      "mine": 0.6262,
+      "diff": -0.0038,
+      "note": "Review Later members unassigned, cap applied"
+    },
+    {
+      "item": "Upkeep, Sonnet plan, thinking adaptive / effort low, 50%: plan as given",
+      "review": 0.63,
+      "mine": 0.6295,
+      "diff": -0.0005,
+      "note": "Review Later kept as a group that tabs can attach to"
+    }
+  ],
+  "upkeep": {
+    "settings": {
+      "a-designer": "idf-ctr-wl1|mean|0.1",
+      "a-hoarder": "idf-ctr-wl1|mean|0.1",
+      "a-household": "idf-ctr-wl1|mean|0.1",
+      "a-oncall": "idf-ctr-wl1|mean|0.1",
+      "a-student": "idf-ctr-wl1|mean|0.1",
+      "b-academic": "idf-ctr-wl1|mean|0.1",
+      "b-expat": "raw-ctr-wl1|mean|0.1",
+      "b-messy": "idf-ctr-wl1|mean|0.1",
+      "b-move": "raw-ctr-wl1|mean|0.1",
+      "b-shop": "idf-ctr-wl1|mean|0.1",
+      "dev": "idf-ctr-wl1|mean|0.1",
+      "life": "idf-ctr-wl1|mean|0.05"
+    },
+    "settingsSource": "eval/results/local.json upkeep.4M.heldOut.perWindow (chosen leave-one-window-out on gold upkeep)",
+    "goldRecordedProtocol": [
+      {
+        "share": 0.1,
+        "tasked": 0.9471
+      },
+      {
+        "share": 0.2,
+        "tasked": 0.8878
+      },
+      {
+        "share": 0.3,
+        "tasked": 0.8261
+      },
+      {
+        "share": 0.5,
+        "tasked": 0.6823
+      }
+    ],
+    "gold": [
+      {
+        "share": 0.1,
+        "tasked": 0.9471,
+        "all": 0.9433,
+        "noAttachTasked": 0.8975,
+        "noAttachAll": 0.8975,
+        "changedTasked": 0.6481,
+        "looseAttachedShare": 0.2593,
+        "taskedAttachedShare": 0.6925
+      },
+      {
+        "share": 0.2,
+        "tasked": 0.8878,
+        "all": 0.8809,
+        "noAttachTasked": 0.7759,
+        "noAttachAll": 0.7759,
+        "changedTasked": 0.6455,
+        "looseAttachedShare": 0.2899,
+        "taskedAttachedShare": 0.7061
+      },
+      {
+        "share": 0.3,
+        "tasked": 0.8261,
+        "all": 0.815,
+        "noAttachTasked": 0.6542,
+        "noAttachAll": 0.6542,
+        "changedTasked": 0.6215,
+        "looseAttachedShare": 0.2943,
+        "taskedAttachedShare": 0.7069
+      },
+      {
+        "share": 0.5,
+        "tasked": 0.6823,
+        "all": 0.6647,
+        "noAttachTasked": 0.3904,
+        "noAttachAll": 0.3904,
+        "changedTasked": 0.5583,
+        "looseAttachedShare": 0.3821,
+        "taskedAttachedShare": 0.7136
+      }
+    ],
+    "plans": [
+      {
+        "id": "claude-haiku-5-5|plan|adaptive-low",
+        "label": "Haiku plan, thinking adaptive / effort low",
+        "fresh": {
+          "tasked": 0.829,
+          "all": 0.8078
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "tasked": 0.7899,
+            "all": 0.7684,
+            "noAttachTasked": 0.7412,
+            "noAttachAll": 0.7244,
+            "changedTasked": 0.5769,
+            "looseAttachedShare": 0.375,
+            "taskedAttachedShare": 0.7375
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.7466,
+            "all": 0.7251,
+            "noAttachTasked": 0.6361,
+            "noAttachAll": 0.6231,
+            "changedTasked": 0.5819,
+            "looseAttachedShare": 0.3744,
+            "taskedAttachedShare": 0.7512
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7006,
+            "all": 0.6782,
+            "noAttachTasked": 0.5346,
+            "noAttachAll": 0.5257,
+            "changedTasked": 0.5579,
+            "looseAttachedShare": 0.396,
+            "taskedAttachedShare": 0.7517
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.5985,
+            "all": 0.5751,
+            "noAttachTasked": 0.3134,
+            "noAttachAll": 0.3103,
+            "changedTasked": 0.5157,
+            "looseAttachedShare": 0.442,
+            "taskedAttachedShare": 0.7495
+          }
+        ],
+        "asGiven": [
+          {
+            "share": 0.1,
+            "tasked": 0.7924,
+            "all": 0.7346
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.7484,
+            "all": 0.6971
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7024,
+            "all": 0.6571
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.5984,
+            "all": 0.5624
+          }
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5|plan|adaptive-low",
+        "label": "Sonnet plan, thinking adaptive / effort low",
+        "fresh": {
+          "tasked": 0.8771,
+          "all": 0.8392
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "tasked": 0.8333,
+            "all": 0.7975,
+            "noAttachTasked": 0.7843,
+            "noAttachAll": 0.7547,
+            "changedTasked": 0.5978,
+            "looseAttachedShare": 0.4144,
+            "taskedAttachedShare": 0.7356
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.7848,
+            "all": 0.7509,
+            "noAttachTasked": 0.6758,
+            "noAttachAll": 0.653,
+            "changedTasked": 0.5959,
+            "looseAttachedShare": 0.3901,
+            "taskedAttachedShare": 0.7494
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7356,
+            "all": 0.7027,
+            "noAttachTasked": 0.5674,
+            "noAttachAll": 0.5509,
+            "changedTasked": 0.5764,
+            "looseAttachedShare": 0.4099,
+            "taskedAttachedShare": 0.7439
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.6262,
+            "all": 0.596,
+            "noAttachTasked": 0.3359,
+            "noAttachAll": 0.3302,
+            "changedTasked": 0.5326,
+            "looseAttachedShare": 0.4449,
+            "taskedAttachedShare": 0.7447
+          }
+        ],
+        "asGiven": [
+          {
+            "share": 0.1,
+            "tasked": 0.8393,
+            "all": 0.7756
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.7898,
+            "all": 0.732
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7402,
+            "all": 0.6889
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.6295,
+            "all": 0.5875
+          }
+        ]
+      },
+      {
+        "id": "claude-opus-5-5|plan|off",
+        "label": "Opus plan, effort low (thinking omitted)",
+        "fresh": {
+          "tasked": 0.917,
+          "all": 0.8869
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "tasked": 0.8723,
+            "all": 0.8431,
+            "noAttachTasked": 0.8243,
+            "noAttachAll": 0.8007,
+            "changedTasked": 0.6192,
+            "looseAttachedShare": 0.3218,
+            "taskedAttachedShare": 0.6988
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.8198,
+            "all": 0.7918,
+            "noAttachTasked": 0.7131,
+            "noAttachAll": 0.6944,
+            "changedTasked": 0.613,
+            "looseAttachedShare": 0.3176,
+            "taskedAttachedShare": 0.7148
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7694,
+            "all": 0.7416,
+            "noAttachTasked": 0.6031,
+            "noAttachAll": 0.5897,
+            "changedTasked": 0.5949,
+            "looseAttachedShare": 0.319,
+            "taskedAttachedShare": 0.7138
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.6447,
+            "all": 0.6184,
+            "noAttachTasked": 0.3589,
+            "noAttachAll": 0.3543,
+            "changedTasked": 0.5405,
+            "looseAttachedShare": 0.3977,
+            "taskedAttachedShare": 0.7194
+          }
+        ],
+        "asGiven": [
+          {
+            "share": 0.1,
+            "tasked": 0.873,
+            "all": 0.8203
+          },
+          {
+            "share": 0.2,
+            "tasked": 0.8199,
+            "all": 0.7721
+          },
+          {
+            "share": 0.3,
+            "tasked": 0.7686,
+            "all": 0.7252
+          },
+          {
+            "share": 0.5,
+            "tasked": 0.6437,
+            "all": 0.6064
+          }
+        ]
+      }
+    ]
+  }
+}

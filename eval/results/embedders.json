@@ -1,0 +1,1128 @@
+{
+  "protocol": {
+    "windows": [
+      "a-designer",
+      "a-hoarder",
+      "a-household",
+      "a-oncall",
+      "a-student",
+      "b-academic",
+      "b-expat",
+      "b-messy",
+      "b-move",
+      "b-shop",
+      "dev",
+      "life"
+    ],
+    "nonEnglish": [
+      "a-household",
+      "b-expat"
+    ],
+    "shares": [
+      0.1,
+      0.2,
+      0.3,
+      0.5
+    ],
+    "seeds": 20,
+    "tau": [
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.45,
+      0.5,
+      0.55,
+      0.6
+    ],
+    "wl": [
+      0,
+      0.5,
+      1
+    ],
+    "theta": [
+      "-Infinity",
+      "0",
+      "0.05",
+      "0.1",
+      "0.15",
+      "0.2",
+      "0.25",
+      "0.3",
+      "0.35",
+      "0.4",
+      "0.45",
+      "0.5",
+      "0.55",
+      "0.6",
+      "0.7"
+    ],
+    "text": "Transformers concatenate title and URL words once; E5 uses query: and Gemma uses task: clustering | query:. Static tables weight URL tokens by 0.5",
+    "note": "Upkeep chooses settings on mean F1 across all four shares, as run-local does. Timing is provided by vector-generation metadata. This compares pipelines (encoder, input text and idf/centring options), not encoders alone."
+  },
+  "baselineCheck": {
+    "4M": {
+      "actual": 0.420892522417395,
+      "expected": 0.4209,
+      "difference": -0.000007477582604997757,
+      "windows": 12,
+      "note": "Held-out cluster F1 over every fixture window against local.json selection.<size>.cluster.headline."
+    },
+    "8M": {
+      "actual": 0.396031658299675,
+      "expected": 0.396,
+      "difference": 0.000031658299674997004,
+      "windows": 12,
+      "note": "Held-out cluster F1 over every fixture window against local.json selection.<size>.cluster.headline."
+    }
+  },
+  "pilotTwoWindow": {
+    "4M": 0.5023181971451052,
+    "8M": 0.5535250632576447
+  },
+  "skipped": {},
+  "models": {
+    "potion-base-4M": {
+      "metadata": {
+        "parameters": 3779584,
+        "dimension": 128,
+        "quantisedBytes": 3897696,
+        "cpuMsPer100": 2.3066,
+        "sizeNote": "int8 matrix and per-row scales; excludes tokenizer",
+        "runtime": "Node warm single-thread CPU, 20 repetitions, first 100 fixture tabs",
+        "tokenizerExtraMB": 0.7
+      },
+      "cluster": {
+        "mean": 0.420892522417395,
+        "heldOut": {
+          "a-designer": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.51270207852194
+          },
+          "a-hoarder": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.3445692883895131
+          },
+          "a-household": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.26512576478586
+          },
+          "a-oncall": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.32015065913371
+          },
+          "a-student": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.4697986577181208
+          },
+          "b-academic": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.37623762376237624
+          },
+          "b-expat": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.26524685382381413
+          },
+          "b-messy": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.622432859399684
+          },
+          "b-move": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.42424242424242425
+          },
+          "b-shop": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.3767313019390582
+          },
+          "dev": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.4430379746835443
+          },
+          "life": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.6304347826086956
+          }
+        },
+        "inSample": {
+          "key": "idf-wl1-t0.2",
+          "mean": 0.420892522417395
+        },
+        "english": 0.45203376503990667,
+        "nonEnglish": 0.26518630930483705
+      },
+      "upkeep": {
+        "mean": 0.8358211397087286,
+        "heldOut": {
+          "a-designer": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8774395087658777
+          },
+          "a-hoarder": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8454004431994174
+          },
+          "a-household": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.7318724016058125
+          },
+          "a-oncall": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8633190603876751
+          },
+          "a-student": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8711645380960752
+          },
+          "b-academic": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8622359843110392
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1|mean|0.1",
+            "f1": 0.7263851640291549
+          },
+          "b-messy": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.9135320683356485
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1|mean|0.1",
+            "f1": 0.8410715199690222
+          },
+          "b-shop": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.7852159262391004
+          },
+          "dev": {
+            "key": "idf-ctr-wl1|mean|0.1",
+            "f1": 0.8475489611763287
+          },
+          "life": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.864668100389592
+          }
+        },
+        "inSample": {
+          "key": "idf-ctr-wl1|mean|0.1",
+          "mean": 0.8387453815569494,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9480125757999982
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8903856408302788
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8290647007895213
+            },
+            {
+              "share": 0.5,
+              "f1": 0.687518608807999
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.9471156888116844
+          },
+          {
+            "share": 0.2,
+            "f1": 0.8877813030571639
+          },
+          {
+            "share": 0.3,
+            "f1": 0.8261069457300789
+          },
+          {
+            "share": 0.5,
+            "f1": 0.6822806212359871
+          }
+        ]
+      },
+      "twoWindowBaseline": {
+        "mean": 0.5023181971451052,
+        "heldOut": {
+          "dev": {
+            "key": "raw-ctr-wl0.5-t0.15",
+            "f1": 0.43205574912891986
+          },
+          "life": {
+            "key": "raw-wl0-t0.3",
+            "f1": 0.5725806451612904
+          }
+        },
+        "inSample": {
+          "key": "raw-wl0-t0.3",
+          "mean": 0.6047834732655767
+        }
+      }
+    },
+    "potion-base-8M": {
+      "metadata": {
+        "parameters": 7559168,
+        "dimension": 256,
+        "quantisedBytes": 7677280,
+        "cpuMsPer100": 2.1697,
+        "sizeNote": "int8 matrix and per-row scales; excludes tokenizer",
+        "runtime": "Node warm single-thread CPU, 20 repetitions, first 100 fixture tabs",
+        "tokenizerExtraMB": 0.7
+      },
+      "cluster": {
+        "mean": 0.396031658299675,
+        "heldOut": {
+          "a-designer": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.4729064039408867
+          },
+          "a-hoarder": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.3288466613882291
+          },
+          "a-household": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.2595108695652174
+          },
+          "a-oncall": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.32967032967032966
+          },
+          "a-student": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.4195121951219512
+          },
+          "b-academic": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.3380281690140845
+          },
+          "b-expat": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.2721791559000861
+          },
+          "b-messy": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.575139146567718
+          },
+          "b-move": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.42424242424242425
+          },
+          "b-shop": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.3155080213903743
+          },
+          "dev": {
+            "key": "idf-wl1-t0.2",
+            "f1": 0.42477876106194695
+          },
+          "life": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.592057761732852
+          }
+        },
+        "inSample": {
+          "key": "raw-wl1-t0.2",
+          "mean": 0.41666010939162296
+        },
+        "english": 0.42206898741307963,
+        "nonEnglish": 0.26584501273265176
+      },
+      "upkeep": {
+        "mean": 0.8480926933025016,
+        "heldOut": {
+          "a-designer": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.886283955847337
+          },
+          "a-hoarder": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8689756502049022
+          },
+          "a-household": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.7369326005367558
+          },
+          "a-oncall": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8858714120720078
+          },
+          "a-student": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.888580549462388
+          },
+          "b-academic": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8683097654934226
+          },
+          "b-expat": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.7174402171657899
+          },
+          "b-messy": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.9207677222593067
+          },
+          "b-move": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8587378173257054
+          },
+          "b-shop": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.805206625234542
+          },
+          "dev": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8529973977232339
+          },
+          "life": {
+            "key": "idf-ctr-wl1|mean|0.05",
+            "f1": 0.8870086063046283
+          }
+        },
+        "inSample": {
+          "key": "idf-ctr-wl1|mean|0.05",
+          "mean": 0.8480926933025016,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9510725558986657
+            },
+            {
+              "share": 0.2,
+              "f1": 0.8980091353316201
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8393297293938707
+            },
+            {
+              "share": 0.5,
+              "f1": 0.7039593525858504
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.9510725558986657
+          },
+          {
+            "share": 0.2,
+            "f1": 0.8980091353316201
+          },
+          {
+            "share": 0.3,
+            "f1": 0.8393297293938707
+          },
+          {
+            "share": 0.5,
+            "f1": 0.7039593525858504
+          }
+        ]
+      },
+      "twoWindowBaseline": {
+        "mean": 0.5535250632576447,
+        "heldOut": {
+          "dev": {
+            "key": "raw-ctr-wl0.5-t0.15",
+            "f1": 0.5296442687747036
+          },
+          "life": {
+            "key": "raw-wl0-t0.3",
+            "f1": 0.5774058577405858
+          }
+        },
+        "inSample": {
+          "key": "raw-wl0-t0.3",
+          "mean": 0.6050665652339293
+        }
+      }
+    },
+    "sentence-transformers/all-MiniLM-L6-v2": {
+      "metadata": {
+        "parameters": 22713216,
+        "dimension": 384,
+        "quantised_bytes": 22845806,
+        "tokenizer_bytes": 711661,
+        "cpu_seconds_per_100": 0.3955863134657836,
+        "runtime": "ONNX Runtime CPU, one thread, batches of 16; warm model",
+        "export": "Xenova/all-MiniLM-L6-v2/onnx/model_uint8.onnx",
+        "prefix": "",
+        "evaluated_weight_bytes": 22845806,
+        "smallest_export": "Xenova/all-MiniLM-L6-v2/onnx/model_uint8.onnx",
+        "quantisedBytes": 22845806,
+        "cpuMsPer100": 395.5863134657836,
+        "tokenizerExtraMB": 0.71
+      },
+      "cluster": {
+        "mean": 0.46461997911147873,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.5612472160356348
+          },
+          "a-hoarder": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.3687196110210697
+          },
+          "a-household": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.26209322779243627
+          },
+          "a-oncall": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.4050343249427918
+          },
+          "a-student": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.5179584120982986
+          },
+          "b-academic": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.6061946902654867
+          },
+          "b-expat": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.2813599062133646
+          },
+          "b-messy": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.6007462686567164
+          },
+          "b-move": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.4879725085910652
+          },
+          "b-shop": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.29896907216494845
+          },
+          "dev": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.528428093645485
+          },
+          "life": {
+            "key": "raw-wl1-t0.2",
+            "f1": 0.6567164179104478
+          }
+        },
+        "inSample": {
+          "key": "raw-wl1-t0.2",
+          "mean": 0.46461997911147873
+        },
+        "english": 0.5031986615331945,
+        "nonEnglish": 0.27172656700290043
+      },
+      "upkeep": {
+        "mean": 0.8666302230937615,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9072006174843255
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8807289803442481
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.7713456404394995
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8790753755191272
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9118715084901962
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9211825916692343
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1|centroid|0.1",
+            "f1": 0.7578047847001118
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9171313596247244
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8667656106832979
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.798075134710837
+          },
+          "dev": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8816255448719166
+          },
+          "life": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9067555285876197
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1|mean|0.05",
+          "mean": 0.8679931455812699,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9593135271486908
+            },
+            {
+              "share": 0.2,
+              "f1": 0.9086131160449386
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8640894561679652
+            },
+            {
+              "share": 0.5,
+              "f1": 0.7399564829634854
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.9578405429703402
+          },
+          {
+            "share": 0.2,
+            "f1": 0.907043408499109
+          },
+          {
+            "share": 0.3,
+            "f1": 0.8623522004247111
+          },
+          {
+            "share": 0.5,
+            "f1": 0.739284740480886
+          }
+        ]
+      },
+      "twoWindowBaseline": null
+    },
+    "BAAI/bge-small-en-v1.5": {
+      "metadata": {
+        "parameters": 33360000,
+        "dimension": 384,
+        "quantised_bytes": 33760831,
+        "tokenizer_bytes": 711396,
+        "cpu_seconds_per_100": 0.7546174392935983,
+        "runtime": "ONNX Runtime CPU, one thread, batches of 16; warm model",
+        "export": "Xenova/bge-small-en-v1.5/onnx/model_int8.onnx",
+        "prefix": "",
+        "evaluated_weight_bytes": 33760831,
+        "smallest_export": "Xenova/bge-small-en-v1.5/onnx/model_int8.onnx",
+        "quantisedBytes": 33760831,
+        "cpuMsPer100": 754.6174392935983,
+        "tokenizerExtraMB": 0.71
+      },
+      "cluster": {
+        "mean": 0.4276065304475823,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl0.5-t0.15",
+            "f1": 0.3827493261455525
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.3145268769435806
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.2169491525423729
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.428
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.46198830409356734
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.49612403100775193
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.34375
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.6533864541832669
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4564315352697096
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.34375
+          },
+          "dev": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.3851851851851852
+          },
+          "life": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.6484375
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1-t0.15",
+          "mean": 0.4388907371267361
+        },
+        "english": 0.4570579212828614,
+        "nonEnglish": 0.28034957627118645
+      },
+      "upkeep": {
+        "mean": 0.8688385474723028,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8759715210228827
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8903015448091608
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.7795539039478331
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8924075376285696
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9049227518119183
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8991565056612347
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.7967333040082849
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9309214961312963
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8588773509552724
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8207236998391927
+          },
+          "dev": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8797161822705992
+          },
+          "life": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8967767715813892
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1|mean|0.05",
+          "mean": 0.8688385474723028,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.960008854465214
+            },
+            {
+              "share": 0.2,
+              "f1": 0.9130186718397356
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8633205725879813
+            },
+            {
+              "share": 0.5,
+              "f1": 0.7390060909962801
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.960008854465214
+          },
+          {
+            "share": 0.2,
+            "f1": 0.9130186718397356
+          },
+          {
+            "share": 0.3,
+            "f1": 0.8633205725879813
+          },
+          {
+            "share": 0.5,
+            "f1": 0.7390060909962801
+          }
+        ]
+      },
+      "twoWindowBaseline": null
+    },
+    "intfloat/multilingual-e5-small": {
+      "metadata": {
+        "parameters": 117653760,
+        "dimension": 384,
+        "quantised_bytes": 118054593,
+        "evaluated_weight_bytes": 118054593,
+        "smallest_export": "Xenova/multilingual-e5-small/onnx/model_int8.onnx",
+        "tokenizer_bytes": 17082730,
+        "cpu_seconds_per_100": 0.850791280353201,
+        "runtime": "ONNX Runtime CPU, one thread, batches of 16; warm model",
+        "export": "Xenova/multilingual-e5-small/onnx/model_int8.onnx",
+        "prefix": "query: ",
+        "quantisedBytes": 118054593,
+        "cpuMsPer100": 850.7912803532009,
+        "tokenizerExtraMB": 17.08
+      },
+      "cluster": {
+        "mean": 0.4079904497567493,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.5038961038961038
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.2908762420957543
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.27950310559006214
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4847328244274809
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4200626959247649
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.41009463722397477
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.2583333333333333
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.6407766990291263
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4564315352697096
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.296875
+          },
+          "dev": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.3801652892561984
+          },
+          "life": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4741379310344828
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1-t0.15",
+          "mean": 0.4079904497567493
+        },
+        "english": 0.4358048958157596,
+        "nonEnglish": 0.2689182194616977
+      },
+      "upkeep": {
+        "mean": 0.8780632703532455,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9029503879754597
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8916568281493022
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8545194775330167
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8875249103503631
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8864476198317133
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9070512367241801
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8452219654929773
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.9345623701226058
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8608073614123379
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8053010141507737
+          },
+          "dev": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8733560016421055
+          },
+          "life": {
+            "key": "raw-ctr-wl1|mean|0.05",
+            "f1": 0.8873600708541092
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1|mean|0.05",
+          "mean": 0.8780632703532455,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9640956430660551
+            },
+            {
+              "share": 0.2,
+              "f1": 0.9206326568254731
+            },
+            {
+              "share": 0.3,
+              "f1": 0.8731999493899573
+            },
+            {
+              "share": 0.5,
+              "f1": 0.7543248321314961
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.9640956430660551
+          },
+          {
+            "share": 0.2,
+            "f1": 0.9206326568254731
+          },
+          {
+            "share": 0.3,
+            "f1": 0.8731999493899573
+          },
+          {
+            "share": 0.5,
+            "f1": 0.7543248321314961
+          }
+        ]
+      },
+      "twoWindowBaseline": null
+    },
+    "google/embeddinggemma-300m": {
+      "metadata": {
+        "parameters": 308000000,
+        "dimension": 768,
+        "quantised_bytes": 176115397,
+        "evaluated_weight_bytes": 176115397,
+        "smallest_export": "onnx-community/embeddinggemma-300m-ONNX/onnx/model_q4f16.onnx",
+        "tokenizer_bytes": 20323312,
+        "cpu_seconds_per_100": 4.877504415011038,
+        "runtime": "ONNX Runtime CPU, one thread, batches of 16; warm model",
+        "export": "onnx-community/embeddinggemma-300m-ONNX/onnx/model_q4f16.onnx",
+        "prefix": "task: clustering | query: ",
+        "quantisedBytes": 176115397,
+        "cpuMsPer100": 4877.504415011038,
+        "tokenizerExtraMB": 20.32
+      },
+      "cluster": {
+        "mean": 0.5206959594271987,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.5794871794871794
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.37281237281237284
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.4390243902439024
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.49395509499136436
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.45382585751978893
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.49200000000000005
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.3642172523961661
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.6380597014925373
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.5249169435215947
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.38596491228070173
+          },
+          "dev": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.7343283582089553
+          },
+          "life": {
+            "key": "raw-ctr-wl1-t0.15",
+            "f1": 0.7697594501718212
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1-t0.15",
+          "mean": 0.5206959594271987
+        },
+        "english": 0.5445109870486317,
+        "nonEnglish": 0.40162082132003424
+      },
+      "upkeep": {
+        "mean": 0.9019010798556283,
+        "heldOut": {
+          "a-designer": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9307769754519006
+          },
+          "a-hoarder": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.8980211462308837
+          },
+          "a-household": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.8716681636750864
+          },
+          "a-oncall": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.8805141292092715
+          },
+          "a-student": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9110899939365353
+          },
+          "b-academic": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9018844483188828
+          },
+          "b-expat": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.8669724079998916
+          },
+          "b-messy": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9420153976670786
+          },
+          "b-move": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.878929248331428
+          },
+          "b-shop": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.8525487464653625
+          },
+          "dev": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9327144097028575
+          },
+          "life": {
+            "key": "raw-ctr-wl1|centroid|0.15",
+            "f1": 0.9556778912783611
+          }
+        },
+        "inSample": {
+          "key": "raw-ctr-wl1|centroid|0.15",
+          "mean": 0.9019010798556283,
+          "shares": [
+            {
+              "share": 0.1,
+              "f1": 0.9694004230193854
+            },
+            {
+              "share": 0.2,
+              "f1": 0.9323284699504027
+            },
+            {
+              "share": 0.3,
+              "f1": 0.9001240731218649
+            },
+            {
+              "share": 0.5,
+              "f1": 0.8057513533308599
+            }
+          ]
+        },
+        "shares": [
+          {
+            "share": 0.1,
+            "f1": 0.9694004230193854
+          },
+          {
+            "share": 0.2,
+            "f1": 0.9323284699504027
+          },
+          {
+            "share": 0.3,
+            "f1": 0.9001240731218649
+          },
+          {
+            "share": 0.5,
+            "f1": 0.8057513533308599
+          }
+        ]
+      },
+      "twoWindowBaseline": null
+    }
+  }
+}

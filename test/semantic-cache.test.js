@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { assessGroupingQuality, groupCeiling, labelCacheScope, MAX_GROUPS } from '../src/ai-engine.js';
-import { ExactResultCache, PlanMemory, TabLabelCache, WindowPlanStore, hashToken, readResetEpoch } from '../src/cache-engine.js';
+import { ExactResultCache, PlanMemory, WindowPlanStore, hashToken } from '../src/cache-engine.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,12 +29,14 @@ function installStorage() {
 const tab = { id: 1, windowId: 1, title: 'A useful page', url: 'https://example.test/page' };
 const openai = { provider: 'openai', openaiModel: 'gpt-6-luna', openaiReasoningEffort: 'low' };
 
-test('semantic scope changes with engine, model, effective effort and endpoint, never credentials or priority', () => {
+test('semantic scope changes with engine, model, effective effort and Ollama endpoint, never credentials or priority', () => {
   const original = labelCacheScope(openai);
-  assert.equal(original, labelCacheScope({ ...openai, openaiApiKey: 'one-test-secret', openaiOAuthToken: 'another-test-secret', openaiPriority: false, cloudEconomyMode: true }));
+  assert.equal(original, labelCacheScope({ ...openai, openaiApiKey: 'one-test-secret', openaiOAuthToken: 'another-test-secret', openaiPriority: false }));
   assert.equal(original, labelCacheScope({ ...openai, openaiBaseUrl: 'https://api.openai.com/v1/' }));
   assert.equal(original, labelCacheScope({ ...openai, openaiBaseUrl: 'https://user:password@api.openai.com/v1?token=secret#fragment' }));
-  assert.notEqual(original, labelCacheScope({ ...openai, openaiBaseUrl: 'https://alternative.test/v1' }));
+  // A fixed provider ignores a saved endpoint (D40); Ollama's endpoint still separates scopes.
+  assert.equal(original, labelCacheScope({ ...openai, openaiBaseUrl: 'https://alternative.test/v1' }));
+  assert.notEqual(labelCacheScope({ provider: 'ollama' }), labelCacheScope({ provider: 'ollama', ollamaBaseUrl: 'https://ollama.example/v1' }));
   assert.notEqual(original, labelCacheScope({ ...openai, openaiModel: 'gpt-6-sol' }));
   assert.notEqual(original, labelCacheScope({ ...openai, openaiReasoningEffort: 'high' }));
   assert.notEqual(original, labelCacheScope({ provider: 'gemini_nano' }));
@@ -48,47 +50,6 @@ test('distinct subjects may exceed the preferred target without a too-many-group
   assert.ok(groups.length > groupCeiling(18));
   assert.ok(!assessGroupingQuality(groups, 18).codes.includes('too_many'));
   assert.ok(assessGroupingQuality([...groups, ...Array.from({ length: MAX_GROUPS + 1 - groups.length }, (_, index) => ({ name: `Extra ${index}`, tabIds: [40 + index] }))], 18).codes.includes('too_many'));
-});
-
-test('switching A to B to A reuses the correct labels and late A results cannot overwrite B', async () => {
-  installStorage();
-  const a = labelCacheScope(openai);
-  const b = labelCacheScope({ ...openai, openaiReasoningEffort: 'high' });
-  const { fingerprintById } = await TabLabelCache.lookup([tab], { scope: a });
-  await TabLabelCache.store(new Map([[1, 'ai']]), fingerprintById, 'openai', { scope: a });
-  assert.equal((await TabLabelCache.lookup([tab], { scope: b })).missing.length, 1);
-  await TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai', { scope: b });
-  // Simulate a slow earlier request completing after the B request.
-  await TabLabelCache.store(new Map([[1, 'learn']]), fingerprintById, 'openai', { scope: a });
-  assert.equal((await TabLabelCache.lookup([tab], { scope: b })).labels.get(1).c, 'dev');
-  const returnedToA = await TabLabelCache.lookup([{ ...tab, id: 99, windowId: 9 }], { scope: a });
-  assert.equal(returnedToA.missing.length, 0);
-  assert.equal(returnedToA.labels.get(99).c, 'learn');
-});
-
-test('new semantic scopes reassess legacy labels and preserve incognito and reset boundaries', async () => {
-  const local = installStorage();
-  const scope = labelCacheScope(openai);
-  const { fingerprintById } = await TabLabelCache.lookup([tab]);
-  await TabLabelCache.store(new Map([[1, 'ai']]), fingerprintById, 'openai');
-  assert.equal((await TabLabelCache.lookup([tab], { scope })).missing.length, 1);
-  const origin = await readResetEpoch();
-  local.foldnex_reset_epoch = origin + 1;
-  await TabLabelCache.store(new Map([[1, 'dev']]), fingerprintById, 'openai', { epoch: origin, scope });
-  assert.equal((await TabLabelCache.lookup([tab], { scope })).missing.length, 1);
-  const privateLookup = await TabLabelCache.lookup([{ ...tab, incognito: true }], { scope });
-  assert.equal(privateLookup.fingerprintById.size, 0);
-  await TabLabelCache.store(new Map([[1, 'ai']]), privateLookup.fingerprintById, 'openai', { scope });
-  assert.equal((await TabLabelCache.lookup([tab], { scope })).labels.size, 0);
-});
-
-test('labels keep a total bound across semantic scopes', async () => {
-  installStorage();
-  const fingerprintById = new Map(Array.from({ length: 1600 }, (_, index) => [index, `fingerprint-${index}`]));
-  const labels = new Map([...fingerprintById.keys()].map(id => [id, 'dev']));
-  await TabLabelCache.store(labels, fingerprintById, 'openai', { scope: 'scope-a' });
-  await TabLabelCache.store(labels, fingerprintById, 'openai', { scope: 'scope-b' });
-  assert.equal(Object.keys(await TabLabelCache.read()).length, 3000);
 });
 
 test('exact results retain semantic categories and provenance through ID remapping without raw page data', async () => {
@@ -130,36 +91,21 @@ test('session plans retain minority categories, locks and user name provenance w
   assert.ok(!JSON.stringify(stored).includes('https:'));
 });
 
-test('model names and advice follow their scope while user renames remain global', async () => {
-  installStorage();
+test('stored model names follow their scope while user renames remain global', async () => {
+  const local = installStorage();
   const a = labelCacheScope(openai);
   const b = labelCacheScope({ provider: 'gemini_api' });
-  const record = { k: ['cat:ai'], w: [hashToken('topic')], n: 'Legacy Name', s: 'cloud' };
-  await PlanMemory.putNames([record]);
-  await PlanMemory.putAdvice({ 'cat:shop': 'cat:ai' });
-  await PlanMemory.putNames([{ ...record, n: 'OpenAI Name' }], { scope: a });
-  await PlanMemory.putAdvice({ 'cat:dev': 'cat:ai' }, { scope: a });
-  await PlanMemory.putNames([{ ...record, n: 'Gemini Name' }], { scope: b });
-  await PlanMemory.putAdvice({ 'cat:learn': 'cat:ai' }, { scope: b });
+  const now = Date.now();
+  const record = { k: ['cat:ai'], w: [hashToken('topic')], n: 'Legacy Name', s: 'cloud', t: now };
+  // Model names were written by the retired naming requests; they stay readable.
+  local[PlanMemory.STORAGE_KEY] = {
+    v: 1,
+    names: [record, { ...record, n: 'OpenAI Name', p: a }, { ...record, n: 'Gemini Name', s: 'nano', p: b }],
+    advice: { cloud: {}, t: 0 }
+  };
   await PlanMemory.recordUserRename({ tabs: [tab], name: 'My Name', keys: ['cat:ai'], color: 'blue' });
   assert.deepEqual((await PlanMemory.read({ scope: a })).names.map(item => item.n).sort(), ['My Name', 'OpenAI Name']);
   assert.deepEqual((await PlanMemory.read({ scope: b })).names.map(item => item.n).sort(), ['Gemini Name', 'My Name']);
-  assert.deepEqual((await PlanMemory.read({ scope: a })).advice.cloud, { 'cat:dev': 'cat:ai' });
-  assert.deepEqual((await PlanMemory.read({ scope: b })).advice.cloud, { 'cat:learn': 'cat:ai' });
   assert.deepEqual((await PlanMemory.read({ scope: 'other' })).names.map(item => item.n), ['My Name']);
-  assert.deepEqual((await PlanMemory.read({ scope: 'other' })).advice.cloud, {});
-});
-
-test('scoped consolidation advice expires and has a global pair bound', async () => {
-  const local = installStorage();
-  await PlanMemory.putAdvice({ 'cat:learn': 'cat:ai' }, { scope: 'old-scope' });
-  local[PlanMemory.STORAGE_KEY].advice.scopes['old-scope'].t = Date.now() - 15 * DAY_MS;
-  assert.deepEqual((await PlanMemory.read({ scope: 'old-scope' })).advice.cloud, {});
-  for (let index = 0; index < 15; index++) {
-    await PlanMemory.putAdvice(Object.fromEntries(Array.from({ length: 30 }, (_, pair) => [`task:${pair}`, 'cat:dev'])), { scope: `scope-${index}` });
-  }
-  const memory = await PlanMemory.read();
-  const scopes = Object.values(memory.advice.scopes || {});
-  assert.ok(scopes.length <= 12);
-  assert.ok(scopes.reduce((count, value) => count + Object.keys(value.cloud).length, Object.keys(memory.advice.cloud).length) <= 200);
+  assert.deepEqual((await PlanMemory.read()).names.map(item => item.n).sort(), ['Gemini Name', 'Legacy Name', 'My Name', 'OpenAI Name']);
 });

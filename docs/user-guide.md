@@ -1,129 +1,124 @@
 # Using Foldnex
 
-Foldnex removes conservative duplicate pages and organises the remaining tabs in the current Chrome window. Cleanup closes redundant tabs. **Ungroup current window** removes groups, but does not restore closed tabs.
+Foldnex removes conservative duplicate pages and organises the remaining tabs in the current Chrome window into tab groups. Cleanup closes redundant tabs. **Ungroup current window** removes groups where Chrome allows, but does not restore closed tabs or the original tab order.
 
-## Start with local grouping
+## Start
 
 1. Open Foldnex from Chrome's toolbar.
-2. Choose **Offline — no AI** in the setup card for local title and address heuristics, or select **By site category** for address-based groups.
+2. In the setup card choose **Offline smart mode** to group on this computer, or **Cloud AI** to use a provider with your own API key.
 3. Select **Clean up and group**.
 4. Use **Rules and settings** to change engines, add rules or inspect the cleanup report.
 
-Neither of these local paths needs an API key or sends tab data to a cloud provider. The setup card remains until answered, but does not block cleanup. A new install initially selects Gemini Nano with By task; if its model is unavailable, cleanup uses local placement. Selecting **Offline — no AI** makes the offline engine your saved choice.
+A new install starts on Offline smart mode with **By task**. The setup card stays until you answer it, but never blocks a cleanup.
 
-Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy. It preserves query differences and routes in URL fragments, while ignoring ordinary document anchors. A small allowlist of stateless Chrome pages can also be deduplicated. Pinned and browser-internal tabs remain outside grouping.
+Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy. It preserves query differences and routes in URL fragments, while ignoring ordinary document anchors. A small allowlist of stateless Chrome pages can also be deduplicated. Pinned and browser-internal tabs stay outside grouping.
+
+## Gemini Nano has moved to Offline smart mode
+
+Foldnex 2.1 no longer uses Chrome's built-in Gemini Nano. If you had chosen it, Foldnex now uses Offline smart mode, which groups on this computer with a word table packaged in Foldnex and needs no model download. Nothing is sent, as before. The background preparation switch and the Nano memory controls are gone because Foldnex no longer prepares anything in the background. Your rules and renamed groups are kept.
 
 ## Choose a strategy and engine
 
-| Choice | How tabs are classified | Setup and tradeoffs |
+| Choice | How tabs are grouped | What is sent |
 | --- | --- | --- |
-| By site category | Local address-based categories and service names | No model, key or cloud request |
-| By task: Offline smart mode | Local title, address and keyword heuristics | No model, key or cloud request |
-| By task: Chrome Gemini Nano | Chrome's on-device model when available | Chrome/device eligibility and model download; can use several GB of memory |
-| By task: Ollama | Model on your configured Ollama server | Local by default; a remote server receives tab inputs |
-| By task: cloud engine | Your selected provider receives titles and host/path hints | Your own provider credentials; API charges may apply |
+| By site category | Local address-based categories and service names | Nothing |
+| By task: Offline smart mode | The local engine groups by tab titles and address words, with a word table built into Foldnex | Nothing |
+| By task: Ollama | At most one request per cleanup to your Ollama server | Titles and short site hints, to your Ollama server; at a loopback address that server is the first hop and can itself run cloud models |
+| By task: cloud engine | At most one request per cleanup; the model returns groups and names | Titles and short site hints, to the provider you chose, when you clean up |
 
-Cloud choices are Google Gemini, OpenAI, xAI, Groq, OpenRouter, DeepSeek and Cerebras. Local Ollama defaults to `http://localhost:11434`. A saved server address does not grant additional Chrome host permissions: requests still need to fit the packaged permissions and Chrome's network rules.
+Cloud engines are Google Gemini, OpenAI, xAI, Groq, OpenRouter, DeepSeek and Cerebras. Cloud engines always use their provider's own address; a saved address override is ignored. Ollama defaults to `http://localhost:11434`. An Ollama address must use HTTPS unless it is on this device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects. A saved Ollama address does not grant additional Chrome host permissions.
 
-By task first classifies each tab, then plans groups locally. It normally aims for at most ten groups while preserving distinct topics. Explicit rules, Socials and remembered user names are protected and can exceed the ordinary ceiling; when locked groups fill the limit, remaining tabs can form one extra group. By site category has no ten-group ceiling.
+Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
 
-Renaming a Chrome tab group teaches Foldnex your name for matching tabs. Model names are validated locally. Your own names are kept as typed within the runtime's length limits, so avoid sensitive information in group names you may later share.
+**How a cloud cleanup works.** Foldnex sends at most one request for the window: each eligible tab's title (up to 160 characters) and a short host/path hint. For web addresses the hint has no query string, fragment or credentials, and long identifiers in the path are replaced with `:id`, but titles and paths can still contain private text. Pinned and browser-internal tabs are not sent; some other tabs, such as local files, can be. Tabs matched by your URL rules and social sites stay in their own groups and are not sent. The model returns named groups; Foldnex checks and repairs the answer (each tab placed at most once, names validated) and applies it. Tabs the model leaves out go to **Review Later**. If no usable task group remains, Foldnex groups locally instead.
+
+- No request is sent when the window has fewer than two eligible tabs or no free group slot.
+- After a plan has been applied, a second click on a window that has not changed sends nothing and gives the same groups. A failed or discarded request can be sent again on the next click.
+- If at most 10% of the window's eligible tabs are new or changed since the model's last plan, Foldnex keeps the groups and adds the new tabs on this computer, with no request. Tabs it cannot match wait in Review Later, and some may stay ungrouped. Past 10%, the next cleanup asks for a new plan.
+- Foldnex waits about 5.4 seconds for the answer. If it is later, the local grouping is applied straight away, and an answer that arrives within 30 seconds and still matches the window is offered in the popup. It is applied only when you select **Apply**. Cancelling or ignoring it does not retract what the provider already received.
+- If the request fails, the local grouping is applied and the popup says why. The request has still been sent.
+
+On twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups), a Claude Sonnet 5.5 plan measured directly against the Claude API scored 0.84 and OpenAI's default model scored 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels. Offline smart mode scored 0.39, against 0.19 for 2.0's local rules. Other engines' default models were not measured, and results on your windows will differ.
+
+In By task mode Foldnex's own result uses at most ten groups, counting rule, Socials and Review Later groups. Rule and Socials groups are always kept, so many matching rules can exceed ten, and groups already in the window can remain. When the slots run out, some tabs stay ungrouped. By site category has no ten-group ceiling.
+
+Renaming a tab group in a regular window, including one you created yourself, teaches Foldnex your name for those tabs: it saves the name, colour and fingerprints of the tabs on this computer. Your own names are kept as typed (up to 30 characters in name memory); model names are checked locally.
 
 ## Configure a cloud provider
 
 1. Open **Rules and settings → Grouping engines** and select a provider.
 2. Enter its API key or supported bearer token.
 3. Choose from the live model catalog, or use **Custom model** to enter an ID.
-4. Choose reasoning effort if offered for that provider/model and save its settings.
-5. Use **Test connection** beside the key to check the configuration with two synthetic tabs.
+4. Save the provider.
+5. Use **Test connection** beside the key: it sends one grouping request for two made-up tabs, never your window.
 
-Catalogs refresh after credential changes and successful tests. **Refresh models** lets you request them again. A successful connection test does not prove current-window grouping will succeed, and a saved key alone is not a verified connection. Synthetic tests can still incur provider charges.
+Settings loads the provider's model list when it opens on that provider, when you finish editing the key, token or address, after Save and after a successful test; **Refresh models** asks again. These requests, and the test, use the key currently typed, even before you save, and send no tab data. Settings opens in a regular window, even from a private window's popup, so its model lists and Test connection are regular-window requests. A listed model or a passed test does not prove every cleanup will succeed. Tests and cleanups can incur provider charges.
 
-OpenAI's packaged default is `gpt-6-luna` at Low effort. **Priority processing** is on by default and requests the priority service tier, which can cost more. Turn it off to request the default tier, including for connection tests. Provider availability, returned service tier and billing remain under the provider's control.
+Cleanups and tests request the lowest reasoning effort Foldnex offers for the model, or send no reasoning setting where Foldnex has none; the reasoning control in Settings does not change that. OpenAI's default model is `gpt-6-luna`. **Priority processing** is on by default and requests the priority service tier, which can cost more; turn it off to request the default tier. Availability, the tier returned and billing are under the provider's control.
 
-**Cloud economy mode** is off by default. Enabling it skips optional cloud group naming and consolidation; category labels and local planning continue with remembered or deterministic names. It does not turn on background cloud work or change on-device naming.
-
-API credentials are stored locally in trusted extension storage. Other settings may sync through Chrome. Rule export does not include credentials.
+API credentials are stored locally in trusted extension storage until you replace them: clear the field and save. For OpenAI clear both the API key and the bearer token. Other settings, including model IDs and an Ollama address, may sync through Chrome. Rule export does not include credentials.
 
 ![Grouping engine choices](../store-assets/screenshots/01-grouping-engines.png)
 
-## Gemini Nano and model memory
+## Ollama on this device
 
-Chrome must expose its Prompt API to Foldnex's service worker. Eligibility depends on Chrome, device, policy, storage and model availability; inspect the status in **Grouping engines**. Use the download/recheck control there when offered. Chrome's diagnostic page is `chrome://on-device-internals`.
+Loopback Ollama is the first hop: the request goes to the Ollama server on this device, and that server can itself run cloud models. To keep tab data on this computer, use local models only or turn off Ollama's cloud features.
 
-Selecting Gemini Nano in the setup card enables background preparation. After setup, opening the popup can warm Nano when By task is selected, unless the unload choice is **Right after use**. A cleanup allows a bounded wait for a loading model, then places unlabelled tabs locally and reports provisional placement. On-device follow-up labels prepare a later cleanup; they do not immediately regroup those provisional tabs.
+For Ollama at a local address, **Model memory → Unload the Ollama model** tells your Ollama server how long to keep its model loaded after a request: right after use, 2, 5 (default), 15 or 60 minutes, or keep loaded. Foldnex sends it with each cleanup as Ollama's `keep_alive`; whether it is honoured depends on your Ollama server.
 
-For Gemini Nano, **Background work and memory → Unload the on-device model** offers right after use, 2, 5, 15 or 60 minutes, or **Keep loaded**. Five minutes idle is the default. Right after use includes a short grace period; idle unload waits for active work. **Free memory now** releases Foldnex's base sessions; a prompt already running can finish on its own clone. Saved labels remain. If background preparation still has queued work, its next batch can load the model again.
+![Ollama configuration and model memory](../store-assets/screenshots/05-on-device-memory.png)
 
-Foldnex releases its sessions; Chrome controls when model memory is freed. An earlier Apple Silicon Mac test measured about 3 GB while loaded and a 15–25 second cold load. Other devices and Chrome versions can differ. **Keep loaded** lasts only as long as Chrome keeps the service worker running. Local Ollama receives the same unload preference as `keep_alive`, subject to its server's support.
+## Auto-group new tabs
 
-## Background preparation and Auto-group
-
-These are separate settings:
-
-| Setting | Engines and scope | Effect |
-| --- | --- | --- |
-| Prepare groups in the background | Gemini Nano or local Ollama, By task, non-incognito windows | Labels open tabs and later page loads on this device for future cleanup |
-| Auto-group new tabs | Gemini Nano, Ollama or cloud engines, By task, non-incognito windows | Files tabs opened or navigated after enabling it into matching groups as they load |
-
-Background preparation is off until enabled in Settings or by choosing Gemini Nano during setup. Auto-group keeps on-device preparation active even if the separate preparation switch is off. When local preparation is allowed, existing tabs across non-incognito windows are queued when it is enabled, at Chrome startup and after installation/update. Opening the popup prioritises its window.
-
-With both switches off, an on-device cleanup still labels tabs it placed provisionally for a later cleanup, then stops. This follow-up does not move those tabs immediately.
-
-With a cloud engine, Auto-group sends the title and host/path hint of each eligible new page to that provider. Enabling it does not send all already-open tabs. A tab you manually take out of a group stays out until it opens another page. Restored tabs at browser startup are not treated as newly opened pages for cloud Auto-group.
-
-Incognito tabs are excluded from background preparation and Auto-group. A manual cleanup in an incognito window uses its own boundary; a selected cloud engine can still receive that window's titles and URL hints.
-
-![On-device preparation and model memory settings](../store-assets/screenshots/05-on-device-memory.png)
+With **Auto-group new tabs** on (Behaviour, By task, any engine), a tab you open or send to a new page joins the existing group in its window that matches its title best. A tab with no good match stays ungrouped. Matching happens on this computer; nothing is sent, and no new group is created. A tab you take out of a group stays out until it opens another page. Tabs opened in the first 20 seconds after Chrome starts, tabs restored without loading, and incognito tabs are left alone. To recognise new pages and tabs taken out of a group, Foldnex keeps tab IDs and address hashes in session storage, even while Auto-group is off.
 
 ## Rules and memory
 
-In **Rules & memory**, add a URL pattern, category/group name and colour. Patterns are case-insensitive, use `*` as the only wildcard, and allow up to 200 characters. Other punctuation is literal. Rules override ordinary classification. Incognito cleanup does not read saved rules.
+In **Rules & memory**, add a URL pattern, group name and colour. A pattern is a hostname followed by an optional path, such as `example.org/projects/*`; the wildcard applies within that host, so `*` in the hostname does not widen it to other sites. Patterns are case-insensitive, use `*` as the only wildcard, and allow up to 200 characters. Other punctuation is literal. Rules come first and their tabs are not sent to a model. Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
 
-Use **Import JSON** and **Export JSON** to transfer authored rules. Imports require a JSON array, validate each rule, and accept files up to 1 MB. Import merges by case-insensitive pattern and stops once the merged map reaches the 300-rule threshold; invalid entries are skipped. The manual Add rule path currently does not enforce that threshold. Exported patterns and names can contain private information, so review files before sharing them.
+Use **Import JSON** and **Export JSON** to transfer rules. Imports require a JSON array, validate each rule, and accept files up to 1 MB. Import stops once the merged list reaches 300 rules; invalid entries are skipped, and a malformed file can fail without changing your saved rules. An export is a browser download whose patterns and names can contain private information; delete it separately.
 
-Per-tab labels are eligible for reuse for seven days, with up to 3,000 entries. Plan memory reuses user names for up to 90 days and model names/advice for 14 days; separate exact-cohort rename preferences retain up to 100 entries without age expiry. Expired entries can remain until a subsequent write removes them. Labels and plan matching use hashes, but saved group names can still reveal their subject. Switching models, effort or endpoints reassesses model-specific memory while user renames remain available.
-
-Reset controls have different scopes:
+Foldnex remembers your group renames for 90 days (up to 120 names) and keeps separate rename preferences for exact sets of tabs (up to 100, no age limit). An unchanged window's result is reused for six hours. These records match tabs by hashes, not raw titles or addresses, but saved group names can reveal their subject.
 
 | Control | What it resets |
 | --- | --- |
-| Clear all rules | Authored/learned rules, exact results, labels, plan memory and rename preferences; invalidates session window plans |
-| Clear run history | Cleanup diagnostics |
-| Clear provider usage | Inference/test request and reported-token totals |
+| Clear all rules | Rules, exact results, name memory and rename preferences; stored window plans and offers stop being reused |
+| Clear run history | Cleanup diagnostics (a cleanup still running can add a record afterwards) |
+| Clear provider usage | Request and reported-token totals |
 
-Clearing rules does not clear provider credentials, engine preferences, cleanup history or usage totals. Work that started before a reset cannot restore usable old memory or cleared usage totals.
+Clearing rules does not clear credentials, engine preferences, cleanup history or usage totals.
 
 ![Rules and memory controls](../store-assets/screenshots/04-rules-and-memory.png)
 
 ## Behaviour, shortcuts and reports
 
-In **Behaviour**, **Run from toolbar** runs cleanup directly when you click Foldnex. Until the setup card is answered, the toolbar still opens the popup. **Auto-collapse new groups** leaves the active group open and collapses the rest.
+In **Behaviour**, **Run from toolbar** runs cleanup directly when you click Foldnex. Until the setup card is answered, the toolbar still opens the popup. **Auto-collapse new groups** asks Chrome to collapse each group Foldnex creates.
 
 | Action | Windows/Linux | macOS |
 | --- | --- | --- |
 | Clean up and group | Alt+G | Command+Shift+G |
 | Ungroup current window | Alt+U | Command+Shift+U |
 
-Review or change assignments at `chrome://extensions/shortcuts` if another shortcut conflicts.
+These are suggested shortcuts and work while Chrome is focused. Check or change the current assignments at `chrome://extensions/shortcuts`.
 
-**Last cleanup** reports the engine, source, outcome, latency, fallback, quality and reported tokens. Logical cleanup batches and provider HTTP requests are different counts: retries and late requests can affect usage without changing that report.
-
-**Provider request usage** accumulates inference and connection tests, including late/background replies. Model catalogs and incognito requests do not contribute. It stores counts and reported tokens, not tab inputs, prompts, response bodies or credentials. Some replies omit usage, so totals are not a bill or a complete cost calculation. Group names in cleanup diagnostics can contain sensitive text even though raw tab titles and URLs are excluded.
+**Last cleanup** reports the engine, source (for example cloud plan, plan upkeep, exact cache or offline fallback), requests, tokens, latency, quality and any fallback. **Provider request usage** counts every cleanup and test request Foldnex starts, including failed and late ones. Model lists and incognito cleanups do not count. It stores counts and reported tokens, not tab content, prompts, responses or credentials, and is not a bill.
 
 ![Behaviour controls](../store-assets/screenshots/03-behaviour.png)
 
 ![Provider request usage example](../store-assets/screenshots/02-provider-usage.png)
 
-These images use owner-supplied 2.0.0 screen captures. Model availability and usage figures show the captured state, not a guarantee for another device or account. Asset provenance and source captures are recorded in [the store asset manifest](../store-assets/manifest.json).
+Screenshots 01, 02, 03 and 05 are automated captures of the 2.1.0 extension; the usage figures in 02 are seeded examples, and 05 shows a model list from a local stand-in. Screenshot 04 is a retained 2.0.0 capture of the Rules & memory controls. Provenance is recorded in [the store asset manifest](../store-assets/manifest.json).
+
+## Incognito
+
+Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local. A cleanup in an incognito window stays inside that window and saves no results, names, plans, diagnostics or usage from it, and it does not read your saved rules. The popup can show regular-window statistics. Auto-group never touches incognito tabs.
 
 ## Troubleshooting
 
-- **Model loading or unavailable:** inspect the Nano status; let a download/load finish or choose Offline smart mode. Run cleanup again after labels have been prepared.
-- **Cloud fallback:** check the provider, credential, model and reasoning selection; test with synthetic tabs before intentionally sending a real window.
-- **Tab remains outside a group:** pinned/internal tabs are excluded. Check explicit rules, provisional placement and the selected strategy.
-- **Auto-group is idle:** check By task, engine eligibility and the switch. Existing/restored tabs are not eligible cloud new-tab events; incognito tabs are excluded.
-- **Memory remains after release:** Foldnex can release its sessions but Chrome controls model residency; inspect `chrome://on-device-internals`.
-- **Change not visible in an unpacked install:** reload Foldnex at `chrome://extensions`, then reopen its popup/settings.
+- **Cloud fallback:** check the provider, key and model; use **Test connection** before sending a real window.
+- **The popup offers a late grouping:** the model answered after the cleanup. Select **Apply** to use it, or ignore it. If you changed the window meanwhile, run a cleanup again.
+- **Nothing was sent after new tabs:** at most 10% of the tabs were new or changed since the last model plan, so Foldnex added them locally. Add more tabs, or clear rules to start fresh, to get a new plan.
+- **Tab remains outside a group:** pinned and internal tabs are excluded; when the group slots are used up or Chrome refuses a placement, some tabs stay ungrouped; Auto-group leaves a tab alone when no group matches.
+- **Change not visible in an unpacked install:** reload Foldnex at `chrome://extensions`, then reopen its popup or Settings.
 
 For a reproducible bug, follow [Support](../.github/SUPPORT.md) and use synthetic tab examples. See [Privacy](legal/privacy.md) for full data handling, [Terms](legal/terms.md) for product terms and the [product contract](architecture/product.md) for implementation details.

@@ -1,0 +1,1908 @@
+{
+ "bar": {
+  "f1": 0.75,
+  "p90Ms": 6000,
+  "maxTabs": 66
+ },
+ "planExampleName": "Wedding Plans",
+ "windows": [
+  {
+   "name": "a-designer",
+   "tabs": 66,
+   "band": "middle"
+  },
+  {
+   "name": "a-hoarder",
+   "tabs": 200,
+   "band": "large"
+  },
+  {
+   "name": "a-household",
+   "tabs": 63,
+   "band": "middle"
+  },
+  {
+   "name": "a-oncall",
+   "tabs": 82,
+   "band": "large"
+  },
+  {
+   "name": "a-student",
+   "tabs": 64,
+   "band": "middle"
+  },
+  {
+   "name": "b-academic",
+   "tabs": 69,
+   "band": "large"
+  },
+  {
+   "name": "b-expat",
+   "tabs": 54,
+   "band": "small"
+  },
+  {
+   "name": "b-messy",
+   "tabs": 74,
+   "band": "large"
+  },
+  {
+   "name": "b-move",
+   "tabs": 54,
+   "band": "small"
+  },
+  {
+   "name": "b-shop",
+   "tabs": 55,
+   "band": "small"
+  },
+  {
+   "name": "dev",
+   "tabs": 63,
+   "band": "middle"
+  },
+  {
+   "name": "life",
+   "tabs": 62,
+   "band": "small"
+  }
+ ],
+ "bands": [
+  {
+   "name": "small",
+   "min": 54,
+   "max": 62,
+   "windows": [
+    "b-expat",
+    "b-move",
+    "b-shop",
+    "life"
+   ]
+  },
+  {
+   "name": "middle",
+   "min": 63,
+   "max": 66,
+   "windows": [
+    "a-household",
+    "dev",
+    "a-student",
+    "a-designer"
+   ]
+  },
+  {
+   "name": "large",
+   "min": 69,
+   "max": 200,
+   "windows": [
+    "b-academic",
+    "b-messy",
+    "a-oncall",
+    "a-hoarder"
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "id": "claude-haiku-5-5|plan|off",
+   "label": "Haiku plan, thinking off",
+   "files": [
+    "claude-haiku-5-5_plan_off_2026-11-22T19-55-06.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.6827,
+    "appliedAll": 0.6398,
+    "unassigned": 9.8333
+   },
+   "ten": {
+    "appliedTasked": 0.6545,
+    "appliedAll": 0.6075,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.609,
+     "appliedAll": 0.5703,
+     "unassigned": 3
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.6417,
+     "appliedAll": 0.6284,
+     "unassigned": 71.5
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.5614,
+     "appliedAll": 0.5328,
+     "unassigned": 6.5
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.6733,
+     "appliedAll": 0.6111,
+     "unassigned": 3
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.7883,
+     "appliedAll": 0.7263,
+     "unassigned": 2
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.8416,
+     "appliedAll": 0.771,
+     "unassigned": 2
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.5897,
+     "appliedAll": 0.5554,
+     "unassigned": 2.5
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.7405,
+     "appliedAll": 0.655,
+     "unassigned": 4
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.5408,
+     "appliedAll": 0.5102,
+     "unassigned": 6.5
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.5585,
+     "appliedAll": 0.5147,
+     "unassigned": 3.5
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.859,
+     "appliedAll": 0.8538,
+     "unassigned": 11
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.7883,
+     "appliedAll": 0.749,
+     "unassigned": 2.5
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 5,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 2,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 5,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 91,
+     "duplicates": 5,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 4,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 2,
+     "duplicates": 35,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 2162,
+     "p90": 3314
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 2085,
+      "p90": 2534
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 2210,
+      "p90": 3345
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 2356,
+      "p90": 4139
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 3154,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.0006,
+    "meanInputTokens": 3969.75,
+    "meanOutputTokens": 311.6667
+   },
+   "agreement": {
+    "mean": 0.6993,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "misses",
+    "f1Ok": false,
+    "latencyOk": true
+   }
+  },
+  {
+   "id": "claude-haiku-5-5|plan|adaptive-low",
+   "label": "Haiku plan, thinking adaptive / effort low",
+   "files": [
+    "claude-haiku-5-5_plan_adaptive-low_2026-11-22T19-55-06.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.8424,
+    "appliedAll": 0.8198,
+    "unassigned": 11.7917
+   },
+   "ten": {
+    "appliedTasked": 0.8266,
+    "appliedAll": 0.8012,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.8475,
+     "appliedAll": 0.8335,
+     "unassigned": 6.5
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.7962,
+     "appliedAll": 0.7944,
+     "unassigned": 64
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.8348,
+     "appliedAll": 0.8186,
+     "unassigned": 5.5
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.7493,
+     "appliedAll": 0.7493,
+     "unassigned": 12.5
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.9023,
+     "appliedAll": 0.8983,
+     "unassigned": 6.5
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9822,
+     "appliedAll": 0.9406,
+     "unassigned": 5.5
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8612,
+     "appliedAll": 0.7744,
+     "unassigned": 3.5
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.8428,
+     "appliedAll": 0.8106,
+     "unassigned": 10
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.6556,
+     "appliedAll": 0.6247,
+     "unassigned": 7.5
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.7945,
+     "appliedAll": 0.7677,
+     "unassigned": 5.5
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.9056,
+     "appliedAll": 0.903,
+     "unassigned": 9.5
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.9367,
+     "appliedAll": 0.9227,
+     "unassigned": 5
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 8617,
+     "p90": 11950
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 7974,
+      "p90": 9232
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 8578,
+      "p90": 10689
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 9265,
+      "p90": 25531
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 10524,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.0015,
+    "meanInputTokens": 3970.75,
+    "meanOutputTokens": 2296.2083
+   },
+   "agreement": {
+    "mean": 0.8644,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "misses",
+    "f1Ok": true,
+    "latencyOk": false
+   }
+  },
+  {
+   "id": "claude-sonnet-5-5|plan|off",
+   "label": "Sonnet plan, thinking off",
+   "files": [
+    "claude-sonnet-5-5_plan_off_2026-11-22T19-55-06.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.8713,
+    "appliedAll": 0.8359,
+    "unassigned": 8.625
+   },
+   "ten": {
+    "appliedTasked": 0.8649,
+    "appliedAll": 0.8289,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.8406,
+     "appliedAll": 0.8128,
+     "unassigned": 5
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.8854,
+     "appliedAll": 0.881,
+     "unassigned": 46
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.8801,
+     "appliedAll": 0.8621,
+     "unassigned": 4.5
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.8757,
+     "appliedAll": 0.8757,
+     "unassigned": 10
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.9468,
+     "appliedAll": 0.9094,
+     "unassigned": 5
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9829,
+     "appliedAll": 0.914,
+     "unassigned": 5
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8203,
+     "appliedAll": 0.7649,
+     "unassigned": 3
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.8931,
+     "appliedAll": 0.849,
+     "unassigned": 9
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.6095,
+     "appliedAll": 0.5687,
+     "unassigned": 7
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.9149,
+     "appliedAll": 0.8513,
+     "unassigned": 3.5
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.8761,
+     "appliedAll": 0.8526,
+     "unassigned": 2
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.93,
+     "appliedAll": 0.8892,
+     "unassigned": 3.5
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 6,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 2755,
+     "p90": 5974
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 2510,
+      "p90": 5974
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 2623,
+      "p90": 4885
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 3707,
+      "p90": 9454
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 4885,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.011,
+    "meanInputTokens": 3969.75,
+    "meanOutputTokens": 307.9167
+   },
+   "agreement": {
+    "mean": 0.9293,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "meets",
+    "f1Ok": true,
+    "latencyOk": true
+   }
+  },
+  {
+   "id": "claude-sonnet-5-5|plan|adaptive-low",
+   "label": "Sonnet plan, thinking adaptive / effort low",
+   "files": [
+    "claude-sonnet-5-5_plan_adaptive-low_2026-11-22T19-55-06.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.8706,
+    "appliedAll": 0.8356,
+    "unassigned": 8.4167
+   },
+   "ten": {
+    "appliedTasked": 0.8676,
+    "appliedAll": 0.8344,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.8209,
+     "appliedAll": 0.7938,
+     "unassigned": 5
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.839,
+     "appliedAll": 0.8197,
+     "unassigned": 43
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.9121,
+     "appliedAll": 0.8909,
+     "unassigned": 4
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.8602,
+     "appliedAll": 0.8573,
+     "unassigned": 10
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.9328,
+     "appliedAll": 0.9328,
+     "unassigned": 8
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9444,
+     "appliedAll": 0.8866,
+     "unassigned": 5.5
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8535,
+     "appliedAll": 0.8112,
+     "unassigned": 3.5
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.8732,
+     "appliedAll": 0.8184,
+     "unassigned": 8
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.7033,
+     "appliedAll": 0.6565,
+     "unassigned": 6
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.9364,
+     "appliedAll": 0.8773,
+     "unassigned": 4
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.8809,
+     "appliedAll": 0.8384,
+     "unassigned": 1
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.891,
+     "appliedAll": 0.8445,
+     "unassigned": 3
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 9,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 1,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 2600,
+     "p90": 4668
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 2498,
+      "p90": 3293
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 2600,
+      "p90": 6184
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 2789,
+      "p90": 4668
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 5115,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.011,
+    "meanInputTokens": 3970.75,
+    "meanOutputTokens": 309.0833
+   },
+   "agreement": {
+    "mean": 0.9336,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "meets",
+    "f1Ok": true,
+    "latencyOk": true
+   }
+  },
+  {
+   "id": "claude-opus-5-5|plan|off",
+   "label": "Opus plan, effort low (thinking omitted)",
+   "files": [
+    "claude-opus-5-5_plan_off_2026-11-22T19-55-06.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.9207,
+    "appliedAll": 0.8891,
+    "unassigned": 7.125
+   },
+   "ten": {
+    "appliedTasked": 0.9102,
+    "appliedAll": 0.8757,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.8382,
+     "appliedAll": 0.8173,
+     "unassigned": 5.5
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.964,
+     "appliedAll": 0.9521,
+     "unassigned": 27.5
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.9684,
+     "appliedAll": 0.9465,
+     "unassigned": 4
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.9535,
+     "appliedAll": 0.9223,
+     "unassigned": 7
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.9785,
+     "appliedAll": 0.9785,
+     "unassigned": 7
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9444,
+     "appliedAll": 0.9132,
+     "unassigned": 7
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.9151,
+     "appliedAll": 0.8519,
+     "unassigned": 3.5
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.8684,
+     "appliedAll": 0.8221,
+     "unassigned": 8.5
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.7801,
+     "appliedAll": 0.7075,
+     "unassigned": 4.5
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.8908,
+     "appliedAll": 0.8459,
+     "unassigned": 4.5
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 1,
+     "appliedAll": 0.9779,
+     "unassigned": 3
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.9471,
+     "appliedAll": 0.9335,
+     "unassigned": 3.5
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 3067,
+     "p90": 3669
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 2903,
+      "p90": 3208
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 3066,
+      "p90": 3669
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 3296,
+      "p90": 5119
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 3208,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.022,
+    "meanInputTokens": 3970.75,
+    "meanOutputTokens": 307.375
+   },
+   "agreement": {
+    "mean": 0.9646,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "meets",
+    "f1Ok": true,
+    "latencyOk": true
+   }
+  }
+ ],
+ "comparison": []
+}

@@ -37,6 +37,12 @@
       <div id="statusMessage" class="status-msg"></div>
     </div>
 
+    <!-- A model plan that arrived after its cleanup; applied only on Apply. -->
+    <div id="planOffer" class="plan-offer hidden" role="status" aria-live="polite">
+      <span class="plan-offer-text">The model's grouping arrived after the cleanup.</span>
+      <button id="btnApplyPlan" class="link-btn plan-offer-btn" type="button">Apply</button>
+    </div>
+
     <!-- First-run choice, shown until setupChoice is saved. Clean up stays usable. -->
     <section id="setupCard" class="card setup-card hidden" aria-labelledby="setupTitle">
       <span class="card-label">Setup</span>
@@ -46,35 +52,26 @@
         <button type="button" class="setup-choice" data-choice="cloud" aria-labelledby="setupCloudName setupCloudBadge" aria-describedby="setupCloudCopy setupCloudDetail">
           <span class="setup-choice-head">
             <span id="setupCloudName" class="setup-choice-name">Cloud AI</span>
-            <span id="setupCloudBadge" class="setup-pill">Recommended · fastest</span>
+            <span id="setupCloudBadge" class="setup-pill">Recommended</span>
             <span class="setup-pill current hidden">Current</span>
           </span>
           <span id="setupCloudCopy" class="setup-choice-copy">Uses your own API key for OpenAI, Google Gemini, Groq and others.</span>
-          <span id="setupCloudDetail" class="setup-choice-detail">Page titles and a short site hint are sent to that provider when you group. Uses a little of your API credit.</span>
+          <span id="setupCloudDetail" class="setup-choice-detail">Page titles and a short site hint are sent to that provider when you group. Your provider may charge for requests.</span>
         </button>
-        <button type="button" id="setupNanoChoice" class="setup-choice" data-choice="nano" aria-labelledby="setupNanoName setupNanoBadge" aria-describedby="setupNanoStatus setupNanoCopy setupNanoDetail">
+        <button type="button" class="setup-choice" data-choice="offline" aria-labelledby="setupOfflineName setupOfflineBadge" aria-describedby="setupOfflineCopy">
           <span class="setup-choice-head">
-            <span id="setupNanoName" class="setup-choice-name">On this device — Gemini Nano</span>
-            <span id="setupNanoBadge" class="setup-pill">Free · private</span>
+            <span id="setupOfflineName" class="setup-choice-name">Offline smart mode</span>
+            <span id="setupOfflineBadge" class="setup-pill">Free · private</span>
             <span class="setup-pill current hidden">Current</span>
           </span>
-          <span id="setupNanoStatus" class="setup-choice-status hidden"></span>
-          <span id="setupNanoCopy" class="setup-choice-copy">Runs inside Chrome; nothing leaves this computer. Prepares labels in the background for a later cleanup.</span>
-          <span id="setupNanoDetail" class="setup-choice-detail">Uses about 3 GB of memory while the model is loaded and releases it after 5 minutes idle (change in Settings). The first load takes 15-25 seconds.</span>
-        </button>
-        <button type="button" class="setup-choice" data-choice="offline" aria-labelledby="setupOfflineName" aria-describedby="setupOfflineCopy">
-          <span class="setup-choice-head">
-            <span id="setupOfflineName" class="setup-choice-name">Offline — no AI</span>
-            <span class="setup-pill current hidden">Current</span>
-          </span>
-          <span id="setupOfflineCopy" class="setup-choice-copy">Groups tabs by site and title on this computer.</span>
+          <span id="setupOfflineCopy" class="setup-choice-copy">Groups tabs on this computer from their titles, words from their addresses and a small word table built into Foldnex. Nothing is sent.</span>
         </button>
         <button type="button" id="setupKeepChoice" class="setup-choice hidden" data-choice="keep" aria-labelledby="setupKeepName" aria-describedby="setupKeepCopy" aria-current="true">
           <span class="setup-choice-head">
             <span id="setupKeepName" class="setup-choice-name">Keep Ollama</span>
             <span class="setup-pill current">Current</span>
           </span>
-          <span id="setupKeepCopy" class="setup-choice-copy">Runs through the Ollama server on this device.</span>
+          <span id="setupKeepCopy" class="setup-choice-copy">Runs through the Ollama server on this device, which can itself run cloud models.</span>
         </button>
       </div>
     </section>
@@ -97,7 +94,6 @@
       </fieldset>
       <label class="secondary-field-label" for="providerSelect">Task engine</label>
       <select id="providerSelect" class="select-input" aria-label="Grouping engine">
-        <option value="gemini_nano">Chrome Gemini Nano · local</option>
         <option value="offline">Offline smart mode · local</option>
         <option value="gemini_api">Google Gemini</option>
         <option value="openai">OpenAI</option>
@@ -106,10 +102,10 @@
         <option value="openrouter">OpenRouter</option>
         <option value="deepseek">DeepSeek</option>
         <option value="cerebras">Cerebras</option>
-        <option value="ollama">Ollama · local</option>
+        <option value="ollama">Ollama</option>
       </select>
       <p id="modelReasoningSummary" class="engine-meta hidden"></p>
-      <p id="nanoHint" class="nano-hint hidden">Runs locally in Chrome. No tab data leaves this device.</p>
+      <p id="engineHint" class="engine-hint hidden"></p>
     </section>
 
     <section class="card stats-card" aria-label="Local memory">
@@ -120,7 +116,7 @@
     <div class="setting-toggle-row">
       <div class="toggle-info">
         <span class="toggle-title">Run from toolbar</span>
-        <span class="toggle-desc">Skip this popup when the icon is clicked</span>
+        <span class="toggle-desc">Skip this popup when the icon is clicked, once setup is answered</span>
       </div>
       <label class="switch" aria-label="Run directly from toolbar">
         <input type="checkbox" id="toggleOneClickMode">
@@ -129,7 +125,7 @@
     </div>
 
     <footer class="footer">
-      <span>Foldnex 2.0</span>
+      <span>Foldnex 2.1</span>
       <nav class="footer-links" aria-label="Foldnex links">
         <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
         <span aria-hidden="true">·</span>

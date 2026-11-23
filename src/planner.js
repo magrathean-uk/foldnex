@@ -1,12 +1,11 @@
 /**
  * Foldnex - Deterministic group planner
  *
- * Turns one category label per tab into coherent groups. groupCeiling(n) is
- * the preferred count; unrelated topics stay separate up to MAX_GROUPS. Models
- * never count or create groups: every group identity is a local candidate (a
- * category, a shared title token, a site, a locked rule or Review Later), and
- * every tie is broken by a stable key, so the same window always plans the same
- * way whatever order its tabs arrive in.
+ * The shared local rules for groups: title tokens, the category a tab's
+ * site or title implies, group names and their validation, names carried
+ * over from memory, the group ceiling and the validator of a model plan
+ * (enforcePlan). Every tie is broken by a stable key, so the same window
+ * always gives the same result whatever order its tabs arrive in.
  *
  * Pure module: no chrome.* calls, no storage and no clock.
  */
@@ -16,11 +15,10 @@ import {
   getMaxGroupSize,
   groupCeiling,
   isGenericGroupName,
-  MAX_GROUPS,
-  minGroupSize
+  MAX_GROUPS
 } from './ai-engine.js';
 import { extractPatternKey, hashToken, normalizeUserGroupName, sanitizeTitle } from './cache-engine.js';
-import { describeSite, isAtomicSite, siteKeyForUrl } from './site-clusterer.js';
+import { describeSite, siteKeyForUrl } from './site-clusterer.js';
 import {
   CATEGORY_BY_KEY,
   CATEGORY_KEYS,
@@ -39,27 +37,11 @@ import {
 export { GROUP_NAME_LIMIT, REVIEW_GROUP_NAME };
 
 const REVIEW_KEY = 'review';
-const TASK_MAX_SHARE = 0.5;
-const ATTACH_MIN_SCORE = 0.34;
 const TOKEN_HASH_LIMIT = 8;
-const SITE_AFFINITY_AGREEMENT = 0.8;
 const USER_FINGERPRINT_OVERLAP = 0.5;
 const MODEL_KEY_JACCARD = 0.5;
 const MODEL_TOKEN_JACCARD = 0.25;
 
-/**
- * Sites whose tabs cover every subject, so one labelled tab says nothing about
- * the next one. Site keys plus a few full hosts.
- */
-export const MULTI_PURPOSE_SITES = new Set([
-  'google', 'bing', 'duckduckgo', 'youtube', 'wikipedia', 'medium', 'chatgpt',
-  'claude', 'gemini', 'perplexity', 'amazon', 'docs.google.com', 'drive.google.com'
-]);
-
-// Labels the planner or inference produced locally. They never feed site
-// affinity, so a guess can never confirm itself.
-const LOCAL_LABEL_SOURCES = new Set(['site-affinity', 'site', 'lexicon', 'token-attach', 'loose', 'review']);
-const LABEL_PRIORITY = new Map([['lexicon', 1], ['site', 2], ['site-affinity', 3]]);
 const CODE_HOSTS = new Set(['github.com', 'gitlab.com', 'bitbucket.org']);
 const GOVERNMENT_HOST = /(^|\.)(gov|gouv|gob|govt)(\.|$)/;
 const BARE_DOMAIN = /\.(com|org|net|io|ai|dev|co|app)\b/i;
@@ -141,12 +123,6 @@ function labelKey(value) {
   return typeof raw === 'string' && CATEGORY_BY_KEY.has(raw) ? raw : null;
 }
 
-function readLabel(labelsById, id) {
-  if (!labelsById || id === undefined || id === null) return undefined;
-  if (labelsById instanceof Map) return labelsById.has(id) ? labelsById.get(id) : labelsById.get(String(id));
-  return labelsById[id];
-}
-
 /** Most frequent key in a count map; ties go by vocabulary order. */
 function topCategory(counts) {
   let best = null;
@@ -161,14 +137,7 @@ function topCategory(counts) {
   return best;
 }
 
-function bump(map, key, value) {
-  if (!key) return;
-  const counts = map.get(key) || new Map();
-  counts.set(value, (counts.get(value) || 0) + 1);
-  map.set(key, counts);
-}
-
-function isLockedGroup(group) {
+export function isLockedGroup(group) {
   return group?.locked === true || group?.kind === 'rule' || group?.kind === 'social';
 }
 
@@ -335,8 +304,14 @@ export function titleTokens(tab) {
   return tokenizeTab(tab).tokens;
 }
 
+/** titleTokens plus the original spellings of each token, for local names. */
+export function titleTokenDetails(tab) {
+  const { tokens, surfaces } = tokenizeTab(tab);
+  return { tokens, surfaces };
+}
+
 // ---------------------------------------------------------------------------
-// Local label inference
+// Category from site and title
 // ---------------------------------------------------------------------------
 
 /** Category key implied by a known site, or null when the site says nothing. */
@@ -372,77 +347,6 @@ export function categoryFromTitle(title) {
   return topCategory(hits);
 }
 
-function isModelLabel(value) {
-  if (typeof value === 'string') return true;
-  if (!value || typeof value !== 'object') return false;
-  return !LOCAL_LABEL_SOURCES.has(value.src);
-}
-
-/**
- * Category counts per URL pattern and per site, from model and cached labels
- * only. Inferred labels are left out so a guess never confirms itself.
- */
-export function buildLocalContext(tabs, labelsById) {
-  const byPattern = new Map();
-  const bySite = new Map();
-  for (const tab of tabs || []) {
-    const value = readLabel(labelsById, tab?.id);
-    const key = labelKey(value);
-    if (!key || !isModelLabel(value)) continue;
-    const url = tabUrl(tab);
-    bump(byPattern, extractPatternKey(url), key);
-    bump(bySite, siteKeyForUrl(url), key);
-  }
-  return { byPattern, bySite };
-}
-
-function isMultiPurpose(url, siteKey) {
-  if (MULTI_PURPOSE_SITES.has(siteKey)) return true;
-  try {
-    return MULTI_PURPOSE_SITES.has(new URL(url).hostname.replace(/^www\./, '').toLowerCase());
-  } catch {
-    return false;
-  }
-}
-
-function siteAffinityLabel(url, siteKey, ctx) {
-  if (!ctx || !siteKey || isMultiPurpose(url, siteKey)) return null;
-  const patternCounts = ctx.byPattern?.get(extractPatternKey(url));
-  if (patternCounts?.size === 1) return [...patternCounts.keys()][0];
-
-  const siteCounts = ctx.bySite?.get(siteKey);
-  if (!siteCounts) return null;
-  let total = 0;
-  for (const count of siteCounts.values()) total += count;
-  const top = topCategory(siteCounts);
-  if (total >= 2 && top && siteCounts.get(top) / total >= SITE_AFFINITY_AGREEMENT) return top;
-  return null;
-}
-
-/**
- * Best local guess for a tab the model has not labelled: site affinity with
- * labelled neighbours, then the site taxonomy, then title words. Returns
- * {c, src} or null. These guesses are provisional and never cached.
- */
-export function inferLocalLabel(tab, ctx = null) {
-  const url = tabUrl(tab);
-  const affinity = siteAffinityLabel(url, siteKeyForUrl(url), ctx);
-  if (affinity) return { c: affinity, src: 'site-affinity' };
-  const site = categoryFromSite(url);
-  if (site) return { c: site, src: 'site' };
-  const lexicon = categoryFromTitle(tab?.title);
-  if (lexicon) return { c: lexicon, src: 'lexicon' };
-  return null;
-}
-
-/**
- * How well a tab can be placed without the model: 0 none, 1 lexicon, 2 site,
- * 3 site affinity. Callers label the lowest first.
- */
-export function labelPriority(tab, ctx = null) {
-  return LABEL_PRIORITY.get(inferLocalLabel(tab, ctx)?.src) || 0;
-}
-
 // ---------------------------------------------------------------------------
 // Naming
 // ---------------------------------------------------------------------------
@@ -476,7 +380,7 @@ export function mergedName(t, s) {
   return parts.map(part => clampName(part, budget)).join(' & ');
 }
 
-function surfaceName(token, entries) {
+export function surfaceName(token, entries) {
   const counts = new Map();
   for (const entry of entries) {
     for (const [surface, count] of entry.surfaces.get(token) || []) {
@@ -527,19 +431,30 @@ function isVagueName(words) {
   return keys.every(key => VAGUE_NAME_WORDS.has(key));
 }
 
+// A raw name longer than this is rejected before any normalising.
+export const RAW_GROUP_NAME_LIMIT = 200;
+const NAME_EDGE = /[\s&'·-]/;
+
+/** Trim spaces and joiners from both ends in one pass each (no regex backtracking). */
+function trimNameEdges(text) {
+  let start = 0;
+  let end = text.length;
+  while (start < end && NAME_EDGE.test(text[start])) start++;
+  while (end > start && NAME_EDGE.test(text[end - 1])) end--;
+  return text.slice(start, end);
+}
+
 export function validateGroupName(raw, group = null, tabsById = null, takenNames = []) {
-  if (typeof raw !== 'string') return null;
+  if (typeof raw !== 'string' || raw.length > RAW_GROUP_NAME_LIMIT) return null;
   const normalized = raw.normalize('NFKC').replace(/\s+/g, ' ').trim();
   // Checked before stripping, which would remove the dot.
   if (BARE_DOMAIN.test(normalized)) return null;
-  const name = normalized
+  const name = trimNameEdges(normalized
     .replace(/[^\p{L}\p{M}\p{N} &'·-]+/gu, '')
     // Marks are kept for scripts that need them, but not orphaned ones such as
     // an emoji's variation selector left behind after the emoji is stripped.
     .replace(/(^|[^\p{L}\p{M}\p{N}])\p{M}+/gu, '$1')
-    .replace(/\s+/g, ' ')
-    .replace(/^[\s&'·-]+|[\s&'·-]+$/g, '')
-    .trim();
+    .replace(/\s+/g, ' '));
   const length = codePointLength(name);
   if (length < 2 || length > GROUP_NAME_LIMIT) return null;
   const words = name.split(' ').filter(word => /[\p{L}\p{N}]/u.test(word));
@@ -656,13 +571,8 @@ export function ensureUniqueNames(groups, locked = [], { tabsById = null, joinLo
 }
 
 // ---------------------------------------------------------------------------
-// Planning
+// Plan identity
 // ---------------------------------------------------------------------------
-
-/** Smallest shared-token task worth its own group: 3 tabs, or 5% of the window. */
-export function taskMin(n) {
-  return Math.max(3, Math.ceil(0.05 * n));
-}
 
 /** Plan identity: every group's sorted keys, sorted and joined. */
 export function planSignature(groups) {
@@ -670,510 +580,6 @@ export function planSignature(groups) {
     .map(group => [...(group.keys || [group.key || lower(group.name)])].sort().join('+'))
     .sort()
     .join('|');
-}
-
-function refreshGroup(group) {
-  const categories = new Set(group.entries.map(entry => entry.label));
-  group.categories = CATEGORY_KEYS.filter(key => categories.has(key));
-  if (group.kind === 'site' || group.kind === 'review') {
-    group.dominant = null;
-    return;
-  }
-  const counts = new Map();
-  for (const entry of group.entries) {
-    if (entry.label) counts.set(entry.label, (counts.get(entry.label) || 0) + 1);
-  }
-  group.dominant = topCategory(counts);
-}
-
-function makeGroup(fields, entries) {
-  const group = { keys: new Set([fields.key]), ...fields, entries: [...entries] };
-  refreshGroup(group);
-  return group;
-}
-
-function groupColor(group) {
-  if (group.kind === 'review') return 'grey';
-  if (group.kind === 'site') return group.siteColor || 'grey';
-  return CATEGORY_BY_KEY.get(group.dominant)?.color || group.siteColor || 'grey';
-}
-
-function siteDisplayName(entry) {
-  const { siteName } = describeSite(tabUrl(entry.tab));
-  if (siteName && !isGenericGroupName(siteName)) return clampName(siteName);
-  return clampName(entry.siteKey) || 'Site';
-}
-
-function tokenBag(entries) {
-  const counts = new Map();
-  for (const entry of entries) {
-    for (const token of entry.tokens) counts.set(token, (counts.get(token) || 0) + 1);
-  }
-  return new Set([...counts].filter(([, count]) => count >= 2).map(([token]) => token));
-}
-
-/**
- * Best candidate for a loose tab by shared tokens with the candidate's bag.
- * Bags and sizes are fixed before attaching, so input order cannot matter.
- */
-function bestAttach(entry, groups, bags, sizes, minScore) {
-  if (entry.tokens.size === 0) return null;
-  let best = null;
-  for (const group of groups) {
-    const bag = bags.get(group);
-    let overlap = 0;
-    for (const token of entry.tokens) if (bag?.has(token)) overlap++;
-    if (overlap < 1) continue;
-    const score = overlap / entry.tokens.size;
-    if (score < minScore) continue;
-    const key = [-score, -overlap, -sizes.get(group), group.key];
-    if (!best || compareKeys(key, best.key) < 0) best = { group, key };
-  }
-  return best?.group || null;
-}
-
-function uniqueKey(key, groups) {
-  const used = new Set(groups.map(group => group.key));
-  if (!used.has(key)) return key;
-  for (let index = 2; ; index++) {
-    if (!used.has(`${key}#${index}`)) return `${key}#${index}`;
-  }
-}
-
-/**
- * Plan the groups for one window.
- *
- * tabs: the groupable tabs in strip order (locked tabs may be included or not).
- * labelsById: Map of tab ID → category key, or {c} from caches and inference;
- * a missing label leaves the tab loose.
- * locked: explicit rule groups first, then Socials: {name, color, tabIds, kind}.
- * advice: cached consolidation advice {candidateKey: anchorKey}, used only
- * while the plan is above the ceiling.
- *
- * Returns {K, n, groups, candidates, signature, flags, reviewTabIds, tokensById}.
- * The group count never exceeds max(MAX_GROUPS, lockedCount + 1); K is a
- * preferred count, never a reason to join unrelated subjects. Every tab appears
- * exactly once.
- */
-export function planGroups(tabs, labelsById, { locked = [], advice = null } = {}) {
-  // Step 1: locked groups pass through with their membership.
-  const claimed = new Set();
-  const lockedGroups = [];
-  for (const group of locked || []) {
-    const tabIds = [];
-    for (const id of group?.tabIds || []) {
-      if (id === undefined || id === null || claimed.has(id)) continue;
-      claimed.add(id);
-      tabIds.push(id);
-    }
-    if (tabIds.length === 0) continue;
-    const kind = group.kind === 'social' || group.kind === 'rule'
-      ? group.kind
-      : lower(group.name) === 'socials' ? 'social' : 'rule';
-    const key = group.key || (kind === 'social' ? 'social' : `rule:${hashToken(lower(group.name))}`);
-    lockedGroups.push({
-      ...group,
-      name: String(group.name || ''),
-      color: group.color || 'blue',
-      tabIds,
-      key,
-      keys: [key],
-      dominant: null,
-      kind,
-      locked: true,
-      nameSource: 'deterministic'
-    });
-  }
-
-  // Step 2: the unlocked pool in strip order.
-  const seen = new Set();
-  const entries = [];
-  (tabs || []).forEach((tab, position) => {
-    const id = tab?.id;
-    if (id === undefined || id === null || seen.has(id)) return;
-    seen.add(id);
-    if (claimed.has(id)) return;
-    const { tokens, surfaces, siteKey, siteMention } = tokenizeTab(tab);
-    entries.push({
-      tab,
-      id,
-      order: [Number.isFinite(tab.index) ? tab.index : Number.MAX_SAFE_INTEGER, position],
-      label: labelKey(readLabel(labelsById, id)),
-      siteKey,
-      tokens,
-      surfaces,
-      // A title naming its own (single-purpose) site still counts for tasks.
-      siteToken: siteMention && siteKey && !isMultiPurpose(tabUrl(tab), siteKey) ? siteKey : null
-    });
-  });
-  entries.sort((a, b) => compareKeys(a.order, b.order));
-
-  const n = claimed.size + entries.length;
-  const K = groupCeiling(n);
-  const limit = Math.max(1, K);
-  const F = lockedGroups.length;
-  const minSize = minGroupSize(n);
-  const maxSize = getMaxGroupSize(n);
-  const tabsById = new Map(entries.map(entry => [entry.id, entry.tab]));
-  const flags = [];
-  let groups = [];
-  const lockedByName = new Map();
-  for (const group of lockedGroups) {
-    const nameKey = lower(group.name);
-    if (nameKey && !lockedByName.has(nameKey)) lockedByName.set(nameKey, group);
-  }
-  const isLockedName = name => lockedByName.has(lower(name));
-
-  const size = group => group.entries.length;
-  const stripOrder = list => [...list].sort((a, b) => compareKeys(a.order, b.order)).map(entry => entry.id);
-  const remove = group => {
-    groups = groups.filter(other => other !== group);
-  };
-  const mergeInto = (target, source) => {
-    // Review Later never lends its name to real tabs.
-    if (source.kind !== 'review') {
-      let name = nameForMerge(target, source);
-      // After step 5d no candidate holds a locked name; a combined one must not either.
-      if (isLockedName(name)) name = size(target) >= size(source) ? target.name : source.name;
-      target.name = name;
-    }
-    target.entries.push(...source.entries);
-    for (const key of source.keys) target.keys.add(key);
-    refreshGroup(target);
-    remove(source);
-  };
-  const pairKey = (s, t) => {
-    const combined = size(s) + size(t);
-    return [combined > maxSize ? 1 : 0, -categoryAffinity(s.dominant, t.dominant), combined, `${s.key}|${t.key}`];
-  };
-
-  // Step 3: task promotion. A token shared across categories and sites is a
-  // task the user is working on, so it outranks the category split.
-  const taskMinimum = taskMin(n);
-  const holders = new Map();
-  for (const entry of entries) {
-    if (!entry.label) continue;
-    const taskTokens = new Set(entry.tokens);
-    if (entry.siteToken) taskTokens.add(entry.siteToken);
-    for (const token of taskTokens) {
-      const list = holders.get(token) || [];
-      list.push(entry);
-      holders.set(token, list);
-    }
-  }
-  const taken = new Set();
-  for (;;) {
-    let best = null;
-    for (const [token, list] of holders) {
-      const free = list.filter(entry => !taken.has(entry.id));
-      if (free.length < taskMinimum || free.length > TASK_MAX_SHARE * n) continue;
-      if (new Set(free.map(entry => entry.label)).size < 2) continue;
-      if (new Set(free.map(entry => entry.siteKey)).size < 2) continue;
-      if (!best || free.length > best.free.length || (free.length === best.free.length && token < best.token)) {
-        best = { token, free };
-      }
-    }
-    if (!best) break;
-    holders.delete(best.token);
-    const name = surfaceName(best.token, best.free);
-    if (!isUsableDeterministicName(name)) continue;
-    for (const entry of best.free) taken.add(entry.id);
-    const key = uniqueKey(`task:${hashToken(best.token)}`, groups);
-    groups.push(makeGroup({ key, kind: 'task', token: best.token, name }, best.free));
-  }
-
-  // Step 4: one candidate per category present.
-  const byCategory = new Map();
-  for (const entry of entries) {
-    if (!entry.label || taken.has(entry.id)) continue;
-    const list = byCategory.get(entry.label) || [];
-    list.push(entry);
-    byCategory.set(entry.label, list);
-  }
-  for (const key of CATEGORY_KEYS) {
-    const list = byCategory.get(key);
-    if (list) groups.push(makeGroup({ key: `cat:${key}`, kind: 'category', name: CATEGORY_BY_KEY.get(key).name }, list));
-  }
-
-  // Step 5a: repeated unknown sites keep their own group.
-  const loose = entries.filter(entry => !entry.label);
-  const looseBySite = new Map();
-  for (const entry of loose) {
-    if (!entry.siteKey) continue;
-    const list = looseBySite.get(entry.siteKey) || [];
-    list.push(entry);
-    looseBySite.set(entry.siteKey, list);
-  }
-  const inSiteGroup = new Set();
-  for (const siteKey of [...looseBySite.keys()].sort(compareStrings)) {
-    const list = looseBySite.get(siteKey);
-    if (list.length < minSize) continue;
-    list.forEach(entry => inSiteGroup.add(entry.id));
-    groups.push(makeGroup({
-      key: uniqueKey(`site:${hashToken(siteKey)}`, groups),
-      kind: 'site',
-      name: siteDisplayName(list[0]),
-      siteColor: describeSite(tabUrl(list[0].tab)).color
-    }, list));
-  }
-
-  // Step 5b: remaining loose tabs join a candidate whose titles they share.
-  const bags = new Map(groups.map(group => [group, tokenBag(group.entries)]));
-  let sizes = new Map(groups.map(group => [group, size(group)]));
-  const attachments = [];
-  const stillLoose = [];
-  for (const entry of loose) {
-    if (inSiteGroup.has(entry.id)) continue;
-    const target = bestAttach(entry, groups, bags, sizes, ATTACH_MIN_SCORE);
-    if (target) attachments.push([target, entry]);
-    else stillLoose.push(entry);
-  }
-  for (const [group, entry] of attachments) group.entries.push(entry);
-
-  // Step 5c: an unknown tab is not evidence for the largest known topic.
-  if (stillLoose.length > 0) {
-    groups.push(makeGroup({ key: REVIEW_KEY, kind: 'review', name: REVIEW_GROUP_NAME }, stillLoose));
-  }
-
-  // Step 5d: a candidate named like a locked group joins it now, as
-  // ensureUniqueNames would at the end, so it takes no ceiling slot and never
-  // reaches plan.candidates while its tabs sit in the locked group.
-  for (const group of [...groups]) {
-    const target = lockedByName.get(lower(group.name));
-    if (!target) continue;
-    target.tabIds.push(...stripOrder(group.entries));
-    target.keys = [...new Set([...target.keys, ...group.keys])].sort();
-    remove(group);
-  }
-
-  // Step 6: tiny candidates may fold into a strongly related partner. Being
-  // alone never makes an unrelated category a suitable destination.
-  const tinyPartner = (source, minAffinity) => {
-    let best = null;
-    for (const target of groups) {
-      if (target === source || target.kind === 'review') continue;
-      if (!compatibleGroups(source, target, minAffinity)) continue;
-      const affinity = categoryAffinity(source.dominant, target.dominant);
-      if (affinity < minAffinity) continue;
-      const combined = size(source) + size(target);
-      if (combined > maxSize) continue;
-      const key = [-affinity, size(target) < minSize ? 1 : 0, combined, target.key];
-      if (!best || compareKeys(key, best.key) < 0) best = { target, key };
-    }
-    return best?.target || null;
-  };
-  const tinyOrder = [...groups].sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key));
-  for (const source of tinyOrder) {
-    if (!groups.includes(source) || source.kind === 'review' || size(source) >= minSize) continue;
-    const target = tinyPartner(source, 2);
-    if (target) mergeInto(target, source);
-  }
-
-  // Step 7-8: split oversized categories on a shared title token or a site,
-  // using spare space up to the hard maximum. Shared tasks and atomic sites
-  // are already explicit coherent identities, so keep their membership.
-  const atomicIdentity = entry => {
-    const rawUrl = tabUrl(entry.tab);
-    if (!isAtomicSite(rawUrl)) return null;
-    const site = describeSite(rawUrl);
-    if (site.known) return `service:${site.name}`;
-    try {
-      return `host:${new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '')}`;
-    } catch {
-      return null;
-    }
-  };
-  const isAtomic = group => {
-    if (group.kind === 'task' || group.kind === 'site') return true;
-    const identity = atomicIdentity(group.entries[0]);
-    return Boolean(identity) && group.entries.every(entry => atomicIdentity(entry) === identity);
-  };
-  const findCarve = group => {
-    const remainderOk = count => count >= minSize && size(group) - count >= minSize;
-    const byToken = new Map();
-    for (const entry of group.entries) {
-      for (const token of entry.tokens) {
-        if (token === group.token) continue;
-        const list = byToken.get(token) || [];
-        list.push(entry);
-        byToken.set(token, list);
-      }
-    }
-    let best = null;
-    for (const [token, list] of byToken) {
-      if (!remainderOk(list.length)) continue;
-      if (best && (list.length < best.members.length || (list.length === best.members.length && token > best.token))) continue;
-      const name = surfaceName(token, list);
-      if (!isUsableDeterministicName(name) || isLockedName(name)) continue;
-      best = { token, members: list, name, hashInput: token };
-    }
-    if (best) return best;
-
-    const bySite = new Map();
-    for (const entry of group.entries) {
-      if (!entry.siteKey) continue;
-      const list = bySite.get(entry.siteKey) || [];
-      list.push(entry);
-      bySite.set(entry.siteKey, list);
-    }
-    for (const [siteKey, list] of bySite) {
-      if (!remainderOk(list.length)) continue;
-      if (best && (list.length < best.members.length || (list.length === best.members.length && siteKey > best.token))) continue;
-      const siteName = siteDisplayName(list[0]);
-      const short = CATEGORY_BY_KEY.get(group.dominant)?.short;
-      const withShort = short ? `${short} · ${siteName}` : '';
-      const name = withShort && withShort.length <= GROUP_NAME_LIMIT ? withShort : siteName;
-      if (isLockedName(name)) continue;
-      // Hashed apart from tokens so a token and a site key can never share a key.
-      best = { token: siteKey, members: list, name, hashInput: `site:${siteKey}` };
-    }
-    return best;
-  };
-  while (F + groups.length < MAX_GROUPS) {
-    const oversized = groups
-      .filter(group => group.kind !== 'review' && size(group) > maxSize && !isAtomic(group))
-      .sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key));
-    let carved = false;
-    for (const group of oversized) {
-      const carve = findCarve(group);
-      if (!carve) continue;
-      const parentCategory = group.dominant || 'site';
-      const members = new Set(carve.members);
-      group.entries = group.entries.filter(entry => !members.has(entry));
-      refreshGroup(group);
-      const key = uniqueKey(`split:${parentCategory}:${hashToken(carve.hashInput)}`, groups);
-      groups.push(makeGroup({ key, kind: 'split', token: carve.token, name: carve.name }, carve.members));
-      carved = true;
-      break;
-    }
-    if (!carved) break;
-  }
-
-  // Consolidation sees the bounded candidates. Passing an unsplit parent
-  // would let a provider undo the size repair with one unchanged row.
-  const candidates = groups
-    .filter(group => group.kind !== 'review')
-    .sort((a, b) => size(b) - size(a) || compareStrings(a.key, b.key))
-    .map(group => ({
-      key: group.key,
-      keys: [...group.keys].sort(),
-      kind: group.kind,
-      name: group.name,
-      color: groupColor(group),
-      dominant: group.dominant,
-      categories: categoriesOf(group),
-      tabIds: stripOrder(group.entries),
-      size: size(group)
-    }));
-
-  // Step 9: approach the preferred count only through coherent merges.
-  // Advice cannot turn a merely dominant category into permission to absorb
-  // unrelated members. If the hard maximum still requires compaction, the
-  // smallest unrelated groups share the neutral review queue.
-  const adviceEntries = advice instanceof Map ? [...advice] : Object.entries(advice || {});
-  while (F + groups.length > limit) {
-      const mergeable = groups.filter(group => group.kind !== 'review');
-      if (mergeable.length < 2) break;
-      let best = null;
-      for (const [sourceKey, anchorKey] of adviceEntries) {
-        const source = mergeable.find(group => group.keys.has(sourceKey));
-        const target = mergeable.find(group => group.keys.has(anchorKey));
-        if (!source || !target || source === target || size(source) + size(target) > maxSize
-          || !compatibleGroups(source, target)) continue;
-        const key = pairKey(source, target);
-        if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
-      }
-      if (!best) {
-        for (const source of mergeable) {
-          for (const target of mergeable) {
-            if (source === target || size(source) > size(target)) continue;
-            if (size(source) + size(target) > maxSize) continue;
-            if (!compatibleGroups(source, target)) continue;
-            const key = pairKey(source, target);
-            if (!best || compareKeys(key, best.key) < 0) best = { source, target, key };
-          }
-        }
-      }
-      if (!best) break;
-      mergeInto(best.target, best.source);
-  }
-  const hardAvailable = Math.max(1, MAX_GROUPS - F);
-  if (groups.length > hardAvailable) {
-    let review = groups.find(group => group.kind === 'review');
-    if (!review) {
-      review = [...groups].sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key))[0];
-      review.kind = 'review';
-      review.name = REVIEW_GROUP_NAME;
-      review.key = REVIEW_KEY;
-      review.keys.add(REVIEW_KEY);
-      review.dominant = null;
-      review.categories = [];
-    }
-    while (groups.length > hardAvailable) {
-      const source = groups.filter(group => group !== review)
-        .sort((a, b) => size(a) - size(b) || compareStrings(a.key, b.key))[0];
-      review.entries.push(...source.entries);
-      for (const key of source.keys) review.keys.add(key);
-      remove(source);
-    }
-  }
-  if (F + groups.length > MAX_GROUPS) flags.push('rules_exceed_ceiling');
-
-  // Step 10-11: final fields. A name that contradicts a member's country
-  // falls back to the category name.
-  for (const group of groups) {
-    if (group.kind === 'review') continue;
-    const memberTabs = group.entries.map(entry => entry.tab);
-    const ids = group.entries.map(entry => entry.id);
-    if (findRegionalLabelIssues([{ name: group.name, tabIds: ids }], memberTabs).length > 0) {
-      const fallback = CATEGORY_BY_KEY.get(group.dominant)?.name;
-      if (fallback) group.name = fallback;
-    }
-  }
-  // Groups read left to right in the order of their first tab.
-  const unlocked = groups
-    .map(group => ({ group, ordered: [...group.entries].sort((a, b) => compareKeys(a.order, b.order)) }))
-    .sort((a, b) => compareKeys(a.ordered[0].order, b.ordered[0].order) || compareStrings(a.group.key, b.group.key))
-    .map(({ group, ordered }) => ({
-      name: clampName(group.name) || CATEGORY_BY_KEY.get(group.dominant)?.name || REVIEW_GROUP_NAME,
-      color: groupColor(group),
-      tabIds: ordered.map(entry => entry.id),
-      key: group.key,
-      keys: [...group.keys].sort(),
-      dominant: group.dominant,
-      categories: categoriesOf(group),
-      kind: group.kind,
-      nameSource: 'deterministic'
-    }));
-
-  // Locked-name collisions were folded in step 5d. One left now (a regional
-  // fallback) is renamed instead: its tabs are already in plan.candidates.
-  const finalGroups = ensureUniqueNames([...lockedGroups, ...unlocked], [], { tabsById, joinLocked: false });
-
-  // Step 12: every groupable tab exactly once.
-  const placed = new Set();
-  for (const group of finalGroups) {
-    for (const id of group.tabIds) {
-      if (placed.has(id)) throw new Error(`planGroups placed tab ${id} twice`);
-      placed.add(id);
-    }
-  }
-  if (placed.size !== n) throw new Error(`planGroups placed ${placed.size} of ${n} tabs`);
-
-  const tokensById = new Map(entries.map(entry => [entry.id, entry.tokens]));
-  const reviewTabIds = finalGroups.filter(group => group.kind === 'review').flatMap(group => group.tabIds);
-  const reviewIds = new Set(reviewTabIds);
-  return {
-    K,
-    hardLimit: MAX_GROUPS,
-    n,
-    groups: finalGroups,
-    candidates: candidates.filter(candidate => !candidate.tabIds.every(id => reviewIds.has(id))),
-    signature: planSignature(finalGroups),
-    flags,
-    reviewTabIds,
-    tokensById
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1195,6 +601,42 @@ function isNameable(group) {
 }
 
 /**
+ * Pair user rename records with groups as a set (D34): a pair qualifies when
+ * the overlap is more than half of the smaller side, and its strength is the
+ * Jaccard of the two fingerprint sets. Each record names only its single
+ * strongest group across all groups; a tie there names nothing. Records that
+ * want the same group are settled by strength, then recency, and a record
+ * that loses never falls through to a weaker group.
+ */
+function matchUserRecordsAsSet(order, userRecords, fingerprintOf, apply) {
+  const groupPrints = order.map(group => ({ group, prints: new Set((group.tabIds || []).map(fingerprintOf).filter(Boolean)) }))
+    .filter(entry => entry.prints.size > 0);
+  const choices = [];
+  userRecords.forEach((record, recency) => {
+    const stored = new Set(Array.isArray(record.f) ? record.f : []);
+    let best = null;
+    let tied = false;
+    for (const { group, prints } of groupPrints) {
+      const smaller = Math.min(stored.size, prints.size);
+      if (smaller === 0) continue;
+      let overlap = 0;
+      for (const fingerprint of stored) if (prints.has(fingerprint)) overlap++;
+      if (overlap <= USER_FINGERPRINT_OVERLAP * smaller) continue;
+      const strength = overlap / (stored.size + prints.size - overlap);
+      if (!best || strength > best.strength) { best = { group, record, recency, strength }; tied = false; }
+      else if (strength === best.strength) tied = true;
+    }
+    if (best && !tied) choices.push(best);
+  });
+  choices.sort((a, b) => b.strength - a.strength || a.recency - b.recency);
+  const doneGroups = new Set();
+  for (const choice of choices) {
+    if (doneGroups.has(choice.group)) continue;
+    if (apply(choice.group, choice.record, 'memory-user')) doneGroups.add(choice.group);
+  }
+}
+
+/**
  * Carry names over from PlanMemory. User renames apply first, when their tab
  * fingerprints cover at least half of the smaller side. Model names apply
  * when candidate keys (Jaccard ≥ 0.5) and token hashes (Jaccard ≥ 0.25) both
@@ -1202,8 +644,12 @@ function isNameable(group) {
  * records win. Model names go through validateGroupName; a user's own name
  * only needs normalizeUserGroupName (the rule it was stored under) and must
  * not collide with another group, since generic words are the user's choice.
+ * With `userMatch: 'set'` (a cached result, D34), user renames are matched to
+ * all groups at once: each record names only its single strongest group, with
+ * more than half of the smaller side shared; a tie, or a group a stronger record
+ * took, names nothing.
  */
-export function transferNames(groups, memory, { tabsById = null, tokensById = null, fingerprintById = null } = {}) {
+export function transferNames(groups, memory, { tabsById = null, tokensById = null, fingerprintById = null, userMatch = 'order' } = {}) {
   const out = (groups || []).map(group => ({ ...group }));
   const records = (Array.isArray(memory) ? memory : Array.isArray(memory?.names) ? memory.names : [])
     .filter(record => record && typeof record.n === 'string');
@@ -1244,7 +690,8 @@ export function transferNames(groups, memory, { tabsById = null, tokensById = nu
   };
 
   const fingerprintOf = id => (fingerprintById instanceof Map ? fingerprintById.get(id) : fingerprintById?.[id]);
-  for (const group of order) {
+  if (userMatch === 'set') matchUserRecordsAsSet(order, userRecords, fingerprintOf, apply);
+  else for (const group of order) {
     const fingerprints = new Set((group.tabIds || []).map(fingerprintOf).filter(Boolean));
     if (fingerprints.size === 0) continue;
     for (const record of userRecords) {
@@ -1274,118 +721,8 @@ export function transferNames(groups, memory, { tabsById = null, tokensById = nu
 }
 
 // ---------------------------------------------------------------------------
-// Consolidation folders and the safety net
+// The safety net
 // ---------------------------------------------------------------------------
-
-function weightedDominant(members) {
-  const counts = new Map();
-  for (const member of members) {
-    if (member.dominant) counts.set(member.dominant, (counts.get(member.dominant) || 0) + member.size);
-  }
-  return topCategory(counts);
-}
-
-function nameOverMembers(members) {
-  const ordered = [...members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key));
-  let acc = { name: ordered[0]?.name || '', size: ordered[0]?.size || 0 };
-  for (const member of ordered.slice(1)) {
-    acc = { name: mergedName(acc, member), size: acc.size + member.size };
-  }
-  return acc.name;
-}
-
-/**
- * Make a consolidation answer safe: every candidate exactly once, coherent
- * folders, validated names and compatible advice pairs for the next plan.
- * `k` is the preferred count; `hardLimit` is the absolute available count.
- * `n` is the full window size, including protected tabs absent from candidates.
- * `candidates` is plan.candidates (row ID = index). Returns {groups, advice}.
- */
-export function enforceFolders(folders, candidates, k, {
-  n = null, tabsById = null, takenNames = [], hardLimit = MAX_GROUPS
-} = {}) {
-  const rows = (candidates || []).map((candidate, index) => ({
-    ...candidate,
-    index,
-    key: String(candidate.key),
-    keys: candidate.keys || [candidate.key],
-    categories: categoriesOf(candidate),
-    name: String(candidate.name || ''),
-    dominant: candidate.dominant ?? null,
-    tabIds: [...(candidate.tabIds || [])],
-    size: groupSize(candidate)
-  }));
-  const total = Number.isFinite(n) ? n : rows.reduce((sum, row) => sum + row.size, 0);
-  const maxSize = getMaxGroupSize(total);
-  const assigned = new Set();
-  const out = [];
-  const add = (members, modelName = '') => {
-    const ordered = [...members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key));
-    const categories = CATEGORY_KEYS.filter(key => members.some(member => categoriesOf(member).includes(key)));
-    const group = {
-      name: nameOverMembers(ordered),
-      color: ordered[0].color || CATEGORY_BY_KEY.get(weightedDominant(members))?.color || 'grey',
-      tabIds: members.flatMap(member => member.tabIds),
-      key: ordered[0].key,
-      keys: [...new Set(members.flatMap(member => member.keys))].sort(),
-      categories,
-      dominant: weightedDominant(members),
-      kind: members.length === 1 && members[0].kind === 'task' ? 'task' : 'folder',
-      nameSource: 'deterministic'
-    };
-    const name = validateGroupName(modelName, group, tabsById, takenNames);
-    if (name) {
-      group.name = name;
-      group.nameSource = 'model';
-    }
-    out.push(group);
-  };
-
-  // A provider may name coherent candidates, but cannot hide unrelated rows
-  // inside one folder. First valid row ownership remains deterministic.
-  for (const folder of Array.isArray(folders) ? folders : []) {
-    const subsets = [];
-    for (const raw of Array.isArray(folder?.ids) ? folder.ids : []) {
-      const id = typeof raw === 'string' && /^\d+$/.test(raw) ? Number(raw) : raw;
-      if (!Number.isInteger(id) || id < 0 || id >= rows.length || assigned.has(id)) continue;
-      assigned.add(id);
-      const row = rows[id];
-      let subset = subsets.find(members => members.reduce((sum, member) => sum + member.size, 0) + row.size <= maxSize
-        && members.every(member => compatibleGroups(member, row)));
-      if (!subset) subsets.push(subset = []);
-      subset.push(row);
-    }
-    for (const members of subsets) add(members, subsets.length === 1 ? folder.name : '');
-  }
-  // Missing rows retain their own identity; omission is not merge evidence.
-  for (const row of rows) if (!assigned.has(row.index)) add([row]);
-
-  const groups = enforceGroupCeiling(out, { ceiling: k, hardLimit, n: total });
-  const advice = {};
-  const taken = [...takenNames];
-  for (const group of groups) {
-    if (tabsById) {
-      group.tabIds.sort((a, b) => {
-        const position = id => lookupTab(tabsById, id)?.index ?? Number.MAX_SAFE_INTEGER;
-        return position(a) - position(b);
-      });
-    }
-    if (isReviewGroup(group)) continue;
-    const members = rows.filter(row => group.keys.includes(row.key));
-    const anchor = [...members].sort((a, b) => b.size - a.size || compareStrings(a.key, b.key))[0];
-    if (anchor) {
-      group.key = anchor.key;
-      for (const member of members) if (member !== anchor) advice[member.key] = anchor.key;
-    }
-    const name = validateGroupName(group.name, group, tabsById, taken);
-    if (!name) {
-      group.name = nameOverMembers(members);
-      group.nameSource = 'deterministic';
-    }
-    taken.push(group.name);
-  }
-  return { groups, advice };
-}
 
 /**
  * Approach the preferred `ceiling` through mutually related categories.
@@ -1475,4 +812,133 @@ export function enforceGroupCeiling(groups, {
     }
   }
   return items.map(item => item.group);
+}
+
+// ---------------------------------------------------------------------------
+// Model plans
+// ---------------------------------------------------------------------------
+
+const PLAN_FALLBACK_NAME = 'Folder';
+const PLAN_PALETTE = ['blue', 'green', 'purple', 'orange', 'cyan', 'pink', 'yellow', 'red'];
+
+function ownValue(object, key) {
+  return object && typeof object === 'object' && Object.hasOwn(object, key) ? object[key] : undefined;
+}
+
+/**
+ * The deterministic local name and colour of a plan folder: the category most
+ * of its tabs read as by address and title, else its dominant site.
+ */
+function localFolderIdentity(tabs, tabsById) {
+  const counts = new Map();
+  for (const tab of tabs) {
+    const key = categoryFromSite(tabUrl(tab)) || categoryFromTitle(tab?.title);
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const top = topCategory(counts);
+  const category = top ? CATEGORY_BY_KEY.get(top) : null;
+  if (category) return { name: category.name, color: category.color, dominant: top };
+  const site = dominantSiteName({ tabIds: tabs.map(tab => tab.id) }, tabsById);
+  return { name: site && isUsableDeterministicName(clampName(site)) ? clampName(site) : PLAN_FALLBACK_NAME, color: null, dominant: null };
+}
+
+/**
+ * Turn a raw plan answer {folders: [{name, ids}]} into groups under the
+ * evaluation's policy (eval/scoring.mjs applyGroups). `tabs` are the rows
+ * sent, in order: an id is a row ordinal. Each tab is in at most one folder
+ * (first placement wins); unknown, non-integer and out-of-range ids are
+ * dropped; a folder named Review Later (any case) is no group. At most
+ * `limit` groups (MAX_GROUPS minus the locked groups): Review Later counts as
+ * one when any tab is unassigned, the largest folders stay (ties by first
+ * appearance) and the tabs of the rest join Review Later.
+ *
+ * Names go through validateGroupName; a rejected or duplicate name becomes
+ * the deterministic local name. User renames in `memory` win, as in
+ * planLocally. Locked groups pass through first. Never throws on any answer.
+ * Returns {groups, unassigned, dropped, folders, reviewOnly}: `folders`
+ * counts the model folders applied (0 means the answer gave no usable group);
+ * `reviewOnly` marks a valid answer from which no model folder survives.
+ */
+export function enforcePlan(answer, tabs, {
+  locked = [], tabsById = null, memory = null, fingerprintById = null, hardLimit = MAX_GROUPS
+} = {}) {
+  const rows = Array.isArray(tabs) ? tabs : [];
+  const byId = tabsById || new Map(rows.map(tab => [tab.id, tab]));
+  const lockedGroups = (locked || []).filter(group => (group?.tabIds || []).length > 0);
+  const limit = Math.max(1, Math.floor(Number(hardLimit) || MAX_GROUPS) - lockedGroups.length);
+  const rawFolders = ownValue(answer, 'folders');
+  const folders = Array.isArray(rawFolders) ? rawFolders : [];
+
+  // Work is bounded by the rows sent, whatever the answer holds: a usable
+  // answer has one entry per row in at most MAX_GROUPS folders.
+  const folderBudget = rows.length + MAX_GROUPS;
+  let entryBudget = 2 * (rows.length + MAX_GROUPS);
+  const placed = new Set();
+  const kept = [];
+  let reviewPlaced = 0;
+  folders.slice(0, folderBudget).forEach((folder, order) => {
+    const rawIds = ownValue(folder, 'ids');
+    const ids = [];
+    const list = Array.isArray(rawIds) ? rawIds : [];
+    const count = Math.min(list.length, Math.max(0, entryBudget));
+    entryBudget -= count;
+    for (let index = 0; index < count; index++) {
+      const ordinal = list[index];
+      if (!Number.isInteger(ordinal) || ordinal < 0 || ordinal >= rows.length) continue;
+      const id = rows[ordinal]?.id;
+      if (id === undefined || id === null || placed.has(id)) continue;
+      placed.add(id);
+      ids.push(id);
+    }
+    const rawName = ownValue(folder, 'name');
+    const name = typeof rawName === 'string' ? rawName : '';
+    if (ids.length && lower(name) === lower(REVIEW_GROUP_NAME)) reviewPlaced += ids.length;
+    else if (ids.length) kept.push({ rawName: name, ids, order });
+  });
+  const anyUnassigned = kept.reduce((sum, folder) => sum + folder.ids.length, 0) < rows.length;
+  const room = anyUnassigned || kept.length > limit ? limit - 1 : limit;
+  const survivors = new Set([...kept].sort((a, b) => b.ids.length - a.ids.length || a.order - b.order).slice(0, Math.max(0, room)));
+  const applied = kept.filter(folder => survivors.has(folder));
+  const assigned = new Set(applied.flatMap(folder => folder.ids));
+  const unassigned = rows.map(tab => tab.id).filter(id => !assigned.has(id));
+
+  const taken = [...lockedGroups.map(group => group.name), REVIEW_GROUP_NAME];
+  const planned = applied.map((folder, index) => {
+    const memberTabs = folder.ids.map(id => byId instanceof Map ? byId.get(id) : byId[id]).filter(Boolean);
+    const local = localFolderIdentity(memberTabs, byId);
+    const group = {
+      name: local.name,
+      color: local.color || PLAN_PALETTE[index % PLAN_PALETTE.length],
+      tabIds: folder.ids,
+      key: `plan:${index}`,
+      keys: [`plan:${index}`],
+      dominant: local.dominant,
+      kind: 'folder',
+      nameSource: 'deterministic'
+    };
+    const name = validateGroupName(folder.rawName, group, byId, taken);
+    if (name) {
+      group.name = name;
+      group.nameSource = 'model';
+    }
+    if (group.nameSource === 'model') taken.push(group.name);
+    return group;
+  });
+  const userMemory = memory ? { names: (memory.names || []).filter(record => record?.s === 'user') } : null;
+  const named = transferNames(planned, userMemory, { tabsById: byId, fingerprintById });
+  const review = unassigned.length ? [{
+    name: REVIEW_GROUP_NAME, color: 'grey', tabIds: unassigned, key: REVIEW_KEY, keys: [REVIEW_KEY],
+    dominant: null, kind: 'review', nameSource: 'deterministic'
+  }] : [];
+  const lockedOut = lockedGroups.map(group => ({ ...group, tabIds: [...group.tabIds], locked: true }));
+  return {
+    groups: ensureUniqueNames([...lockedOut, ...named, ...review], [], { tabsById: byId, joinLocked: false }),
+    unassigned,
+    dropped: kept.length - applied.length,
+    folders: applied.length,
+    // A valid answer from which no model folder survives (Review Later only,
+    // or its folders lost the free slots to Review Later), as opposed to an
+    // unusable one.
+    reviewOnly: applied.length === 0 && (reviewPlaced > 0 || kept.length > 0)
+  };
 }

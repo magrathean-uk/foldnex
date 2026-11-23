@@ -13,16 +13,14 @@ Load the directory containing `manifest.json` through **Load unpacked** at `chro
 From the repository root:
 
 ```sh
-clean-development run --session session-only -- npm test
+npm test
 for file in background.js popup.js options/options.js src/*.js; do
   node --check "$file"
 done
 git diff --check
 ```
 
-`npm test` maps to `node --test`. Tests in `test/` cover URL identity, site grouping, label prompts and schemas, the local planner and group ceiling, provider request construction, the label cache and group-name memory, background labelling and Auto-group, cache scope, fallback behaviour, and incognito persistence using fixtures and mocked browser APIs. They do not establish that a live provider or Chrome feature works on a particular device.
-
-Preserve the routed tool homes and caches from `~/dev/machine/env.zsh`. Run commands that write caches or build output through Clean Development and keep its receipts. Before finishing, run `dev-env-check` and `dev-audit`; fix any new tool-state entries caused by the work.
+`npm test` maps to `node --test`. Tests in `test/` cover URL identity, site grouping, the one-request plan prompt and its validation, provider request controls, click timing, the local engine and embedding table, the exact cache, group-name memory, session plans and late-plan offers, local Auto-group, fallback behaviour, and incognito persistence using fixtures and mocked browser APIs. They do not establish that a live provider or Chrome feature works on a particular device.
 
 ## Validate the changed behaviour
 
@@ -41,10 +39,10 @@ Keep changes focused. Preserve unrelated work, user data, legal text, and asset 
 The release script requires Node.js, Bash, `zip`, `unzip`, and `shasum`:
 
 ```sh
-clean-development run --session session-only -- npm run package:store
+npm run package:store
 ```
 
-It writes `dist/foldnex-<manifest-version>.zip` and its `.sha256` file, replacing outputs with the same version. It packages an explicit runtime file list and tests ZIP integrity. Inspect the archive's contents and manifest version; a separate SHA check is not required for the release workflow. It does not submit the extension or prove browser acceptance. See [Chrome Web Store preparation](../docs/development/chromewebstore.md) for listing disclosures, browser checks and the service-account API v2 submission path. A pending review is separate from approval or publication.
+It writes `dist/foldnex-<manifest-version>.zip` and its `.sha256` file, replacing outputs with the same version. It packages an explicit runtime file list, including `LICENSE` and the bundled third-party licences, and tests ZIP integrity. Inspect the archive's contents and manifest version; a separate SHA check is not required for the release workflow. It does not submit the extension or prove browser acceptance. See [Chrome Web Store preparation](../docs/development/chromewebstore.md) for listing disclosures, browser checks and the service-account API v2 submission path. A pending review is separate from approval or publication.
 
 ## Reports and proposals
 

@@ -1,18 +1,18 @@
 # Foldnex Terms of Service
 
-**Effective date:** 6 October 2026
+**Effective date:** 23 November 2026 (Foldnex 2.1.0)
 
 **Provider:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
 **Contact:** contact+foldnex@magrathean.uk
 
-**Online version:** [https://magrathean.uk/apps/foldnex/terms/](https://magrathean.uk/apps/foldnex/terms/)
+**Online version:** [https://magrathean.uk/solutions/foldnex/terms/](https://magrathean.uk/solutions/foldnex/terms/)
 
-These Terms of Service ("Terms") are a binding legal agreement between you ("you" or "User") and MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our"). They govern your download, installation, access, and use of the published Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/apps/foldnex/](https://magrathean.uk/apps/foldnex/), and related documentation and support services (collectively, the "Extension").
+These Terms of Service ("Terms") are a binding legal agreement between you ("you" or "User") and MAGRATHEAN UK LTD ("Magrathean", "we", "us", or "our"). They govern your download, installation, access, and use of the published Foldnex Google Chrome Extension (Manifest V3), the product website at [https://magrathean.uk/solutions/foldnex/](https://magrathean.uk/solutions/foldnex/), and related documentation and support services (collectively, the "Extension").
 
 Foldnex's source code is separately available under the [MIT Licence](https://github.com/magrathean-uk/foldnex/blob/main/LICENSE); that licence governs the code, including your right to copy, modify, and redistribute it. These Terms govern the Extension as Magrathean publishes and distributes it — the Chrome Web Store listing, the Foldnex name and icons, and the packaged product experience — not the source code.
 
-By installing, copying, accessing, or using the published Extension, you confirm that you have read, understood, and agree to be bound by these Terms and our [Privacy Policy](https://magrathean.uk/apps/foldnex/privacy/). If you do not agree to these Terms, do not install or use the published Extension.
+By installing, copying, accessing, or using the published Extension, you confirm that you have read, understood, and agree to be bound by these Terms and our [Privacy Policy](https://magrathean.uk/solutions/foldnex/privacy/). If you do not agree to these Terms, do not install or use the published Extension.
 
 ---
 
@@ -36,9 +36,9 @@ By installing, copying, accessing, or using the published Extension, you confirm
 
 3.1. Foldnex is designed to operate primarily on-device within your browser. Magrathean operates no backend cloud relay, proxy server, or intermediary for tab processing.
 
-3.2. Deduplication, deterministic category classification ("By site category"), Offline smart mode, Chrome built-in Gemini Nano, and Ollama configured at a loopback address such as `localhost:11434` process tab data on your machine. In "By task" mode, models supply category labels and optional group names or merge suggestions; Foldnex validates those outputs and plans tab membership locally. A non-loopback Ollama endpoint receives tab inputs as remote processing, subject to Chrome permissions and network rules.
+3.2. Deduplication, "By site category", Offline smart mode (the default) and "Auto-group new tabs" process tab data on your machine; Offline smart mode uses a word table packaged inside the Extension. Ollama configured at a loopback address such as `localhost:11434` is the first hop: the request goes to the Ollama server on your machine, and that server can itself run cloud models. Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local. A non-loopback Ollama endpoint receives tab inputs as remote processing, subject to Chrome permissions and network rules.
 
-3.3. "Prepare groups in the background" is an opt-in for Gemini Nano and loopback Ollama. Choosing Gemini Nano in the first-run setup also enables that preparation. "Auto-group new tabs" is a separate opt-in that allows background labelling and grouping of new pages in non-Incognito windows, including direct requests to a selected cloud provider. Without those options, an on-device engine can finish labels for tabs placed provisionally by a cleanup you requested. Incognito tabs are excluded from background preparation and auto-grouping.
+3.3. In "By task" mode with a cloud engine or Ollama selected, a cleanup you run sends at most one request for the current window, and may send none, and the model returns groups and names. Foldnex checks and repairs that answer locally (each tab placed at most once, names checked) and uses local grouping if no usable group remains. Foldnex's own result uses at most ten groups, counting rule, Socials and Review Later groups; rule and Socials groups are always kept and some tabs can remain ungrouped. Nothing is sent in the background, and Incognito tabs are never auto-grouped.
 
 ---
 
@@ -47,12 +47,12 @@ By installing, copying, accessing, or using the published Extension, you confirm
 4.1. If you enable optional cloud AI providers (including OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), you do so by supplying your own API credentials ("Bring Your Own Key").
 
 4.2. When you configure and run a cloud AI provider:
-- Your browser communicates directly with that third-party provider's configured API endpoint; the packaged cloud-provider defaults use HTTPS, while a configured remote Ollama server uses its configured transport;
+- Your browser communicates directly with the endpoint configured for that engine; cloud engines always use their provider's own HTTPS address, and a saved Ollama address must use HTTPS unless it is on your machine, and can belong to someone other than you;
 - You enter into a direct contractual relationship with that provider;
 - You are solely responsible for compliance with that provider's terms of service, acceptable use policies, rate limits, data usage policies, and payment for any API tokens consumed;
 - Magrathean does not sell API access and is not liable for service outages, inaccuracies, rate limits, token billing, or policy enforcement actions imposed by any third-party AI provider.
 
-4.3. Cloud labelling sends tab titles and a compact host/path hint. URL credentials, query values and fragments are excluded from the hint, but titles and retained paths can still contain sensitive information. Optional group consolidation sends short example titles, categories and counts. Cloud economy mode skips optional cloud naming and consolidation while retaining required labelling requests. Connection tests use synthetic example tabs; model discovery sends no tab data. A cleanup deadline does not necessarily cancel a cloud request, and a late response may contribute to locally retained labels and provider-usage totals. These data paths and the local retention controls are described in the Privacy Policy.
+4.3. A cloud request sends tab titles (up to 160 characters each) and a compact host/path hint for eligible tabs. Tabs matched by your URL rules and recognised social sites are not sent. Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local. For web addresses URL credentials, query values and fragments are excluded from the hint, but titles and retained paths can still contain sensitive information. In Settings, model-list requests and **Test connection** use the credential currently typed, including one not yet saved; tests use two synthetic example tabs and model lists send no tab data. A reply that arrives after a cleanup has finished is only offered in the popup and is applied only if you choose to apply it. These data paths and the local retention controls are described in the Privacy Policy.
 
 ---
 

@@ -1,0 +1,4849 @@
+{
+ "started": "2026-11-22T20-12-22",
+ "engine": "openai",
+ "provider": "openai",
+ "model": "gpt-6-luna",
+ "model_returned": "gpt-6-luna",
+ "mode": "plan",
+ "thinking": "default",
+ "effort": "none",
+ "priority": "on",
+ "stub": false,
+ "windows": [
+  "a-student",
+  "a-oncall",
+  "a-household",
+  "a-designer",
+  "a-hoarder",
+  "b-move",
+  "b-academic",
+  "b-expat",
+  "b-messy",
+  "b-shop",
+  "dev",
+  "life"
+ ],
+ "repeats": 2,
+ "matrix": false,
+ "plan_example_name": "Wedding Plans",
+ "prices_usd_per_million": null,
+ "cost_usd": null,
+ "stopped_early": false,
+ "stability": [
+  {
+   "window": "a-student",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9123595505617977
+  },
+  {
+   "window": "a-oncall",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9200415368639667
+  },
+  {
+   "window": "a-household",
+   "a": 0,
+   "b": 1,
+   "f1": 0.8397291196388261
+  },
+  {
+   "window": "a-designer",
+   "a": 0,
+   "b": 1,
+   "f1": 0.7616099071207431
+  },
+  {
+   "window": "a-hoarder",
+   "a": 0,
+   "b": 1,
+   "f1": 0.638391959798995
+  },
+  {
+   "window": "b-move",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9701149425287356
+  },
+  {
+   "window": "b-academic",
+   "a": 0,
+   "b": 1,
+   "f1": 0.8099173553719008
+  },
+  {
+   "window": "b-expat",
+   "a": 0,
+   "b": 1,
+   "f1": 0.9273743016759776
+  },
+  {
+   "window": "b-messy",
+   "a": 0,
+   "b": 1,
+   "f1": 1
+  },
+  {
+   "window": "b-shop",
+   "a": 0,
+   "b": 1,
+   "f1": 0.6871165644171779
+  },
+  {
+   "window": "dev",
+   "a": 0,
+   "b": 1,
+   "f1": 0.8310249307479224
+  },
+  {
+   "window": "life",
+   "a": 0,
+   "b": 1,
+   "f1": 0.8306010928961749
+  }
+ ],
+ "units": [
+  {
+   "window": "a-student",
+   "repeat": 0,
+   "tabs": 64,
+   "failed": false,
+   "wall_ms": 2048,
+   "input_tokens": 1913,
+   "output_tokens": 222,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 1,
+    "r": 0.8518518518518519,
+    "f1": 0.92,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Hiking Society Christmas Social",
+    "Minimum Wage Essay",
+    "MATH2715 Statistics",
+    "Leeds Student Housing",
+    "Leeds Part-Time Jobs",
+    "Study Finance",
+    "Games",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    8,
+    10,
+    9,
+    9,
+    3,
+    4,
+    5,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 1,
+    "of": 48,
+    "window_index": 0,
+    "rank": 0,
+    "at": "2026-11-22T20:12:24.093Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2048,
+     "http_attempts": 1,
+     "input_tokens": 1913,
+     "output_tokens": 222,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1168
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Hiking Society Christmas Social",
+      "ids": [
+       1,
+       9,
+       11,
+       13,
+       15,
+       23,
+       26,
+       29,
+       44,
+       55
+      ]
+     },
+     {
+      "name": "Minimum Wage Essay",
+      "ids": [
+       3,
+       21,
+       25,
+       34,
+       35,
+       51,
+       52,
+       58
+      ]
+     },
+     {
+      "name": "MATH2715 Statistics",
+      "ids": [
+       6,
+       16,
+       22,
+       24,
+       27,
+       31,
+       40,
+       43,
+       46,
+       60
+      ]
+     },
+     {
+      "name": "Leeds Student Housing",
+      "ids": [
+       4,
+       5,
+       7,
+       28,
+       30,
+       38,
+       50,
+       54,
+       63
+      ]
+     },
+     {
+      "name": "Leeds Part-Time Jobs",
+      "ids": [
+       17,
+       18,
+       32,
+       39,
+       45,
+       47,
+       59,
+       61,
+       62
+      ]
+     },
+     {
+      "name": "Study Finance",
+      "ids": [
+       14,
+       36,
+       48
+      ]
+     },
+     {
+      "name": "Games",
+      "ids": [
+       10,
+       33,
+       42,
+       49
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       0,
+       12,
+       20,
+       53,
+       56
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       8,
+       19,
+       37,
+       41,
+       57
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 0,
+   "tabs": 82,
+   "failed": false,
+   "wall_ms": 1824,
+   "input_tokens": 2418,
+   "output_tokens": 242,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.6262626262626263,
+    "r": 0.6509186351706037,
+    "f1": 0.6383526383526383,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 1,
+   "group_names": [
+    "Ledger PostgreSQL Upgrade",
+    "Checkout Incident",
+    "SRE Operations",
+    "Datadog Renewal",
+    "AWS re:Invent Trip",
+    "Personal Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    15,
+    9,
+    17,
+    5,
+    10,
+    10,
+    16
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 4,
+    "of": 48,
+    "window_index": 1,
+    "rank": 1,
+    "at": "2026-11-22T20:12:31.723Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1824,
+     "http_attempts": 1,
+     "input_tokens": 2418,
+     "output_tokens": 242,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1384
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Ledger PostgreSQL Upgrade",
+      "ids": [
+       1,
+       2,
+       3,
+       8,
+       19,
+       21,
+       26,
+       35,
+       39,
+       52,
+       55,
+       58,
+       59,
+       60,
+       62
+      ]
+     },
+     {
+      "name": "Checkout Incident",
+      "ids": [
+       0,
+       5,
+       14,
+       20,
+       24,
+       31,
+       42,
+       43,
+       47
+      ]
+     },
+     {
+      "name": "SRE Operations",
+      "ids": [
+       7,
+       18,
+       29,
+       30,
+       32,
+       36,
+       38,
+       40,
+       57,
+       61,
+       63,
+       64,
+       70,
+       72,
+       77,
+       79,
+       80
+      ]
+     },
+     {
+      "name": "Datadog Renewal",
+      "ids": [
+       9,
+       45,
+       56,
+       68,
+       74
+      ]
+     },
+     {
+      "name": "AWS re:Invent Trip",
+      "ids": [
+       11,
+       12,
+       28,
+       34,
+       48,
+       49,
+       51,
+       65,
+       71,
+       75
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       13,
+       22,
+       27,
+       44,
+       53,
+       54,
+       66,
+       69,
+       73,
+       81
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       4,
+       6,
+       10,
+       15,
+       16,
+       17,
+       23,
+       25,
+       33,
+       37,
+       41,
+       46,
+       50,
+       52,
+       67,
+       76,
+       78
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 1742,
+   "input_tokens": 2075,
+   "output_tokens": 224,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8938547486033519,
+    "r": 0.6530612244897959,
+    "f1": 0.7547169811320754,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Kroatien Urlaub",
+    "Octavia Kauf",
+    "Schulalltag",
+    "Familienverwaltung",
+    "Banking Ungarn",
+    "Ungarische Küche",
+    "München Aktuelles",
+    "Haushalt",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    10,
+    9,
+    5,
+    5,
+    6,
+    6,
+    4,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 5,
+    "of": 48,
+    "window_index": 2,
+    "rank": 0,
+    "at": "2026-11-22T20:12:33.466Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1742,
+     "http_attempts": 1,
+     "input_tokens": 2075,
+     "output_tokens": 224,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1156
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Kroatien Urlaub",
+      "ids": [
+       4,
+       5,
+       24,
+       26,
+       27,
+       31,
+       32,
+       35,
+       36,
+       39
+      ]
+     },
+     {
+      "name": "Octavia Kauf",
+      "ids": [
+       2,
+       3,
+       19,
+       28,
+       37,
+       43,
+       58,
+       59,
+       60,
+       61
+      ]
+     },
+     {
+      "name": "Schulalltag",
+      "ids": [
+       1,
+       6,
+       7,
+       9,
+       25,
+       34,
+       38,
+       45,
+       47
+      ]
+     },
+     {
+      "name": "Familienverwaltung",
+      "ids": [
+       11,
+       17,
+       23,
+       29,
+       40
+      ]
+     },
+     {
+      "name": "Banking Ungarn",
+      "ids": [
+       14,
+       20,
+       41,
+       52,
+       53
+      ]
+     },
+     {
+      "name": "Ungarische Küche",
+      "ids": [
+       8,
+       10,
+       16,
+       30,
+       44,
+       51
+      ]
+     },
+     {
+      "name": "München Aktuelles",
+      "ids": [
+       0,
+       18,
+       48,
+       50,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "Haushalt",
+      "ids": [
+       21,
+       33,
+       46,
+       57
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       12,
+       13,
+       15,
+       22,
+       42,
+       49,
+       55,
+       56
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 0,
+   "tabs": 66,
+   "failed": false,
+   "wall_ms": 1513,
+   "input_tokens": 2005,
+   "output_tokens": 216,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.5942028985507246,
+    "r": 0.7620817843866171,
+    "f1": 0.6677524429967426,
+    "groups": 9
+   },
+   "groups": 8,
+   "left_out": 1,
+   "invalid_ids": 0,
+   "duplicate_ids": 1,
+   "group_names": [
+    "Tidewater Festival",
+    "Hearth & Rye Rebrand",
+    "Monitor Setup",
+    "Studio Finances",
+    "Brand Design",
+    "Freelance Admin",
+    "Personal",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    11,
+    8,
+    9,
+    20,
+    4,
+    3,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 8,
+    "of": 48,
+    "window_index": 3,
+    "rank": 1,
+    "at": "2026-11-22T20:12:39.956Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1513,
+     "http_attempts": 1,
+     "input_tokens": 2005,
+     "output_tokens": 216,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1192
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tidewater Festival",
+      "ids": [
+       2,
+       5,
+       37,
+       42,
+       47,
+       48,
+       51,
+       54,
+       60
+      ]
+     },
+     {
+      "name": "Hearth & Rye Rebrand",
+      "ids": [
+       12,
+       13,
+       24,
+       29,
+       30,
+       32,
+       33,
+       40,
+       49,
+       56,
+       63
+      ]
+     },
+     {
+      "name": "Monitor Setup",
+      "ids": [
+       0,
+       9,
+       11,
+       31,
+       39,
+       43,
+       45,
+       61
+      ]
+     },
+     {
+      "name": "Studio Finances",
+      "ids": [
+       17,
+       18,
+       19,
+       25,
+       29,
+       34,
+       38,
+       52,
+       57,
+       64
+      ]
+     },
+     {
+      "name": "Brand Design",
+      "ids": [
+       1,
+       3,
+       4,
+       6,
+       7,
+       8,
+       10,
+       14,
+       15,
+       16,
+       22,
+       26,
+       27,
+       28,
+       35,
+       41,
+       50,
+       53,
+       58,
+       62
+      ]
+     },
+     {
+      "name": "Freelance Admin",
+      "ids": [
+       20,
+       36,
+       44,
+       59
+      ]
+     },
+     {
+      "name": "Personal",
+      "ids": [
+       21,
+       23,
+       55
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       65
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 0,
+   "tabs": 200,
+   "failed": false,
+   "wall_ms": 3198,
+   "input_tokens": 5092,
+   "output_tokens": 497,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.6586187535092645,
+    "r": 0.7504798464491362,
+    "f1": 0.7015550239234449,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 3,
+   "group_names": [
+    "Offline Mode Launch",
+    "Enterprise SSO",
+    "Pricing V3",
+    "Product Analytics",
+    "Product Designer Hiring",
+    "Growth PM Hiring",
+    "Lisbon Offsite",
+    "Product Strategy",
+    "Review Later"
+   ],
+   "group_sizes": [
+    21,
+    19,
+    25,
+    17,
+    6,
+    10,
+    16,
+    29,
+    57
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 9,
+    "of": 48,
+    "window_index": 4,
+    "rank": 0,
+    "at": "2026-11-22T20:12:43.156Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3198,
+     "http_attempts": 1,
+     "input_tokens": 5092,
+     "output_tokens": 497,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 2800
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Offline Mode Launch",
+      "ids": [
+       3,
+       4,
+       16,
+       40,
+       76,
+       83,
+       90,
+       101,
+       113,
+       115,
+       119,
+       123,
+       136,
+       144,
+       147,
+       160,
+       175,
+       177,
+       183,
+       189,
+       191
+      ]
+     },
+     {
+      "name": "Enterprise SSO",
+      "ids": [
+       12,
+       28,
+       41,
+       45,
+       75,
+       77,
+       81,
+       84,
+       91,
+       96,
+       109,
+       110,
+       127,
+       140,
+       141,
+       146,
+       163,
+       169,
+       193
+      ]
+     },
+     {
+      "name": "Pricing V3",
+      "ids": [
+       11,
+       15,
+       33,
+       37,
+       38,
+       51,
+       53,
+       64,
+       67,
+       74,
+       78,
+       95,
+       100,
+       102,
+       111,
+       118,
+       142,
+       153,
+       157,
+       159,
+       161,
+       170,
+       176,
+       178,
+       192
+      ]
+     },
+     {
+      "name": "Product Analytics",
+      "ids": [
+       5,
+       18,
+       27,
+       54,
+       89,
+       99,
+       103,
+       116,
+       124,
+       125,
+       128,
+       148,
+       164,
+       184,
+       195,
+       196,
+       199
+      ]
+     },
+     {
+      "name": "Product Designer Hiring",
+      "ids": [
+       19,
+       86,
+       105,
+       129,
+       137,
+       150
+      ]
+     },
+     {
+      "name": "Growth PM Hiring",
+      "ids": [
+       6,
+       17,
+       22,
+       23,
+       25,
+       52,
+       88,
+       92,
+       156,
+       185
+      ]
+     },
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       1,
+       9,
+       24,
+       30,
+       36,
+       50,
+       57,
+       61,
+       117,
+       138,
+       151,
+       166,
+       171,
+       179,
+       182,
+       194
+      ]
+     },
+     {
+      "name": "Product Strategy",
+      "ids": [
+       2,
+       7,
+       20,
+       26,
+       31,
+       34,
+       58,
+       59,
+       60,
+       66,
+       69,
+       70,
+       72,
+       79,
+       87,
+       93,
+       94,
+       107,
+       120,
+       122,
+       126,
+       133,
+       152,
+       158,
+       162,
+       172,
+       174,
+       176,
+       190,
+       198
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       0,
+       8,
+       10,
+       13,
+       14,
+       21,
+       29,
+       32,
+       35,
+       39,
+       42,
+       43,
+       44,
+       46,
+       47,
+       48,
+       49,
+       55,
+       56,
+       62,
+       63,
+       65,
+       68,
+       71,
+       73,
+       80,
+       82,
+       85,
+       97,
+       98,
+       104,
+       106,
+       108,
+       112,
+       114,
+       121,
+       130,
+       131,
+       132,
+       134,
+       135,
+       139,
+       143,
+       145,
+       149,
+       154,
+       155,
+       156,
+       157,
+       165,
+       167,
+       168,
+       173,
+       180,
+       181,
+       186,
+       187,
+       188,
+       197
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 0,
+   "tabs": 54,
+   "failed": false,
+   "wall_ms": 1556,
+   "input_tokens": 1623,
+   "output_tokens": 212,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.49489795918367346,
+    "r": 0.6643835616438356,
+    "f1": 0.5672514619883041,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 3,
+   "group_names": [
+    "House Move",
+    "School Transfer",
+    "Dishwasher Purchase",
+    "Christmas Dinner",
+    "Christmas Planning",
+    "Sheffield Theatre",
+    "Wilding Books",
+    "LEGO Camera",
+    "Wingspan Game",
+    "Review Later"
+   ],
+   "group_sizes": [
+    17,
+    8,
+    7,
+    5,
+    2,
+    2,
+    2,
+    3,
+    2,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 12,
+    "of": 48,
+    "window_index": 5,
+    "rank": 1,
+    "at": "2026-11-22T20:12:51.396Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1556,
+     "http_attempts": 1,
+     "input_tokens": 1623,
+     "output_tokens": 212,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1048
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "House Move",
+      "ids": [
+       3,
+       4,
+       5,
+       6,
+       8,
+       9,
+       10,
+       11,
+       13,
+       19,
+       20,
+       21,
+       22,
+       23,
+       34,
+       46,
+       52
+      ]
+     },
+     {
+      "name": "School Transfer",
+      "ids": [
+       0,
+       15,
+       25,
+       33,
+       35,
+       42,
+       44,
+       53
+      ]
+     },
+     {
+      "name": "Dishwasher Purchase",
+      "ids": [
+       1,
+       12,
+       18,
+       26,
+       27,
+       28,
+       32
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       2,
+       38,
+       39,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "Christmas Planning",
+      "ids": [
+       5,
+       8,
+       34,
+       48,
+       50
+      ]
+     },
+     {
+      "name": "Sheffield Theatre",
+      "ids": [
+       17,
+       24
+      ]
+     },
+     {
+      "name": "Wilding Books",
+      "ids": [
+       14,
+       36
+      ]
+     },
+     {
+      "name": "LEGO Camera",
+      "ids": [
+       16,
+       30,
+       43
+      ]
+     },
+     {
+      "name": "Wingspan Game",
+      "ids": [
+       40,
+       47
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       7,
+       29,
+       31,
+       37,
+       41,
+       45
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 0,
+   "tabs": 69,
+   "failed": false,
+   "wall_ms": 1653,
+   "input_tokens": 1985,
+   "output_tokens": 226,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.6677852348993288,
+    "r": 0.8361344537815126,
+    "f1": 0.7425373134328358,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "EGU Vienna Trip",
+    "Urban Heat Field Lab",
+    "Rain Garden Pilot",
+    "UKRI CANOPY Bid",
+    "ENV204 GIS Course",
+    "Zotero Setup",
+    "Research Planning",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    19,
+    9,
+    8,
+    9,
+    6,
+    4,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 13,
+    "of": 48,
+    "window_index": 6,
+    "rank": 0,
+    "at": "2026-11-22T20:12:53.049Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1653,
+     "http_attempts": 1,
+     "input_tokens": 1985,
+     "output_tokens": 226,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1228
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "EGU Vienna Trip",
+      "ids": [
+       0,
+       4,
+       6,
+       9,
+       30,
+       36,
+       40,
+       54,
+       58,
+       63
+      ]
+     },
+     {
+      "name": "Urban Heat Field Lab",
+      "ids": [
+       7,
+       8,
+       10,
+       13,
+       14,
+       15,
+       18,
+       19,
+       24,
+       28,
+       29,
+       35,
+       43,
+       48,
+       51,
+       60,
+       61,
+       64,
+       67
+      ]
+     },
+     {
+      "name": "Rain Garden Pilot",
+      "ids": [
+       12,
+       22,
+       25,
+       26,
+       27,
+       50,
+       52,
+       53,
+       66
+      ]
+     },
+     {
+      "name": "UKRI CANOPY Bid",
+      "ids": [
+       3,
+       34,
+       39,
+       41,
+       42,
+       45,
+       59,
+       62
+      ]
+     },
+     {
+      "name": "ENV204 GIS Course",
+      "ids": [
+       5,
+       11,
+       17,
+       32,
+       33,
+       47,
+       49,
+       56,
+       57
+      ]
+     },
+     {
+      "name": "Zotero Setup",
+      "ids": [
+       20,
+       21,
+       23,
+       37,
+       46,
+       68
+      ]
+     },
+     {
+      "name": "Research Planning",
+      "ids": [
+       2,
+       31,
+       38,
+       55
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       16,
+       44,
+       65
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 0,
+   "tabs": 54,
+   "failed": false,
+   "wall_ms": 1609,
+   "input_tokens": 1914,
+   "output_tokens": 191,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8607594936708861,
+    "r": 0.7953216374269005,
+    "f1": 0.8267477203647416,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Yokohama Apartment",
+    "Residence Renewal",
+    "Japanese Study",
+    "Banking Transfers",
+    "Yokohama Living",
+    "Japanese Cooking",
+    "Travel Planning",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    10,
+    7,
+    9,
+    6,
+    1,
+    4
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 16,
+    "of": 48,
+    "window_index": 7,
+    "rank": 1,
+    "at": "2026-11-22T20:12:59.367Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1609,
+     "http_attempts": 1,
+     "input_tokens": 1914,
+     "output_tokens": 191,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1048
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Yokohama Apartment",
+      "ids": [
+       11,
+       15,
+       17,
+       18,
+       19,
+       22,
+       23,
+       25,
+       34,
+       46
+      ]
+     },
+     {
+      "name": "Residence Renewal",
+      "ids": [
+       4,
+       29,
+       31,
+       39,
+       42,
+       52,
+       53
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       5,
+       8,
+       12,
+       13,
+       20,
+       30,
+       35,
+       49,
+       50,
+       51
+      ]
+     },
+     {
+      "name": "Banking Transfers",
+      "ids": [
+       3,
+       7,
+       9,
+       21,
+       37,
+       43,
+       45
+      ]
+     },
+     {
+      "name": "Yokohama Living",
+      "ids": [
+       6,
+       14,
+       24,
+       26,
+       27,
+       33,
+       36,
+       40,
+       41
+      ]
+     },
+     {
+      "name": "Japanese Cooking",
+      "ids": [
+       0,
+       2,
+       10,
+       16,
+       44,
+       48
+      ]
+     },
+     {
+      "name": "Travel Planning",
+      "ids": [
+       32
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       28,
+       38,
+       47
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 0,
+   "tabs": 74,
+   "failed": false,
+   "wall_ms": 2175,
+   "input_tokens": 2178,
+   "output_tokens": 220,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.7444794952681388,
+    "r": 0.9076923076923077,
+    "f1": 0.8180242634315424,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Porto Trip",
+    "Hades II",
+    "Headphone Shopping",
+    "Crypto Taxes",
+    "ISA Investing",
+    "Edale Hiking",
+    "Review Later"
+   ],
+   "group_sizes": [
+    14,
+    10,
+    16,
+    8,
+    8,
+    9,
+    9
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 17,
+    "of": 48,
+    "window_index": 8,
+    "rank": 0,
+    "at": "2026-11-22T20:13:01.542Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 2175,
+     "http_attempts": 1,
+     "input_tokens": 2178,
+     "output_tokens": 220,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1288
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Porto Trip",
+      "ids": [
+       2,
+       12,
+       16,
+       18,
+       19,
+       23,
+       33,
+       42,
+       54,
+       56,
+       57,
+       65,
+       66,
+       72
+      ]
+     },
+     {
+      "name": "Hades II",
+      "ids": [
+       3,
+       6,
+       8,
+       22,
+       30,
+       47,
+       51,
+       59,
+       69,
+       71
+      ]
+     },
+     {
+      "name": "Headphone Shopping",
+      "ids": [
+       4,
+       5,
+       10,
+       13,
+       20,
+       26,
+       32,
+       35,
+       38,
+       40,
+       41,
+       45,
+       52,
+       55,
+       58,
+       67
+      ]
+     },
+     {
+      "name": "Crypto Taxes",
+      "ids": [
+       0,
+       1,
+       9,
+       28,
+       36,
+       37,
+       43,
+       68
+      ]
+     },
+     {
+      "name": "ISA Investing",
+      "ids": [
+       11,
+       15,
+       17,
+       34,
+       50,
+       53,
+       61,
+       64
+      ]
+     },
+     {
+      "name": "Edale Hiking",
+      "ids": [
+       21,
+       25,
+       29,
+       31,
+       39,
+       44,
+       48,
+       49,
+       62
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       7,
+       14,
+       24,
+       27,
+       46,
+       60,
+       63,
+       70,
+       73
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 0,
+   "tabs": 55,
+   "failed": false,
+   "wall_ms": 1847,
+   "input_tokens": 1576,
+   "output_tokens": 215,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.6644295302013423,
+    "r": 0.5625,
+    "f1": 0.6092307692307692,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 5,
+   "group_names": [
+    "Bookkeeping And VAT",
+    "Shop Operations",
+    "Customer Orders",
+    "Christmas Dispatch",
+    "Marketing Campaigns",
+    "Hiring Staff",
+    "Packaging Supplies",
+    "Paper Suppliers",
+    "Payment Setup",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    11,
+    7,
+    5,
+    4,
+    8,
+    4,
+    1,
+    1,
+    5
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 20,
+    "of": 48,
+    "window_index": 9,
+    "rank": 1,
+    "at": "2026-11-22T20:13:07.836Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1847,
+     "http_attempts": 1,
+     "input_tokens": 1576,
+     "output_tokens": 215,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1060
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Bookkeeping And VAT",
+      "ids": [
+       0,
+       1,
+       4,
+       14,
+       15,
+       22,
+       23,
+       34,
+       42
+      ]
+     },
+     {
+      "name": "Shop Operations",
+      "ids": [
+       5,
+       8,
+       12,
+       24,
+       27,
+       33,
+       37,
+       47,
+       50,
+       51,
+       52
+      ]
+     },
+     {
+      "name": "Customer Orders",
+      "ids": [
+       11,
+       17,
+       19,
+       20,
+       25,
+       37,
+       44,
+       53
+      ]
+     },
+     {
+      "name": "Christmas Dispatch",
+      "ids": [
+       3,
+       38,
+       41,
+       45,
+       46
+      ]
+     },
+     {
+      "name": "Marketing Campaigns",
+      "ids": [
+       6,
+       16,
+       21,
+       32
+      ]
+     },
+     {
+      "name": "Hiring Staff",
+      "ids": [
+       7,
+       9,
+       10,
+       18,
+       26,
+       31,
+       39,
+       48
+      ]
+     },
+     {
+      "name": "Packaging Supplies",
+      "ids": [
+       28,
+       30,
+       43,
+       54
+      ]
+     },
+     {
+      "name": "Paper Suppliers",
+      "ids": [
+       36,
+       42,
+       46
+      ]
+     },
+     {
+      "name": "Payment Setup",
+      "ids": [
+       34,
+       40,
+       47
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       13,
+       29,
+       35,
+       49
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 1802,
+   "input_tokens": 1666,
+   "output_tokens": 222,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.99375,
+    "r": 0.8983050847457628,
+    "f1": 0.9436201780415431,
+    "groups": 11
+   },
+   "groups": 10,
+   "left_out": 1,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Development",
+    "Swift App Development",
+    "WireGuard Server",
+    "AI Model Tools",
+    "MacBook Purchase",
+    "Company Administration",
+    "Personal Planning",
+    "News And Browsing",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    6,
+    8,
+    9,
+    6,
+    6,
+    5,
+    5,
+    4,
+    5
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 21,
+    "of": 48,
+    "window_index": 10,
+    "rank": 0,
+    "at": "2026-11-22T20:13:09.639Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1802,
+     "http_attempts": 1,
+     "input_tokens": 1666,
+     "output_tokens": 222,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1156
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Development",
+      "ids": [
+       0,
+       4,
+       16,
+       32,
+       35,
+       39,
+       47,
+       61
+      ]
+     },
+     {
+      "name": "Swift App Development",
+      "ids": [
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "WireGuard Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "AI Model Tools",
+      "ids": [
+       9,
+       10,
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Company Administration",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "Personal Planning",
+      "ids": [
+       2,
+       42,
+       53,
+       57,
+       58
+      ]
+     },
+     {
+      "name": "News And Browsing",
+      "ids": [
+       1,
+       6,
+       12,
+       26,
+       30
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       13,
+       22,
+       24,
+       43
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       5,
+       29,
+       37,
+       45
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 1817,
+   "input_tokens": 1726,
+   "output_tokens": 216,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8802395209580839,
+    "r": 0.8802395209580839,
+    "f1": 0.8802395209580839,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Model Y",
+    "Running Fitness",
+    "Platform Engineering",
+    "Recipes",
+    "Home Finances",
+    "News",
+    "Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    5,
+    7,
+    3,
+    6,
+    9,
+    3,
+    5,
+    7
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 24,
+    "of": 48,
+    "window_index": 11,
+    "rank": 1,
+    "at": "2026-11-22T20:13:16.197Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1817,
+     "http_attempts": 1,
+     "input_tokens": 1726,
+     "output_tokens": 216,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 0,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1144
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Model Y",
+      "ids": [
+       28,
+       29,
+       31,
+       48,
+       54
+      ]
+     },
+     {
+      "name": "Running Fitness",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Platform Engineering",
+      "ids": [
+       8,
+       11,
+       14
+      ]
+     },
+     {
+      "name": "Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Home Finances",
+      "ids": [
+       0,
+       3,
+       7,
+       12,
+       16,
+       19,
+       53,
+       57,
+       58
+      ]
+     },
+     {
+      "name": "News",
+      "ids": [
+       35,
+       37,
+       50
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       17,
+       23,
+       26,
+       49,
+       60,
+       61
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-student",
+   "repeat": 1,
+   "tabs": 64,
+   "failed": false,
+   "wall_ms": 1827,
+   "input_tokens": 1913,
+   "output_tokens": 233,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 1,
+    "r": 0.7942386831275721,
+    "f1": 0.8853211009174312,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Netflix",
+    "Hiking Society Christmas Social",
+    "Minimum Wage Essay",
+    "Leeds House Hunt",
+    "MATH2715 Statistics",
+    "Student Job Search",
+    "Personal Finances",
+    "Hollow Knight",
+    "Leeds Student Life",
+    "Review Later"
+   ],
+   "group_sizes": [
+    2,
+    10,
+    8,
+    8,
+    10,
+    9,
+    2,
+    4,
+    3,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 25,
+    "of": 48,
+    "window_index": 0,
+    "rank": 0,
+    "at": "2026-11-22T20:13:18.025Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1827,
+     "http_attempts": 1,
+     "input_tokens": 1913,
+     "output_tokens": 233,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1910,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1168
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Netflix",
+      "ids": [
+       0,
+       20
+      ]
+     },
+     {
+      "name": "Hiking Society Christmas Social",
+      "ids": [
+       1,
+       9,
+       11,
+       13,
+       15,
+       23,
+       26,
+       29,
+       44,
+       55
+      ]
+     },
+     {
+      "name": "Minimum Wage Essay",
+      "ids": [
+       3,
+       21,
+       25,
+       34,
+       35,
+       51,
+       52,
+       58
+      ]
+     },
+     {
+      "name": "Leeds House Hunt",
+      "ids": [
+       4,
+       5,
+       7,
+       28,
+       38,
+       50,
+       54,
+       63
+      ]
+     },
+     {
+      "name": "MATH2715 Statistics",
+      "ids": [
+       6,
+       16,
+       22,
+       24,
+       27,
+       31,
+       40,
+       43,
+       46,
+       60
+      ]
+     },
+     {
+      "name": "Student Job Search",
+      "ids": [
+       17,
+       18,
+       32,
+       39,
+       45,
+       47,
+       59,
+       61,
+       62
+      ]
+     },
+     {
+      "name": "Personal Finances",
+      "ids": [
+       30,
+       36
+      ]
+     },
+     {
+      "name": "Hollow Knight",
+      "ids": [
+       10,
+       33,
+       42,
+       49
+      ]
+     },
+     {
+      "name": "Leeds Student Life",
+      "ids": [
+       14,
+       48,
+       57
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       8,
+       12,
+       19,
+       37,
+       41,
+       53,
+       56
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-oncall",
+   "repeat": 1,
+   "tabs": 82,
+   "failed": false,
+   "wall_ms": 1682,
+   "input_tokens": 2418,
+   "output_tokens": 246,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.6547945205479452,
+    "r": 0.6272965879265092,
+    "f1": 0.6407506702412868,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Ledger DB Upgrade",
+    "Checkout Incident",
+    "SRE Operations",
+    "AWS re:Invent",
+    "Las Vegas Trip",
+    "Vendor Renewals",
+    "Personal Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    15,
+    10,
+    16,
+    4,
+    6,
+    5,
+    10,
+    16
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 28,
+    "of": 48,
+    "window_index": 1,
+    "rank": 1,
+    "at": "2026-11-22T20:13:25.363Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1682,
+     "http_attempts": 1,
+     "input_tokens": 2418,
+     "output_tokens": 246,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 2415,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1384
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Ledger DB Upgrade",
+      "ids": [
+       1,
+       2,
+       3,
+       8,
+       19,
+       21,
+       26,
+       35,
+       39,
+       52,
+       55,
+       58,
+       59,
+       60,
+       62
+      ]
+     },
+     {
+      "name": "Checkout Incident",
+      "ids": [
+       0,
+       5,
+       14,
+       20,
+       24,
+       31,
+       42,
+       43,
+       47,
+       70
+      ]
+     },
+     {
+      "name": "SRE Operations",
+      "ids": [
+       7,
+       18,
+       29,
+       30,
+       32,
+       36,
+       38,
+       40,
+       57,
+       61,
+       63,
+       64,
+       72,
+       77,
+       79,
+       80
+      ]
+     },
+     {
+      "name": "AWS re:Invent",
+      "ids": [
+       12,
+       28,
+       65,
+       71
+      ]
+     },
+     {
+      "name": "Las Vegas Trip",
+      "ids": [
+       13,
+       34,
+       48,
+       49,
+       51,
+       75
+      ]
+     },
+     {
+      "name": "Vendor Renewals",
+      "ids": [
+       9,
+       45,
+       56,
+       68,
+       74
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       11,
+       22,
+       27,
+       44,
+       53,
+       54,
+       66,
+       69,
+       73,
+       81
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       4,
+       6,
+       10,
+       15,
+       16,
+       17,
+       23,
+       25,
+       33,
+       37,
+       41,
+       46,
+       50,
+       67,
+       76,
+       78
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-household",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 1803,
+   "input_tokens": 2075,
+   "output_tokens": 226,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.9,
+    "r": 0.7714285714285715,
+    "f1": 0.8307692307692307,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Kroatien Urlaub",
+    "Octavia Autokauf",
+    "Schule Familie",
+    "München Alltag",
+    "Ungarische Küche",
+    "Finanzen Steuern",
+    "Haushalt Einkaufen",
+    "Nachrichten Medien",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    10,
+    11,
+    6,
+    7,
+    8,
+    3,
+    7,
+    1
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 29,
+    "of": 48,
+    "window_index": 2,
+    "rank": 0,
+    "at": "2026-11-22T20:13:27.167Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1803,
+     "http_attempts": 1,
+     "input_tokens": 2075,
+     "output_tokens": 226,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 2072,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1156
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Kroatien Urlaub",
+      "ids": [
+       4,
+       5,
+       24,
+       26,
+       27,
+       31,
+       32,
+       35,
+       36,
+       39
+      ]
+     },
+     {
+      "name": "Octavia Autokauf",
+      "ids": [
+       2,
+       3,
+       19,
+       28,
+       37,
+       43,
+       58,
+       59,
+       60,
+       61
+      ]
+     },
+     {
+      "name": "Schule Familie",
+      "ids": [
+       1,
+       6,
+       7,
+       9,
+       11,
+       25,
+       34,
+       38,
+       40,
+       45,
+       47
+      ]
+     },
+     {
+      "name": "München Alltag",
+      "ids": [
+       0,
+       18,
+       48,
+       50,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "Ungarische Küche",
+      "ids": [
+       8,
+       10,
+       12,
+       16,
+       30,
+       44,
+       51
+      ]
+     },
+     {
+      "name": "Finanzen Steuern",
+      "ids": [
+       14,
+       17,
+       20,
+       23,
+       41,
+       52,
+       53,
+       57
+      ]
+     },
+     {
+      "name": "Haushalt Einkaufen",
+      "ids": [
+       21,
+       33,
+       46
+      ]
+     },
+     {
+      "name": "Nachrichten Medien",
+      "ids": [
+       13,
+       15,
+       29,
+       42,
+       49,
+       55,
+       56
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       22
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-designer",
+   "repeat": 1,
+   "tabs": 66,
+   "failed": false,
+   "wall_ms": 1910,
+   "input_tokens": 2005,
+   "output_tokens": 224,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.7105263157894737,
+    "r": 0.7026022304832714,
+    "f1": 0.7065420560747663,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tidewater Festival",
+    "Hearth & Rye Branding",
+    "Monitor Setup",
+    "Typography & Branding",
+    "Studio Finances",
+    "Stock Images",
+    "Freelance Practice",
+    "Personal",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    10,
+    8,
+    15,
+    11,
+    4,
+    2,
+    4,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 32,
+    "of": 48,
+    "window_index": 3,
+    "rank": 1,
+    "at": "2026-11-22T20:13:34.347Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1910,
+     "http_attempts": 1,
+     "input_tokens": 2005,
+     "output_tokens": 224,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 2002,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1192
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tidewater Festival",
+      "ids": [
+       2,
+       5,
+       37,
+       42,
+       47,
+       48,
+       51,
+       54,
+       55,
+       60
+      ]
+     },
+     {
+      "name": "Hearth & Rye Branding",
+      "ids": [
+       12,
+       13,
+       24,
+       30,
+       32,
+       40,
+       46,
+       49,
+       56,
+       63
+      ]
+     },
+     {
+      "name": "Monitor Setup",
+      "ids": [
+       0,
+       9,
+       11,
+       31,
+       39,
+       43,
+       45,
+       61
+      ]
+     },
+     {
+      "name": "Typography & Branding",
+      "ids": [
+       1,
+       3,
+       4,
+       6,
+       7,
+       8,
+       10,
+       14,
+       16,
+       22,
+       26,
+       35,
+       41,
+       53,
+       62
+      ]
+     },
+     {
+      "name": "Studio Finances",
+      "ids": [
+       17,
+       18,
+       19,
+       25,
+       29,
+       34,
+       38,
+       52,
+       57,
+       59,
+       64
+      ]
+     },
+     {
+      "name": "Stock Images",
+      "ids": [
+       27,
+       33,
+       50,
+       58
+      ]
+     },
+     {
+      "name": "Freelance Practice",
+      "ids": [
+       15,
+       36
+      ]
+     },
+     {
+      "name": "Personal",
+      "ids": [
+       20,
+       21,
+       23,
+       44
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       28,
+       65
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "a-hoarder",
+   "repeat": 1,
+   "tabs": 200,
+   "failed": false,
+   "wall_ms": 3273,
+   "input_tokens": 5092,
+   "output_tokens": 514,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.7976190476190477,
+    "r": 0.7715930902111324,
+    "f1": 0.7843902439024392,
+    "groups": 11
+   },
+   "groups": 10,
+   "left_out": 1,
+   "invalid_ids": 0,
+   "duplicate_ids": 8,
+   "group_names": [
+    "Offline Mode Launch",
+    "Enterprise SSO",
+    "Pricing V3",
+    "Product Analytics",
+    "Lisbon Offsite",
+    "Product Hiring",
+    "Product Strategy",
+    "Quillmate Product",
+    "Personal Errands",
+    "Review Later"
+   ],
+   "group_sizes": [
+    21,
+    19,
+    25,
+    16,
+    18,
+    15,
+    23,
+    29,
+    18,
+    15
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 33,
+    "of": 48,
+    "window_index": 4,
+    "rank": 0,
+    "at": "2026-11-22T20:13:37.623Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 3273,
+     "http_attempts": 1,
+     "input_tokens": 5092,
+     "output_tokens": 514,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 5089,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 2800
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Offline Mode Launch",
+      "ids": [
+       3,
+       4,
+       16,
+       40,
+       56,
+       76,
+       90,
+       101,
+       113,
+       115,
+       119,
+       123,
+       136,
+       144,
+       147,
+       160,
+       175,
+       177,
+       183,
+       189,
+       191
+      ]
+     },
+     {
+      "name": "Enterprise SSO",
+      "ids": [
+       12,
+       28,
+       41,
+       45,
+       75,
+       77,
+       81,
+       84,
+       91,
+       96,
+       109,
+       110,
+       127,
+       140,
+       141,
+       146,
+       163,
+       169,
+       193
+      ]
+     },
+     {
+      "name": "Pricing V3",
+      "ids": [
+       11,
+       15,
+       33,
+       37,
+       38,
+       51,
+       53,
+       64,
+       67,
+       68,
+       74,
+       78,
+       95,
+       100,
+       102,
+       111,
+       118,
+       142,
+       153,
+       157,
+       159,
+       161,
+       170,
+       178,
+       192
+      ]
+     },
+     {
+      "name": "Product Analytics",
+      "ids": [
+       18,
+       27,
+       54,
+       89,
+       99,
+       103,
+       116,
+       124,
+       125,
+       128,
+       148,
+       164,
+       184,
+       195,
+       196,
+       199
+      ]
+     },
+     {
+      "name": "Lisbon Offsite",
+      "ids": [
+       1,
+       9,
+       14,
+       24,
+       30,
+       36,
+       48,
+       50,
+       57,
+       61,
+       117,
+       138,
+       151,
+       166,
+       171,
+       179,
+       182,
+       194
+      ]
+     },
+     {
+      "name": "Product Hiring",
+      "ids": [
+       6,
+       19,
+       23,
+       25,
+       52,
+       85,
+       88,
+       92,
+       105,
+       129,
+       137,
+       150,
+       156,
+       180,
+       185
+      ]
+     },
+     {
+      "name": "Product Strategy",
+      "ids": [
+       2,
+       7,
+       20,
+       26,
+       31,
+       34,
+       58,
+       60,
+       66,
+       69,
+       70,
+       72,
+       79,
+       87,
+       93,
+       94,
+       107,
+       120,
+       126,
+       133,
+       162,
+       172,
+       174
+      ]
+     },
+     {
+      "name": "Quillmate Product",
+      "ids": [
+       5,
+       43,
+       46,
+       47,
+       49,
+       56,
+       59,
+       62,
+       73,
+       82,
+       83,
+       86,
+       97,
+       108,
+       112,
+       114,
+       121,
+       122,
+       132,
+       134,
+       135,
+       149,
+       152,
+       158,
+       173,
+       176,
+       181,
+       188,
+       190,
+       198
+      ]
+     },
+     {
+      "name": "Personal Errands",
+      "ids": [
+       10,
+       21,
+       29,
+       32,
+       35,
+       39,
+       42,
+       80,
+       97,
+       106,
+       130,
+       139,
+       143,
+       154,
+       155,
+       165,
+       167,
+       168,
+       187
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       0,
+       13,
+       17,
+       22,
+       44,
+       55,
+       63,
+       65,
+       71,
+       98,
+       104,
+       111,
+       122,
+       131,
+       145,
+       157,
+       162,
+       166,
+       173,
+       186,
+       197
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-move",
+   "repeat": 1,
+   "tabs": 54,
+   "failed": false,
+   "wall_ms": 1612,
+   "input_tokens": 1623,
+   "output_tokens": 205,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.4898989898989899,
+    "r": 0.6643835616438356,
+    "f1": 0.563953488372093,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Home Move",
+    "School Transfer",
+    "Dishwasher Purchase",
+    "Christmas Dinner",
+    "Christmas Plans",
+    "LEGO Camera",
+    "Wilding Books",
+    "Wingspan Game",
+    "Book Selling",
+    "Review Later"
+   ],
+   "group_sizes": [
+    17,
+    8,
+    7,
+    5,
+    3,
+    3,
+    2,
+    2,
+    1,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 36,
+    "of": 48,
+    "window_index": 5,
+    "rank": 1,
+    "at": "2026-11-22T20:13:46.530Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1612,
+     "http_attempts": 1,
+     "input_tokens": 1623,
+     "output_tokens": 205,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1620,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1048
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Home Move",
+      "ids": [
+       3,
+       4,
+       5,
+       6,
+       8,
+       9,
+       10,
+       11,
+       13,
+       19,
+       20,
+       21,
+       22,
+       23,
+       34,
+       46,
+       52
+      ]
+     },
+     {
+      "name": "School Transfer",
+      "ids": [
+       0,
+       15,
+       25,
+       33,
+       35,
+       42,
+       44,
+       53
+      ]
+     },
+     {
+      "name": "Dishwasher Purchase",
+      "ids": [
+       1,
+       12,
+       18,
+       26,
+       27,
+       28,
+       32
+      ]
+     },
+     {
+      "name": "Christmas Dinner",
+      "ids": [
+       2,
+       38,
+       39,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "Christmas Plans",
+      "ids": [
+       17,
+       24,
+       48
+      ]
+     },
+     {
+      "name": "LEGO Camera",
+      "ids": [
+       16,
+       30,
+       43
+      ]
+     },
+     {
+      "name": "Wilding Books",
+      "ids": [
+       14,
+       36
+      ]
+     },
+     {
+      "name": "Wingspan Game",
+      "ids": [
+       40,
+       47
+      ]
+     },
+     {
+      "name": "Book Selling",
+      "ids": [
+       31
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       7,
+       29,
+       37,
+       41,
+       45,
+       50
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-academic",
+   "repeat": 1,
+   "tabs": 69,
+   "failed": false,
+   "wall_ms": 1659,
+   "input_tokens": 1985,
+   "output_tokens": 234,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8275862068965517,
+    "r": 0.8067226890756303,
+    "f1": 0.8170212765957446,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "EGU Vienna Trip",
+    "CANOPY Grant Bid",
+    "Urban Heat Field Lab",
+    "School Streets Air",
+    "Rain Garden Pilot",
+    "Zotero Setup",
+    "ENV204 GIS Course",
+    "Personal Admin",
+    "Review Later"
+   ],
+   "group_sizes": [
+    9,
+    9,
+    13,
+    6,
+    9,
+    6,
+    8,
+    6,
+    3
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 37,
+    "of": 48,
+    "window_index": 6,
+    "rank": 0,
+    "at": "2026-11-22T20:13:48.189Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1659,
+     "http_attempts": 1,
+     "input_tokens": 1985,
+     "output_tokens": 234,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1982,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1228
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "EGU Vienna Trip",
+      "ids": [
+       4,
+       6,
+       9,
+       30,
+       36,
+       40,
+       54,
+       58,
+       63
+      ]
+     },
+     {
+      "name": "CANOPY Grant Bid",
+      "ids": [
+       0,
+       3,
+       34,
+       39,
+       41,
+       42,
+       45,
+       59,
+       62
+      ]
+     },
+     {
+      "name": "Urban Heat Field Lab",
+      "ids": [
+       7,
+       10,
+       13,
+       15,
+       18,
+       19,
+       24,
+       28,
+       29,
+       35,
+       43,
+       48,
+       64
+      ]
+     },
+     {
+      "name": "School Streets Air",
+      "ids": [
+       8,
+       14,
+       51,
+       60,
+       61,
+       67
+      ]
+     },
+     {
+      "name": "Rain Garden Pilot",
+      "ids": [
+       12,
+       22,
+       25,
+       26,
+       27,
+       50,
+       52,
+       53,
+       66
+      ]
+     },
+     {
+      "name": "Zotero Setup",
+      "ids": [
+       20,
+       21,
+       23,
+       37,
+       46,
+       68
+      ]
+     },
+     {
+      "name": "ENV204 GIS Course",
+      "ids": [
+       5,
+       11,
+       17,
+       32,
+       33,
+       47,
+       56,
+       57
+      ]
+     },
+     {
+      "name": "Personal Admin",
+      "ids": [
+       2,
+       31,
+       38,
+       49,
+       55,
+       65
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       16,
+       44
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-expat",
+   "repeat": 1,
+   "tabs": 54,
+   "failed": false,
+   "wall_ms": 1519,
+   "input_tokens": 1914,
+   "output_tokens": 212,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8758169934640523,
+    "r": 0.783625730994152,
+    "f1": 0.8271604938271604,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Yokohama Apartment",
+    "Residence Renewal",
+    "Japanese Banking",
+    "Japanese Study",
+    "Yokohama Living",
+    "Yokohama News",
+    "Spanish Recipes",
+    "Meals in Yokohama",
+    "Travel Planning",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    7,
+    10,
+    6,
+    4,
+    6,
+    1,
+    1,
+    2
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 40,
+    "of": 48,
+    "window_index": 7,
+    "rank": 1,
+    "at": "2026-11-22T20:13:54.528Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1519,
+     "http_attempts": 1,
+     "input_tokens": 1914,
+     "output_tokens": 212,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1911,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1048
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Yokohama Apartment",
+      "ids": [
+       11,
+       15,
+       17,
+       18,
+       19,
+       22,
+       23,
+       25,
+       34,
+       46
+      ]
+     },
+     {
+      "name": "Residence Renewal",
+      "ids": [
+       4,
+       29,
+       31,
+       39,
+       42,
+       52,
+       53
+      ]
+     },
+     {
+      "name": "Japanese Banking",
+      "ids": [
+       3,
+       7,
+       9,
+       21,
+       37,
+       43,
+       45
+      ]
+     },
+     {
+      "name": "Japanese Study",
+      "ids": [
+       5,
+       8,
+       12,
+       13,
+       20,
+       30,
+       35,
+       49,
+       50,
+       51
+      ]
+     },
+     {
+      "name": "Yokohama Living",
+      "ids": [
+       6,
+       14,
+       24,
+       26,
+       27,
+       33
+      ]
+     },
+     {
+      "name": "Yokohama News",
+      "ids": [
+       28,
+       36,
+       40,
+       41
+      ]
+     },
+     {
+      "name": "Spanish Recipes",
+      "ids": [
+       0,
+       2,
+       10,
+       16,
+       44,
+       48
+      ]
+     },
+     {
+      "name": "Meals in Yokohama",
+      "ids": [
+       47
+      ]
+     },
+     {
+      "name": "Travel Planning",
+      "ids": [
+       32
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       38
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-messy",
+   "repeat": 1,
+   "tabs": 74,
+   "failed": false,
+   "wall_ms": 1775,
+   "input_tokens": 2178,
+   "output_tokens": 220,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.7444794952681388,
+    "r": 0.9076923076923077,
+    "f1": 0.8180242634315424,
+    "groups": 7
+   },
+   "groups": 7,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Porto Trip",
+    "Hades II",
+    "Headphone Shopping",
+    "Crypto Taxes",
+    "ISA Investing",
+    "Edale Hiking",
+    "Review Later"
+   ],
+   "group_sizes": [
+    14,
+    10,
+    16,
+    8,
+    8,
+    9,
+    9
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 41,
+    "of": 48,
+    "window_index": 8,
+    "rank": 0,
+    "at": "2026-11-22T20:13:56.304Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1775,
+     "http_attempts": 1,
+     "input_tokens": 2178,
+     "output_tokens": 220,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 2175,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1288
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Porto Trip",
+      "ids": [
+       2,
+       12,
+       16,
+       18,
+       19,
+       23,
+       33,
+       42,
+       54,
+       56,
+       57,
+       65,
+       66,
+       72
+      ]
+     },
+     {
+      "name": "Hades II",
+      "ids": [
+       3,
+       6,
+       8,
+       22,
+       30,
+       47,
+       51,
+       59,
+       69,
+       71
+      ]
+     },
+     {
+      "name": "Headphone Shopping",
+      "ids": [
+       4,
+       5,
+       10,
+       13,
+       20,
+       26,
+       32,
+       35,
+       38,
+       40,
+       41,
+       45,
+       52,
+       55,
+       58,
+       67
+      ]
+     },
+     {
+      "name": "Crypto Taxes",
+      "ids": [
+       0,
+       1,
+       9,
+       28,
+       36,
+       37,
+       43,
+       68
+      ]
+     },
+     {
+      "name": "ISA Investing",
+      "ids": [
+       11,
+       15,
+       17,
+       34,
+       50,
+       53,
+       61,
+       64
+      ]
+     },
+     {
+      "name": "Edale Hiking",
+      "ids": [
+       21,
+       25,
+       29,
+       31,
+       39,
+       44,
+       48,
+       49,
+       62
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       7,
+       14,
+       24,
+       27,
+       46,
+       60,
+       63,
+       70,
+       73
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "b-shop",
+   "repeat": 1,
+   "tabs": 55,
+   "failed": false,
+   "wall_ms": 1761,
+   "input_tokens": 1576,
+   "output_tokens": 208,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.92,
+    "r": 0.6534090909090909,
+    "f1": 0.7641196013289037,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "VAT Reconciliation",
+    "Ternfold Store Operations",
+    "Customer Orders",
+    "Christmas Dispatch",
+    "Marketing Campaigns",
+    "Hiring Staff",
+    "Packaging Supplies",
+    "Paper Purchasing",
+    "Payment Reconciliation",
+    "Review Later"
+   ],
+   "group_sizes": [
+    6,
+    8,
+    9,
+    5,
+    4,
+    8,
+    6,
+    2,
+    1,
+    6
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 44,
+    "of": 48,
+    "window_index": 9,
+    "rank": 1,
+    "at": "2026-11-22T20:14:02.642Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1761,
+     "http_attempts": 1,
+     "input_tokens": 1576,
+     "output_tokens": 208,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1573,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1060
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "VAT Reconciliation",
+      "ids": [
+       0,
+       1,
+       4,
+       14,
+       15,
+       23
+      ]
+     },
+     {
+      "name": "Ternfold Store Operations",
+      "ids": [
+       5,
+       8,
+       24,
+       27,
+       40,
+       47,
+       50,
+       52
+      ]
+     },
+     {
+      "name": "Customer Orders",
+      "ids": [
+       11,
+       17,
+       19,
+       20,
+       25,
+       34,
+       37,
+       51,
+       53
+      ]
+     },
+     {
+      "name": "Christmas Dispatch",
+      "ids": [
+       3,
+       38,
+       41,
+       45,
+       46
+      ]
+     },
+     {
+      "name": "Marketing Campaigns",
+      "ids": [
+       6,
+       16,
+       21,
+       32
+      ]
+     },
+     {
+      "name": "Hiring Staff",
+      "ids": [
+       7,
+       9,
+       10,
+       18,
+       26,
+       31,
+       39,
+       48
+      ]
+     },
+     {
+      "name": "Packaging Supplies",
+      "ids": [
+       28,
+       30,
+       33,
+       42,
+       43,
+       54
+      ]
+     },
+     {
+      "name": "Paper Purchasing",
+      "ids": [
+       36,
+       44
+      ]
+     },
+     {
+      "name": "Payment Reconciliation",
+      "ids": [
+       22
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       12,
+       13,
+       29,
+       35,
+       49
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 1744,
+   "input_tokens": 1666,
+   "output_tokens": 223,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8493975903614458,
+    "r": 0.7966101694915254,
+    "f1": 0.8221574344023324,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Project",
+    "WireGuard Server",
+    "Embedding Models",
+    "AI API Tools",
+    "Swift Development",
+    "MacBook Purchase",
+    "Company Administration",
+    "Personal Calendar",
+    "Media And News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    8,
+    2,
+    7,
+    5,
+    6,
+    6,
+    4,
+    9,
+    8
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 45,
+    "of": 48,
+    "window_index": 10,
+    "rank": 0,
+    "at": "2026-11-22T20:14:04.387Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1744,
+     "http_attempts": 1,
+     "input_tokens": 1666,
+     "output_tokens": 223,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1663,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1156
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Project",
+      "ids": [
+       0,
+       4,
+       16,
+       32,
+       35,
+       39,
+       47,
+       61
+      ]
+     },
+     {
+      "name": "WireGuard Server",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "Embedding Models",
+      "ids": [
+       9,
+       10
+      ]
+     },
+     {
+      "name": "AI API Tools",
+      "ids": [
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "Swift Development",
+      "ids": [
+       38,
+       40,
+       41,
+       44,
+       55
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Company Administration",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "Personal Calendar",
+      "ids": [
+       2,
+       42,
+       53,
+       57
+      ]
+     },
+     {
+      "name": "Media And News",
+      "ids": [
+       1,
+       6,
+       12,
+       13,
+       22,
+       24,
+       26,
+       30,
+       43
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       3,
+       5,
+       29,
+       37,
+       45,
+       50,
+       58,
+       60
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 1,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 1602,
+   "input_tokens": 1726,
+   "output_tokens": 219,
+   "thinking_tokens": 0,
+   "cost_usd": null,
+   "score": {
+    "p": 0.8421052631578947,
+    "r": 0.8622754491017964,
+    "f1": 0.8520710059171598,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Model Y",
+    "Platform Engineering Career",
+    "Running Training",
+    "Recipes",
+    "Personal Finance",
+    "Home Admin",
+    "News And Entertainment",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    5,
+    5,
+    7,
+    6,
+    5,
+    3,
+    9,
+    5
+   ],
+   "plan_example_name": "Wedding Plans",
+   "priority": "on",
+   "schedule": {
+    "position": 48,
+    "of": 48,
+    "window_index": 11,
+    "rank": 1,
+    "at": "2026-11-22T20:14:10.745Z"
+   },
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 1602,
+     "http_attempts": 1,
+     "input_tokens": 1726,
+     "output_tokens": 219,
+     "thinking_tokens": 0,
+     "cache_read_tokens": 1723,
+     "sent": {
+      "note": "openai through planWindowWithCloud",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "none",
+      "service_tier": "priority",
+      "output_budget_requested": 1144
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Model Y",
+      "ids": [
+       28,
+       29,
+       31,
+       48,
+       54
+      ]
+     },
+     {
+      "name": "Platform Engineering Career",
+      "ids": [
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Personal Finance",
+      "ids": [
+       0,
+       7,
+       12,
+       19,
+       57
+      ]
+     },
+     {
+      "name": "Home Admin",
+      "ids": [
+       3,
+       53,
+       58
+      ]
+     },
+     {
+      "name": "News And Entertainment",
+      "ids": [
+       1,
+       5,
+       16,
+       24,
+       35,
+       37,
+       44,
+       45,
+       50
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       2,
+       17,
+       23,
+       26,
+       61
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

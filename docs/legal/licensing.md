@@ -1,12 +1,13 @@
 # Licensing
 
-How Foldnex's source code, published extension and bundled font are each licensed.
+How Foldnex's source code, published extension and bundled third-party material are each licensed.
 
 ## The source code
 
 Foldnex's source code is licensed under the [MIT Licence](../../LICENSE). You may use, copy,
 modify, merge, publish, distribute, sublicense and sell copies of it, provided you keep the
-copyright notice and licence text. A fork needs its own name; see
+copyright notice and licence text. The store archive carries the same notice as `LICENSE`.
+A fork needs its own name; see
 [trademarks](https://github.com/magrathean-uk/.github/blob/main/LEGAL.md) for how the
 Foldnex name and marks may be used.
 
@@ -19,5 +20,6 @@ including the Foldnex name, icons and store listing.
 
 ## Third-party material
 
-The bundled Material Symbols Rounded font keeps its own Apache License 2.0 terms; see
-[third-party notices](third-party-notices.md).
+The bundled Material Symbols Rounded font keeps its own Apache License 2.0 terms, and the
+word-embedding table the local engine uses (`models/potion-base-4M.int8.bin`, derived from
+potion-base-4M) keeps its MIT terms; see [third-party notices](third-party-notices.md).

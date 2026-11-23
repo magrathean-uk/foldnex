@@ -1,0 +1,822 @@
+{
+ "started": "2026-11-22T18-20-42",
+ "model": "claude-haiku-5-5",
+ "mode": "plan",
+ "thinking": "adaptive",
+ "effort": "medium",
+ "thinking_sent": {
+  "type": "adaptive"
+ },
+ "effort_sent": "medium",
+ "thinking_note": "adaptive thinking",
+ "windows": [
+  "dev",
+  "life"
+ ],
+ "repeats": 2,
+ "api_version": "2026-10-21",
+ "max_cost_usd": 0.4,
+ "cost_usd": 0.0055306,
+ "stopped_early": false,
+ "stability": [
+  {
+   "window": "dev",
+   "a": 0,
+   "b": 1,
+   "f1": 0.759656652360515
+  },
+  {
+   "window": "life",
+   "a": 0,
+   "b": 1,
+   "f1": 0.870712401055409
+  }
+ ],
+ "units": [
+  {
+   "window": "dev",
+   "repeat": 0,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 9501,
+   "input_tokens": 3143,
+   "output_tokens": 2043,
+   "thinking_tokens": 1770,
+   "cost_usd": 0.0013358,
+   "score": {
+    "p": 0.6954732510288066,
+    "r": 0.9548022598870056,
+    "f1": 0.8047619047619048,
+    "groups": 8
+   },
+   "groups": 8,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Project",
+    "AI Model APIs",
+    "Server Setup",
+    "Swift iOS App",
+    "UK Company Admin",
+    "MacBook Purchase",
+    "London Trip",
+    "Review Later"
+   ],
+   "group_sizes": [
+    8,
+    10,
+    8,
+    7,
+    6,
+    6,
+    2,
+    16
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 9499,
+     "headers_ms": 1134,
+     "ttfb_ms": 1135,
+     "first_token_ms": 8783,
+     "stop_reason": "end_turn",
+     "input_tokens": 3143,
+     "output_tokens": 2043,
+     "thinking_tokens": 1770,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "adaptive"
+      },
+      "effort": "medium",
+      "note": "adaptive thinking",
+      "max_tokens": 9156
+     },
+     "usage_raw": {
+      "input_tokens": 3143,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 2043,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 1770
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Project",
+      "ids": [
+       0,
+       4,
+       16,
+       32,
+       35,
+       39,
+       47,
+       61
+      ]
+     },
+     {
+      "name": "AI Model APIs",
+      "ids": [
+       9,
+       10,
+       14,
+       17,
+       19,
+       21,
+       29,
+       36,
+       54,
+       62
+      ]
+     },
+     {
+      "name": "Server Setup",
+      "ids": [
+       11,
+       15,
+       18,
+       20,
+       27,
+       34,
+       49,
+       51
+      ]
+     },
+     {
+      "name": "Swift iOS App",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "UK Company Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "London Trip",
+      "ids": [
+       45,
+       58
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       2,
+       3,
+       6,
+       12,
+       13,
+       22,
+       24,
+       26,
+       30,
+       37,
+       42,
+       43,
+       53,
+       57,
+       60
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 0,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 7228,
+   "input_tokens": 3270,
+   "output_tokens": 1735,
+   "thinking_tokens": 1449,
+   "cost_usd": 0.0011945,
+   "score": {
+    "p": 0.8697916666666666,
+    "r": 1,
+    "f1": 0.9303621169916435,
+    "groups": 9
+   },
+   "groups": 9,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Model Y",
+    "Job Search",
+    "Household Money",
+    "Running Training",
+    "Cooking Recipes",
+    "Streaming and News",
+    "Review Later"
+   ],
+   "group_sizes": [
+    11,
+    7,
+    6,
+    6,
+    6,
+    7,
+    6,
+    10,
+    3
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 7227,
+     "headers_ms": 777,
+     "ttfb_ms": 777,
+     "first_token_ms": 6493,
+     "stop_reason": "end_turn",
+     "input_tokens": 3270,
+     "output_tokens": 1735,
+     "thinking_tokens": 1449,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "adaptive"
+      },
+      "effort": "medium",
+      "note": "adaptive thinking",
+      "max_tokens": 9144
+     },
+     "usage_raw": {
+      "input_tokens": 3270,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 1735,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 1449
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59,
+       25,
+       23
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Model Y",
+      "ids": [
+       28,
+       29,
+       31,
+       54,
+       48,
+       12
+      ]
+     },
+     {
+      "name": "Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Household Money",
+      "ids": [
+       0,
+       7,
+       19,
+       53,
+       58,
+       3
+      ]
+     },
+     {
+      "name": "Running Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       52,
+       56,
+       51
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Streaming and News",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45,
+       50,
+       35,
+       37,
+       16,
+       57
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       17,
+       26,
+       61
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "dev",
+   "repeat": 1,
+   "tabs": 63,
+   "failed": false,
+   "wall_ms": 9778,
+   "input_tokens": 3143,
+   "output_tokens": 2289,
+   "thinking_tokens": 1980,
+   "cost_usd": 0.0014588,
+   "score": {
+    "p": 0.8435754189944135,
+    "r": 0.8531073446327684,
+    "f1": 0.848314606741573,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Tabsort Project",
+    "iOS App Release",
+    "LLM API Models",
+    "Server Setup",
+    "UK Business Admin",
+    "MacBook Purchase",
+    "Cambridge Trip",
+    "Entertainment",
+    "Weekly Sync",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    8,
+    8,
+    6,
+    6,
+    2,
+    4,
+    4,
+    8
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 9778,
+     "headers_ms": 837,
+     "ttfb_ms": 837,
+     "first_token_ms": 9009,
+     "stop_reason": "end_turn",
+     "input_tokens": 3143,
+     "output_tokens": 2289,
+     "thinking_tokens": 1980,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "adaptive"
+      },
+      "effort": "medium",
+      "note": "adaptive thinking",
+      "max_tokens": 9156
+     },
+     "usage_raw": {
+      "input_tokens": 3143,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 2289,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 1980
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Tabsort Project",
+      "ids": [
+       0,
+       4,
+       61,
+       32,
+       16,
+       35,
+       39,
+       47,
+       9,
+       10
+      ]
+     },
+     {
+      "name": "iOS App Release",
+      "ids": [
+       5,
+       38,
+       40,
+       41,
+       44,
+       50,
+       55
+      ]
+     },
+     {
+      "name": "LLM API Models",
+      "ids": [
+       14,
+       17,
+       19,
+       21,
+       36,
+       54,
+       62,
+       29
+      ]
+     },
+     {
+      "name": "Server Setup",
+      "ids": [
+       11,
+       18,
+       20,
+       15,
+       27,
+       34,
+       51,
+       49
+      ]
+     },
+     {
+      "name": "UK Business Admin",
+      "ids": [
+       7,
+       8,
+       23,
+       25,
+       46,
+       56
+      ]
+     },
+     {
+      "name": "MacBook Purchase",
+      "ids": [
+       28,
+       31,
+       33,
+       48,
+       52,
+       59
+      ]
+     },
+     {
+      "name": "Cambridge Trip",
+      "ids": [
+       58,
+       45
+      ]
+     },
+     {
+      "name": "Entertainment",
+      "ids": [
+       13,
+       22,
+       24,
+       43
+      ]
+     },
+     {
+      "name": "Weekly Sync",
+      "ids": [
+       2,
+       57,
+       42,
+       60
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       1,
+       3,
+       6,
+       12,
+       26,
+       30,
+       37,
+       53
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "window": "life",
+   "repeat": 1,
+   "tabs": 62,
+   "failed": false,
+   "wall_ms": 9414,
+   "input_tokens": 3270,
+   "output_tokens": 2429,
+   "thinking_tokens": 2120,
+   "cost_usd": 0.0015415,
+   "score": {
+    "p": 0.9642857142857143,
+    "r": 0.9700598802395209,
+    "f1": 0.9671641791044777,
+    "groups": 10
+   },
+   "groups": 10,
+   "left_out": 0,
+   "invalid_ids": 0,
+   "duplicate_ids": 0,
+   "group_names": [
+    "Japan Trip",
+    "Kitchen Renovation",
+    "Tesla Model Y",
+    "Engineer Job Search",
+    "Bills and Money",
+    "Marathon Training",
+    "Cooking Recipes",
+    "Shows and Music",
+    "News Reading",
+    "Review Later"
+   ],
+   "group_sizes": [
+    10,
+    7,
+    5,
+    6,
+    7,
+    7,
+    6,
+    5,
+    5,
+    4
+   ],
+   "requests": [
+    {
+     "ok": true,
+     "status": 200,
+     "error": null,
+     "wall_ms": 9413,
+     "headers_ms": 1047,
+     "ttfb_ms": 1047,
+     "first_token_ms": 8626,
+     "stop_reason": "end_turn",
+     "input_tokens": 3270,
+     "output_tokens": 2429,
+     "thinking_tokens": 2120,
+     "cache_read_tokens": 0,
+     "sent": {
+      "thinking": {
+       "type": "adaptive"
+      },
+      "effort": "medium",
+      "note": "adaptive thinking",
+      "max_tokens": 9144
+     },
+     "usage_raw": {
+      "input_tokens": 3270,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 2429,
+      "service_tier": "standard",
+      "inference_geo": "global",
+      "speed": "standard",
+      "output_tokens_details": {
+       "thinking_tokens": 2120
+      }
+     }
+    }
+   ],
+   "answer": {
+    "folders": [
+     {
+      "name": "Japan Trip",
+      "ids": [
+       4,
+       25,
+       30,
+       32,
+       33,
+       34,
+       39,
+       41,
+       42,
+       59
+      ]
+     },
+     {
+      "name": "Kitchen Renovation",
+      "ids": [
+       9,
+       10,
+       22,
+       27,
+       46,
+       47,
+       55
+      ]
+     },
+     {
+      "name": "Tesla Model Y",
+      "ids": [
+       28,
+       29,
+       31,
+       48,
+       54
+      ]
+     },
+     {
+      "name": "Engineer Job Search",
+      "ids": [
+       2,
+       8,
+       11,
+       14,
+       49,
+       60
+      ]
+     },
+     {
+      "name": "Bills and Money",
+      "ids": [
+       0,
+       3,
+       7,
+       12,
+       19,
+       53,
+       58
+      ]
+     },
+     {
+      "name": "Marathon Training",
+      "ids": [
+       15,
+       21,
+       36,
+       43,
+       51,
+       52,
+       56
+      ]
+     },
+     {
+      "name": "Cooking Recipes",
+      "ids": [
+       6,
+       13,
+       18,
+       20,
+       38,
+       40
+      ]
+     },
+     {
+      "name": "Shows and Music",
+      "ids": [
+       1,
+       5,
+       24,
+       44,
+       45
+      ]
+     },
+     {
+      "name": "News Reading",
+      "ids": [
+       16,
+       35,
+       37,
+       50,
+       57
+      ]
+     },
+     {
+      "name": "Review Later",
+      "ids": [
+       17,
+       23,
+       26,
+       61
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

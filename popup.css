@@ -167,6 +167,21 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   font-size: 12px;
   animation: reveal 220ms cubic-bezier(.22,1,.36,1);
 }
+.plan-offer {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 6px 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+  font-size: 12px;
+  animation: reveal 220ms cubic-bezier(.22,1,.36,1);
+}
+.plan-offer-btn { flex: none; min-height: 32px; }
 .status-box.success { color: var(--success); }
 .status-box.warning { color: var(--warning); }
 .status-box.error { color: var(--danger); }
@@ -217,7 +232,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .strategy-choice input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: -2px; }
 .secondary-field-label { display: block; margin: 14px 0 7px; }
 .engine-meta { margin: 9px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.nano-hint { margin: 9px 0 0; color: var(--quiet); font-size: 12px; }
+.engine-hint { margin: 9px 0 0; color: var(--quiet); font-size: 12px; }
 .setup-card { display: flex; flex-direction: column; gap: 8px; }
 .setup-title { margin: 0; font-size: 16px; font-weight: 720; line-height: 1.25; letter-spacing: -0.02em; }
 .setup-intro { margin: -4px 0 4px; color: var(--muted); font-size: 12px; }
@@ -238,7 +253,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 }
 .setup-choice:hover { border-color: var(--hover-border); background: var(--surface-muted); }
 .setup-choice[aria-current="true"] { border-color: var(--violet); background: var(--selection-soft); }
-.setup-choice[aria-disabled="true"] { border-color: var(--line); color: var(--muted); background: var(--surface-muted); cursor: not-allowed; }
 .setup-choice-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .setup-choice-name { font-size: 13px; font-weight: 720; }
 .setup-pill {
@@ -254,7 +268,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .setup-pill.current { color: var(--violet); background: var(--selection-soft); }
 .setup-choice-copy { color: var(--muted); font-size: 12px; line-height: 1.4; }
 .setup-choice-detail { color: var(--quiet); font-size: 11px; line-height: 1.4; }
-.setup-choice-status { color: var(--warning); font-size: 12px; font-weight: 650; line-height: 1.4; }
 .stats-card { display: grid; grid-template-columns: 1fr 1.35fr; gap: 22px; }
 .stat-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .stat-desc { color: var(--quiet); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }

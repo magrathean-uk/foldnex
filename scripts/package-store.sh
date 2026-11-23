@@ -12,6 +12,7 @@ CHECKSUM="${ARCHIVE}.sha256"
 
 FILES=(
   manifest.json
+  LICENSE
   background.js
   popup.html
   popup.css
@@ -23,9 +24,11 @@ FILES=(
   src/background-classifier.js
   src/cache-engine.js
   src/debug-trace.js
+  src/embedder.js
   src/group-state.js
   src/grouper.js
   src/label-vocabulary.js
+  src/local-engine.js
   src/planner.js
   src/provider-usage.js
   src/settings.js
@@ -36,6 +39,9 @@ FILES=(
   icons/icon128.png
   icons/material-symbols-rounded.ttf
   icons/material-symbols-LICENSE.txt
+  models/potion-base-4M.int8.bin
+  models/potion-base-4M.json
+  models/potion-base-4M-LICENSE.txt
 )
 
 for file in "${FILES[@]}"; do
