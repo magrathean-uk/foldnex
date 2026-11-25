@@ -152,7 +152,14 @@ async function refreshTabCount() {
       const url = t.url || t.pendingUrl || '';
       return !t.pinned && url && !UNGROUPABLE_PREFIXES.some(p => url.startsWith(p));
     });
-    tabCountLabel.textContent = `${groupable.length} groupable ${groupable.length === 1 ? 'tab' : 'tabs'}`;
+    // The number is its own span so the popup can set it large; the label reads as one phrase.
+    const number = document.createElement('span');
+    number.className = 'tab-count-number';
+    number.textContent = String(groupable.length);
+    const noun = document.createElement('span');
+    noun.textContent = ` groupable ${groupable.length === 1 ? 'tab' : 'tabs'}`;
+    tabCountLabel.textContent = '';
+    tabCountLabel.append(number, noun);
   } catch (err) {
     tabCountLabel.textContent = 'Tabs ready';
   }

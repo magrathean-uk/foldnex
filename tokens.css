@@ -1,0 +1,173 @@
+/*
+ * Foldnex design tokens, shared by the popup and Settings.
+ * Light values first; dark values follow prefers-color-scheme.
+ * Every colour pair used for text meets WCAG AA (4.5:1); control borders and
+ * toggle tracks meet 3:1 against their surface. See docs/architecture/design.md.
+ */
+@font-face {
+  font-family: "Material Symbols Rounded";
+  src: url("icons/material-symbols-rounded.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --page: #f4f5f7;
+  --surface: #ffffff;
+  --surface-sunken: #eef0f3;
+  --surface-hover: #f3f5f8;
+  --surface-inverse: #1b2129;
+
+  /* Text */
+  --ink: #1b2129;
+  --muted: #4c5563;
+  --quiet: #5f6875;
+  --ink-inverse: #f4f6f8;
+
+  /* Lines */
+  --line: #e2e5ea;
+  --line-strong: #cfd4db;
+  --control-border: #8a929e;
+  --control-border-hover: #5f6875;
+
+  /* Action (brand blue, matched to the icon) */
+  --accent: #1c5fd4;
+  --accent-hover: #164eb3;
+  --accent-ink: #1a56c4;
+  --on-accent: #ffffff;
+  --accent-soft: #e8f0fc;
+  --focus: #1c5fd4;
+
+  /* Status */
+  --success: #1e7148;
+  --success-soft: #e9f5ee;
+  --success-line: #b9dcc8;
+  --warning: #8a5300;
+  --warning-soft: #fdf4e2;
+  --warning-line: #ecd3a2;
+  --danger: #b42d26;
+  --danger-soft: #fdeeec;
+  --danger-line: #efc0bb;
+  --on-danger: #ffffff;
+
+  /* Toggle */
+  --toggle-off: #8a929e;
+  --toggle-thumb: #ffffff;
+
+  /* Chrome tab group colours (rule badges) */
+  --group-grey: #5f6368;
+  --group-blue: #1a73e8;
+  --group-red: #d93025;
+  --group-yellow: #e8a400;
+  --group-green: #1e8e3e;
+  --group-pink: #d01884;
+  --group-purple: #9334e6;
+  --group-cyan: #007b83;
+  --group-orange: #e8710a;
+
+  /* Type */
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 34px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading-tight: 1.25;
+  --leading: 1.5;
+
+  /* Space (4px steps) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Shape: the 10px family */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  /* Size */
+  --control-height: 40px;
+  --control-height-sm: 32px;
+  --target: 44px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(20, 24, 31, .06);
+  --shadow-2: 0 8px 28px rgba(20, 24, 31, .16);
+
+  /* Motion */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --duration-fast: 140ms;
+  --duration: 200ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #121418;
+    --surface: #1a1d23;
+    --surface-sunken: #15181d;
+    --surface-hover: #22262d;
+    --surface-inverse: #e8ebef;
+
+    --ink: #e8ebef;
+    --muted: #b3bac4;
+    --quiet: #959daa;
+    --ink-inverse: #15181d;
+
+    --line: #2b3038;
+    --line-strong: #3a414b;
+    --control-border: #69727f;
+    --control-border-hover: #959daa;
+
+    --accent: #8ab4f8;
+    --accent-hover: #a8c7fa;
+    --accent-ink: #8ab4f8;
+    --on-accent: #0f1b2d;
+    --accent-soft: #1f2b3d;
+    --focus: #8ab4f8;
+
+    --success: #7dd3a0;
+    --success-soft: #16261e;
+    --success-line: #2c4a3a;
+    --warning: #f2b85c;
+    --warning-soft: #2a2215;
+    --warning-line: #4d3c1f;
+    --danger: #f28b82;
+    --danger-soft: #2c1b1a;
+    --danger-line: #57302d;
+    --on-danger: #1a1d23;
+
+    --toggle-off: #69727f;
+    --toggle-thumb: #f4f6f8;
+
+    --group-grey: #bdc1c6;
+    --group-blue: #8ab4f8;
+    --group-red: #f28b82;
+    --group-yellow: #fdd663;
+    --group-green: #81c995;
+    --group-pink: #ff8bcb;
+    --group-purple: #c58af9;
+    --group-cyan: #78d9ec;
+    --group-orange: #fcad70;
+
+    --shadow-1: none;
+    --shadow-2: 0 10px 32px rgba(0, 0, 0, .5);
+  }
+}

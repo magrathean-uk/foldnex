@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>Foldnex Settings</title>
+  <link rel="stylesheet" href="../tokens.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <div class="app-layout">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <img src="../icons/icon32.png" alt="Foldnex Logo" class="brand-logo">
-        <span class="brand-name">Foldnex</span>
+        <img src="../icons/icon32.png" alt="" class="brand-logo">
+        <span class="brand-copy">
+          <span class="brand-name">Foldnex</span>
+          <span class="brand-sub">Settings</span>
+        </span>
       </div>
       <nav class="nav-menu" role="tablist" aria-label="Settings sections">
         <button id="nav-providers" class="nav-item active" type="button" role="tab" aria-controls="tab-providers" aria-selected="true" tabindex="0" data-tab="providers">
@@ -30,54 +33,58 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <span class="version-label" id="appVersion">Foldnex v2.2.0</span>
+        <span class="version-label" id="appVersion">Foldnex v2.3.0</span>
         <div class="sidebar-footer-links">
           <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
-          <span aria-hidden="true">·</span>
           <a href="https://github.com/magrathean-uk/foldnex/blob/main/docs/legal/privacy.md" target="_blank" rel="noopener noreferrer">Privacy policy</a>
         </div>
       </div>
     </aside>
 
-    <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Toast notification -->
       <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-      <!-- TAB 1: AI PROVIDERS -->
+      <!-- Grouping engines -->
       <section id="tab-providers" class="tab-panel active" role="tabpanel" aria-labelledby="nav-providers">
-        <div id="engine" class="section-header">
+        <header id="engine" class="section-header">
           <h2>Grouping engines</h2>
           <p class="section-subtitle">Choose how Foldnex understands the tabs in your current window.</p>
-        </div>
+        </header>
 
-        <div id="providerPicker" class="provider-picker is-collapsed">
-          <button id="providerSelector" class="provider-selector" type="button" aria-expanded="false" aria-controls="providerList">
-            <span class="provider-selector-icon material-symbols-rounded" aria-hidden="true">tune</span>
-            <span class="provider-selector-copy">
-              <span class="provider-selector-label">Selected engine</span>
-              <strong id="providerSelectorName">Choose a grouping engine</strong>
-              <span id="providerSelectorDescription">Select an engine to configure it.</span>
-            </span>
-            <span id="providerSelectorMode" class="status-pill">Engine</span>
-            <span id="providerSelectorAction" class="provider-selector-action">Change</span>
-          </button>
-          <div id="providerOptionsShell" class="provider-options-shell">
-            <div class="provider-options-clip">
-              <div id="providerList" class="provider-list" role="radiogroup" aria-label="Grouping engine" aria-hidden="true" inert></div>
+        <section class="group engine-group" aria-labelledby="engineGroupTitle">
+          <div class="group-head">
+            <h3 id="engineGroupTitle">Engine</h3>
+            <p class="group-help">Offline smart mode groups on this device. Ollama uses your own server. Cloud engines send page titles and a short site hint to the provider you choose, with your own API key.</p>
+          </div>
+          <div id="providerPicker" class="provider-picker is-collapsed">
+            <button id="providerSelector" class="provider-selector" type="button" aria-expanded="false" aria-controls="providerList">
+              <span class="provider-selector-icon material-symbols-rounded" aria-hidden="true">tune</span>
+              <span class="provider-selector-copy">
+                <span class="provider-selector-label">Selected engine</span>
+                <strong id="providerSelectorName">Choose a grouping engine</strong>
+                <span id="providerSelectorDescription">Select an engine to configure it.</span>
+              </span>
+              <span id="providerSelectorMode" class="status-pill">Engine</span>
+              <span id="providerSelectorAction" class="provider-selector-action">Change</span>
+            </button>
+            <div id="providerOptionsShell" class="provider-options-shell">
+              <div class="provider-options-clip">
+                <div id="providerList" class="provider-list" role="radiogroup" aria-label="Grouping engine" aria-hidden="true" inert></div>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
         <!-- Shown while first-run Cloud setup waits for a key; the saved engine stays active until then. -->
         <div id="pendingEngineNote" class="pending-engine-note hidden" role="status"></div>
 
-        <!-- Provider Details Configurations -->
-        <!-- Gemini API Config Details -->
-        <div id="panel-gemini-details" class="provider-settings-box hidden" tabindex="-1">
-          <h3>Google Gemini API Configuration</h3>
+        <!-- Google Gemini -->
+        <div id="panel-gemini-details" class="provider-settings-box group hidden" tabindex="-1">
+          <div class="group-head">
+            <h3>Google Gemini configuration</h3>
+          </div>
           <div class="form-group">
-            <label for="geminiApiKey">Gemini API Key</label>
+            <label for="geminiApiKey">API key</label>
             <div class="api-key-row">
               <div class="input-with-action">
                 <input type="password" id="geminiApiKey" placeholder="AIzaSy...">
@@ -110,13 +117,15 @@
           </div>
 
           <div class="action-buttons">
-            <button id="btnSaveGemini" class="primary-btn">Save Gemini Settings</button>
+            <button id="btnSaveGemini" class="primary-btn">Save Gemini settings</button>
           </div>
         </div>
 
-        <!-- OpenAI-compatible provider details -->
-        <div id="panel-compatible-details" class="provider-settings-box hidden" tabindex="-1">
-          <h3 id="compatibleProviderTitle">Provider configuration</h3>
+        <!-- OpenAI-compatible and Anthropic providers -->
+        <div id="panel-compatible-details" class="provider-settings-box group hidden" tabindex="-1">
+          <div class="group-head">
+            <h3 id="compatibleProviderTitle">Provider configuration</h3>
+          </div>
           <div class="form-group">
             <label for="compatibleApiKey" id="compatibleApiKeyLabel">API key</label>
             <div class="api-key-row">
@@ -150,7 +159,7 @@
             <span id="compatibleReasoningHelp" class="form-help" role="status">Reasoning options depend on the selected model.</span>
           </div>
 
-          <div id="openaiPrioritySection" class="setting-item hidden">
+          <div id="openaiPrioritySection" class="setting-item form-row-setting hidden">
             <div class="setting-text">
               <div class="setting-name">Priority processing</div>
               <div class="setting-description">Requests OpenAI’s priority tier, which can cost more. Availability and speed are up to OpenAI.</div>
@@ -164,7 +173,7 @@
           <div class="form-group">
             <label for="compatibleBaseUrl">API base URL</label>
             <input type="text" id="compatibleBaseUrl" class="form-input" readonly>
-            <span id="compatibleBaseUrlNote" class="form-help hidden"></span>
+            <span id="compatibleBaseUrlNote" class="form-help form-note hidden"></span>
           </div>
 
           <div id="oauthSection" class="sub-section hidden">
@@ -181,9 +190,11 @@
           </div>
         </div>
 
-        <!-- Offline Smart Mode Details -->
-        <div id="panel-offline-details" class="provider-settings-box hidden" tabindex="-1">
-          <h3>Offline smart mode</h3>
+        <!-- Offline smart mode -->
+        <div id="panel-offline-details" class="provider-settings-box group hidden" tabindex="-1">
+          <div class="group-head">
+            <h3>Offline smart mode</h3>
+          </div>
           <div class="engine-status-banner">
             <div id="offlineSummary">Groups tabs on this device from their titles, words from their addresses and a small word table built into Foldnex. Nothing is sent.</div>
           </div>
@@ -197,8 +208,10 @@
         </div>
 
         <!-- Ollama on this device only: how long its model stays loaded -->
-        <section id="onDeviceSettings" class="provider-settings-box on-device-settings hidden" aria-labelledby="onDeviceHeading">
-          <h3 id="onDeviceHeading">Model memory</h3>
+        <section id="onDeviceSettings" class="provider-settings-box group on-device-settings hidden" aria-labelledby="onDeviceHeading">
+          <div class="group-head">
+            <h3 id="onDeviceHeading">Model memory</h3>
+          </div>
           <div id="modelUnloadRow" class="setting-item stackable">
             <div class="setting-text">
               <label class="setting-name" for="prefModelUnloadAfter">Unload the Ollama model</label>
@@ -216,27 +229,29 @@
         </section>
       </section>
 
-      <!-- TAB 2: LEARNED RULES & MEMORY CACHE -->
+      <!-- Rules and memory -->
       <section id="tab-learning" class="tab-panel" role="tabpanel" aria-labelledby="nav-learning">
-        <div class="section-header">
+        <header class="section-header">
           <h2>Rules & memory</h2>
           <p class="section-subtitle">URL rules override grouping and their tabs are not sent to a model. Private windows always use Offline smart mode and do not read rules. An unchanged window’s result is reused for up to six hours.</p>
-        </div>
+        </header>
 
-        <!-- Add Manual Rule Form -->
-        <div class="card add-rule-card">
-          <h3>Add Custom Rule Override</h3>
+        <section class="group add-rule-card" aria-labelledby="addRuleTitle">
+          <div class="group-head">
+            <h3 id="addRuleTitle">Add a rule</h3>
+            <p class="group-help">Tabs whose address matches the pattern always go to this group. Start with the host, add a path if you need one, and use * as a wildcard.</p>
+          </div>
           <div class="add-rule-grid">
-            <div class="form-group">
-              <label for="newRulePattern">URL pattern (host, then optional path; * as wildcard)</label>
+            <div class="form-group stacked">
+              <label for="newRulePattern">URL pattern</label>
               <input type="text" id="newRulePattern" placeholder="github.com/my-org/*" class="form-input">
             </div>
-            <div class="form-group">
-              <label for="newRuleCategory">Group Name</label>
-              <input type="text" id="newRuleCategory" placeholder="Work Projects" class="form-input">
+            <div class="form-group stacked">
+              <label for="newRuleCategory">Group name</label>
+              <input type="text" id="newRuleCategory" placeholder="Work projects" class="form-input">
             </div>
-            <div class="form-group">
-              <label for="newRuleColor">Color</label>
+            <div class="form-group stacked">
+              <label for="newRuleColor">Colour</label>
               <select id="newRuleColor" class="form-select">
                 <option value="blue">Blue</option>
                 <option value="green">Green</option>
@@ -249,51 +264,60 @@
                 <option value="grey">Grey</option>
               </select>
             </div>
-            <div class="form-group align-end">
+            <div class="form-group stacked align-end">
               <button id="btnAddRule" class="primary-btn"><span class="material-symbols-rounded" aria-hidden="true">add</span>Add rule</button>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Rules List -->
-        <div class="rules-table-container">
-          <div class="table-toolbar">
-            <input type="text" id="searchRulesInput" placeholder="Filter patterns..." aria-label="Filter URL rules" class="search-input">
+        <section class="group rules-table-container" aria-labelledby="rulesTitle">
+          <div class="group-head table-toolbar">
+            <h3 id="rulesTitle">Your rules</h3>
             <div class="toolbar-actions">
+              <input type="text" id="searchRulesInput" placeholder="Filter patterns" aria-label="Filter URL rules" class="search-input">
               <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
               <button id="btnImportRules" class="secondary-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import JSON</button>
               <button id="btnExportRules" class="secondary-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">download</span>Export JSON</button>
-              <button id="btnClearRules" class="danger-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Clear all rules</button>
             </div>
           </div>
 
-          <table class="rules-table">
-            <thead>
-              <tr>
-                <th>Pattern</th>
-                <th>Category</th>
-                <th>Color</th>
-                <th>Confidence</th>
-                <th>Matches</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="rulesTableBody">
-              <!-- Dynamically populated -->
-            </tbody>
-          </table>
-          <div id="noRulesMsg" class="empty-state hidden">No custom URL rules. Foldnex still remembers unchanged windows and scoped group renames.</div>
-        </div>
+          <div class="table-scroll">
+            <table class="rules-table">
+              <thead>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Group</th>
+                  <th>Colour</th>
+                  <th>Confidence</th>
+                  <th>Matches</th>
+                  <th><span class="visually-hidden">Action</span></th>
+                </tr>
+              </thead>
+              <tbody id="rulesTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+          <div id="noRulesMsg" class="empty-state hidden">No custom URL rules yet. Foldnex still remembers unchanged windows and scoped group renames.</div>
+
+          <div class="group-footer danger-zone">
+            <p>Clearing removes every rule and the grouping memory kept on this device.</p>
+            <button id="btnClearRules" class="danger-btn small-btn"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Clear all rules</button>
+          </div>
+        </section>
       </section>
 
-      <!-- TAB 3: BEHAVIOR & SHORTCUTS -->
+      <!-- Behaviour -->
       <section id="tab-behavior" class="tab-panel" role="tabpanel" aria-labelledby="nav-behavior">
-        <div class="section-header">
+        <header class="section-header">
           <h2>Behaviour</h2>
           <p class="section-subtitle">Choose how Foldnex groups tabs, acts from the toolbar, and presents the result.</p>
-        </div>
+        </header>
 
-        <div class="settings-list">
+        <section class="group settings-list" aria-labelledby="groupingPrefsTitle">
+          <div class="group-head">
+            <h3 id="groupingPrefsTitle">Grouping</h3>
+          </div>
           <fieldset class="setting-item strategy-setting">
             <legend class="visually-hidden">Grouping strategy</legend>
             <div class="setting-text">
@@ -303,25 +327,14 @@
             <div class="strategy-choice" role="radiogroup" aria-label="Grouping strategy">
               <label>
                 <input type="radio" name="groupingStrategy" value="task">
-                <span><strong>By task</strong><small>Title-aware</small></span>
+                <span><strong>By task</strong><small>Reads page titles</small></span>
               </label>
               <label>
                 <input type="radio" name="groupingStrategy" value="site">
-                <span><strong>By site category</strong><small>Local · no AI</small></span>
+                <span><strong>By site category</strong><small>Local, no AI</small></span>
               </label>
             </div>
           </fieldset>
-
-          <div class="setting-item">
-            <div class="setting-text">
-              <div class="setting-name">Run from toolbar</div>
-              <div class="setting-description">Skip the popup and clean the current window immediately, once setup is answered.</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="prefOneClickMode" aria-label="Run directly from toolbar">
-              <span class="slider round"></span>
-            </label>
-          </div>
 
           <div class="setting-item">
             <div class="setting-text">
@@ -344,66 +357,79 @@
               <span class="slider round"></span>
             </label>
           </div>
-        </div>
+        </section>
 
-        <div class="section-header diagnostics-heading">
-          <h3>Last cleanup</h3>
-          <p class="section-subtitle">Recent run details. Titles, URLs, prompts and provider responses are not stored here, but group names can contain words from them.</p>
-        </div>
-
-        <dl class="diagnostics-grid" aria-live="polite">
-          <div><dt>Engine</dt><dd id="diagEngine">No run recorded</dd></div>
-          <div><dt>Source</dt><dd id="diagSource">—</dd></div>
-          <div><dt>Outcome</dt><dd id="diagOutcome">—</dd></div>
-          <div><dt>Tokens</dt><dd id="diagTokens">—</dd></div>
-          <div><dt>Latency</dt><dd id="diagLatency">—</dd></div>
-          <div><dt>Quality</dt><dd id="diagQuality">—</dd></div>
-          <div><dt>Fallback</dt><dd id="diagFallback">—</dd></div>
-          <div><dt>Reasoning effort</dt><dd id="diagReasoning">—</dd></div>
-          <div><dt>Reasoning tokens</dt><dd id="diagReasoningTokens">—</dd></div>
-        </dl>
-        <div class="diagnostics-actions">
-          <button id="btnClearDiagnostics" class="secondary-btn small-btn" type="button">Clear run history</button>
-        </div>
-
-        <div class="section-header provider-usage-heading">
-          <h3>Provider request usage</h3>
-          <p class="section-subtitle">Every cleanup and connection-test request Foldnex starts, including failed and late ones, with the tokens the provider reports. Model lists and Incognito cleanups are not counted. Totals accumulate until cleared. Titles, URLs, prompts and keys are never stored here.</p>
-        </div>
-        <dl class="diagnostics-grid" aria-live="polite">
-          <div><dt>Requests</dt><dd id="usageRequests">0</dd></div>
-          <div><dt>Reported tokens</dt><dd id="usageTokens">—</dd></div>
-          <div><dt>Input cache tokens</dt><dd id="usageCache">—</dd></div>
-          <div><dt>Providers</dt><dd id="usageProviders">No requests recorded</dd></div>
-          <div><dt>Reasoning tokens</dt><dd id="usageReasoning">—</dd></div>
-          <div><dt>Usage coverage</dt><dd id="usageCoverage">No requests recorded</dd></div>
-        </dl>
-        <div class="diagnostics-actions">
-          <button id="btnClearProviderUsage" class="secondary-btn small-btn" type="button">Clear provider usage</button>
-        </div>
-
-        <div class="section-header" style="margin-top: 32px;">
-          <h3>Keyboard shortcuts</h3>
-          <p class="section-subtitle">Suggested Chrome shortcuts, active while Chrome is focused. Your current assignments may differ.</p>
-        </div>
-
-        <div class="shortcuts-box">
+        <section class="group settings-list shortcuts-box" aria-labelledby="startingTitle">
+          <div class="group-head">
+            <h3 id="startingTitle">Starting a cleanup</h3>
+          </div>
+          <div class="setting-item">
+            <div class="setting-text">
+              <div class="setting-name">Run from toolbar</div>
+              <div class="setting-description">Skip the popup and clean the current window immediately, once setup is answered.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="prefOneClickMode" aria-label="Run directly from toolbar">
+              <span class="slider round"></span>
+            </label>
+          </div>
           <div class="shortcut-row">
-            <span>Clean up and group tabs</span>
+            <span class="setting-name">Clean up and group tabs</span>
             <span class="shortcut-keys">
               <span class="shortcut-key-group"><kbd>Alt + G</kbd></span>
-              <span class="shortcut-key-group">(Mac: <kbd>⌘ + Shift + G</kbd>)</span>
+              <span class="shortcut-key-group">Mac <kbd>⌘ + Shift + G</kbd></span>
             </span>
           </div>
           <div class="shortcut-row">
-            <span>Ungroup all tabs</span>
+            <span class="setting-name">Ungroup all tabs</span>
             <span class="shortcut-keys">
               <span class="shortcut-key-group"><kbd>Alt + U</kbd></span>
-              <span class="shortcut-key-group">(Mac: <kbd>⌘ + Shift + U</kbd>)</span>
+              <span class="shortcut-key-group">Mac <kbd>⌘ + Shift + U</kbd></span>
             </span>
           </div>
-          <p class="shortcut-tip">You can customize these hotkeys at any time by visiting <a href="chrome://extensions/shortcuts" target="_blank">chrome://extensions/shortcuts</a>.</p>
-        </div>
+          <p class="shortcut-tip">Suggested Chrome shortcuts, active while Chrome is focused; your current assignments may differ. Change them at <a href="chrome://extensions/shortcuts" target="_blank">chrome://extensions/shortcuts</a>.</p>
+        </section>
+
+        <section class="group diagnostics-group" aria-labelledby="lastCleanupTitle">
+          <div class="group-head">
+            <h3 id="lastCleanupTitle">Last cleanup</h3>
+            <p class="group-help">Recent run details. Titles, URLs, prompts and provider responses are not stored here, but group names can contain words from them.</p>
+          </div>
+          <dl class="diagnostics-grid" aria-live="polite">
+            <div><dt>Engine</dt><dd id="diagEngine">No run recorded</dd></div>
+            <div><dt>Source</dt><dd id="diagSource">—</dd></div>
+            <div><dt>Outcome</dt><dd id="diagOutcome">—</dd></div>
+            <div><dt>Tokens</dt><dd id="diagTokens">—</dd></div>
+            <div><dt>Latency</dt><dd id="diagLatency">—</dd></div>
+            <div><dt>Quality</dt><dd id="diagQuality">—</dd></div>
+            <div><dt>Fallback</dt><dd id="diagFallback">—</dd></div>
+            <div><dt>Reasoning effort</dt><dd id="diagReasoning">—</dd></div>
+            <div><dt>Reasoning tokens</dt><dd id="diagReasoningTokens">—</dd></div>
+          </dl>
+          <div class="group-footer danger-zone diagnostics-actions">
+            <p>Clears the last cleanup and the run history.</p>
+            <button id="btnClearDiagnostics" class="danger-btn small-btn" type="button">Clear run history</button>
+          </div>
+        </section>
+
+        <section class="group diagnostics-group" aria-labelledby="usageTitle">
+          <div class="group-head">
+            <h3 id="usageTitle">Provider request usage</h3>
+            <p class="group-help">Every cleanup and connection-test request Foldnex starts, including failed and late ones, with the tokens the provider reports. Model lists and Incognito cleanups are not counted. Totals accumulate until cleared. Titles, URLs, prompts and keys are never stored here.</p>
+          </div>
+          <dl class="diagnostics-grid" aria-live="polite">
+            <div><dt>Requests</dt><dd id="usageRequests">0</dd></div>
+            <div><dt>Reported tokens</dt><dd id="usageTokens">—</dd></div>
+            <div><dt>Input cache tokens</dt><dd id="usageCache">—</dd></div>
+            <div><dt>Providers</dt><dd id="usageProviders">No requests recorded</dd></div>
+            <div><dt>Reasoning tokens</dt><dd id="usageReasoning">—</dd></div>
+            <div><dt>Usage coverage</dt><dd id="usageCoverage">No requests recorded</dd></div>
+          </dl>
+          <div class="group-footer danger-zone diagnostics-actions">
+            <p>Resets the accumulated totals to zero.</p>
+            <button id="btnClearProviderUsage" class="danger-btn small-btn" type="button">Clear provider usage</button>
+          </div>
+        </section>
       </section>
     </main>
   </div>

@@ -14,6 +14,7 @@ FILES=(
   manifest.json
   LICENSE
   background.js
+  tokens.css
   popup.html
   popup.css
   popup.js

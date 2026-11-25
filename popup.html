@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>Foldnex</title>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -21,31 +22,33 @@
 
     <section class="action-card" aria-labelledby="tabCountLabel">
       <div class="tab-summary">
-        <strong id="tabCountLabel">Scanning tabs…</strong>
+        <strong id="tabCountLabel" class="tab-count">Scanning tabs…</strong>
         <kbd id="tabShortcut" class="shortcut-pill hidden"></kbd>
       </div>
-      <p class="action-note">Remove duplicate pages, then organise the rest into focused groups.</p>
+      <p class="action-note">Removes duplicate pages, then sorts the rest of this window into named groups.</p>
       <button id="btnGroupTabs" class="primary-btn" type="button">
         <span class="btn-text">Clean up and group</span>
         <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
       </button>
-      <button id="btnUngroup" class="link-btn" type="button">Ungroup current window</button>
+
+      <div id="statusBox" class="status-box hidden" role="status" aria-live="polite">
+        <div id="statusSpinner" class="spinner hidden" aria-hidden="true"></div>
+        <div id="statusMessage" class="status-msg"></div>
+      </div>
+
+      <!-- A model plan that arrived after its cleanup; applied only on Apply. -->
+      <div id="planOffer" class="plan-offer hidden" role="status" aria-live="polite">
+        <span class="plan-offer-text">The model's grouping arrived after the cleanup.</span>
+        <button id="btnApplyPlan" class="link-btn plan-offer-btn" type="button">Apply</button>
+      </div>
+
+      <div class="action-secondary">
+        <button id="btnUngroup" class="link-btn quiet-btn" type="button">Ungroup current window</button>
+      </div>
     </section>
-
-    <div id="statusBox" class="status-box hidden" role="status" aria-live="polite">
-      <div id="statusSpinner" class="spinner hidden" aria-hidden="true"></div>
-      <div id="statusMessage" class="status-msg"></div>
-    </div>
-
-    <!-- A model plan that arrived after its cleanup; applied only on Apply. -->
-    <div id="planOffer" class="plan-offer hidden" role="status" aria-live="polite">
-      <span class="plan-offer-text">The model's grouping arrived after the cleanup.</span>
-      <button id="btnApplyPlan" class="link-btn plan-offer-btn" type="button">Apply</button>
-    </div>
 
     <!-- First-run choice, shown until setupChoice is saved. Clean up stays usable. -->
     <section id="setupCard" class="card setup-card hidden" aria-labelledby="setupTitle">
-      <span class="card-label">Setup</span>
       <h2 id="setupTitle" class="setup-title">Choose how Foldnex sorts your tabs</h2>
       <p class="setup-intro">You can change this later in Settings.</p>
       <div class="setup-choices">
@@ -61,7 +64,7 @@
         <button type="button" class="setup-choice" data-choice="offline" aria-labelledby="setupOfflineName setupOfflineBadge" aria-describedby="setupOfflineCopy">
           <span class="setup-choice-head">
             <span id="setupOfflineName" class="setup-choice-name">Offline smart mode</span>
-            <span id="setupOfflineBadge" class="setup-pill">Free · private</span>
+            <span id="setupOfflineBadge" class="setup-pill">Free, private</span>
             <span class="setup-pill current hidden">Current</span>
           </span>
           <span id="setupOfflineCopy" class="setup-choice-copy">Groups tabs on this computer from their titles, words from their addresses and a small word table built into Foldnex. Nothing is sent.</span>
@@ -76,59 +79,61 @@
       </div>
     </section>
 
-    <section class="card engine-card" aria-label="Grouping method">
+    <section class="card engine-card" aria-labelledby="engineCardTitle">
       <div class="card-header">
-        <span class="card-label">Grouping strategy</span>
+        <h2 id="engineCardTitle" class="card-title">How tabs are sorted</h2>
         <span id="engineBadge" class="badge">Checking…</span>
       </div>
       <fieldset class="strategy-choice">
         <legend class="visually-hidden">Grouping strategy</legend>
         <label>
           <input type="radio" name="groupingStrategy" value="task" checked>
-          <span>By task<small>Title-aware</small></span>
+          <span>By task<small>Reads page titles</small></span>
         </label>
         <label>
           <input type="radio" name="groupingStrategy" value="site">
-          <span>By site category<small>Local · no AI</small></span>
+          <span>By site category<small>Local, no AI</small></span>
         </label>
       </fieldset>
-      <label class="secondary-field-label" for="providerSelect">Task engine</label>
-      <select id="providerSelect" class="select-input" aria-label="Grouping engine">
-        <option value="offline">Offline smart mode · local</option>
-        <option value="gemini_api">Google Gemini</option>
-        <option value="openai">OpenAI</option>
-        <option value="xai">xAI · Grok</option>
-        <option value="groq">Groq</option>
-        <option value="openrouter">OpenRouter</option>
-        <option value="deepseek">DeepSeek</option>
-        <option value="cerebras">Cerebras</option>
-        <option value="ollama">Ollama</option>
-      </select>
+      <div class="engine-field">
+        <label class="field-label" for="providerSelect">Task engine</label>
+        <select id="providerSelect" class="select-input" aria-label="Grouping engine">
+          <option value="offline">Offline smart mode · local</option>
+          <option value="gemini_api">Google Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="xai">xAI · Grok</option>
+          <option value="groq">Groq</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="cerebras">Cerebras</option>
+          <option value="ollama">Ollama</option>
+        </select>
+      </div>
       <p id="modelReasoningSummary" class="engine-meta hidden"></p>
       <p id="engineHint" class="engine-hint hidden"></p>
     </section>
 
     <section class="card stats-card" aria-label="Local memory">
-      <div class="stat-item"><span class="stat-desc">Custom rules</span><strong id="statRulesCount" class="stat-val">0</strong></div>
-      <div class="stat-item"><span class="stat-desc">Last cleanup</span><strong id="statLastGrouped" class="stat-val">Never</strong></div>
+      <dl class="stats">
+        <div class="stat-item"><dt class="stat-desc">Custom rules</dt><dd id="statRulesCount" class="stat-val">0</dd></div>
+        <div class="stat-item"><dt class="stat-desc">Last cleanup</dt><dd id="statLastGrouped" class="stat-val">Never</dd></div>
+      </dl>
+      <div class="setting-toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-title" id="oneClickTitle">Run from toolbar</span>
+          <span class="toggle-desc">Skip this popup when the icon is clicked, once setup is answered</span>
+        </div>
+        <label class="switch" aria-label="Run directly from toolbar">
+          <input type="checkbox" id="toggleOneClickMode">
+          <span class="slider"></span>
+        </label>
+      </div>
     </section>
 
-    <div class="setting-toggle-row">
-      <div class="toggle-info">
-        <span class="toggle-title">Run from toolbar</span>
-        <span class="toggle-desc">Skip this popup when the icon is clicked, once setup is answered</span>
-      </div>
-      <label class="switch" aria-label="Run directly from toolbar">
-        <input type="checkbox" id="toggleOneClickMode">
-        <span class="slider"></span>
-      </label>
-    </div>
-
     <footer class="footer">
-      <span id="appVersion">Foldnex 2.2</span>
+      <span id="appVersion">Foldnex 2.3</span>
       <nav class="footer-links" aria-label="Foldnex links">
         <a href="https://magrathean.uk/donate/" target="_blank" rel="noopener noreferrer">Donate</a>
-        <span aria-hidden="true">·</span>
         <a href="#" id="linkManageRules">Rules and settings</a>
       </nav>
     </footer>

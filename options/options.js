@@ -195,32 +195,58 @@ navItems.forEach((item, index) => {
   });
 });
 
+// The chooser shows local engines apart from cloud ones; one radio group spans both.
+const PROVIDER_GROUPS = [
+  { id: 'providerGroupLocal', title: 'On this device or your own server', local: true },
+  { id: 'providerGroupCloud', title: 'Cloud providers, with your own API key', local: false }
+];
+
 function renderProviderList() {
   providerList.textContent = '';
-  Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
-    const label = document.createElement('label');
-    label.className = 'provider-row';
+  for (const group of PROVIDER_GROUPS) {
+    const section = document.createElement('div');
+    section.className = 'provider-group';
+    section.setAttribute('role', 'group');
+    section.setAttribute('aria-labelledby', group.id);
+    const heading = document.createElement('span');
+    heading.className = 'provider-group-title';
+    heading.id = group.id;
+    heading.textContent = group.title;
+    const rows = document.createElement('div');
+    rows.className = 'provider-group-rows';
 
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'providerSelect';
-    radio.value = id;
+    Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
+      const isLocal = provider.mode === 'local' || Boolean(provider.local);
+      if (isLocal !== group.local) return;
+      const label = document.createElement('label');
+      label.className = 'provider-row';
 
-    const copy = document.createElement('span');
-    copy.className = 'provider-row-copy';
-    const name = document.createElement('strong');
-    name.textContent = provider.name;
-    const description = document.createElement('span');
-    description.textContent = provider.description;
-    copy.append(name, description);
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'providerSelect';
+      radio.value = id;
 
-    const mode = document.createElement('span');
-    mode.className = 'status-pill';
-    mode.textContent = provider.mode === 'local' ? 'Local' : provider.local ? 'Your server' : 'Cloud';
+      const copy = document.createElement('span');
+      copy.className = 'provider-row-copy';
+      const name = document.createElement('strong');
+      name.textContent = provider.name;
+      const description = document.createElement('span');
+      description.textContent = provider.description;
+      copy.append(name, description);
+      label.append(radio, copy);
 
-    label.append(radio, copy, mode);
-    providerList.append(label);
-  });
+      // Cloud rows sit under the cloud heading; only local rows say where they run.
+      if (isLocal) {
+        const mode = document.createElement('span');
+        mode.className = 'status-pill';
+        mode.textContent = provider.mode === 'local' ? 'Local' : 'Your server';
+        label.append(mode);
+      }
+      rows.append(label);
+    });
+    section.append(heading, rows);
+    providerList.append(section);
+  }
 }
 
 function getProviderRadios() {
@@ -469,6 +495,7 @@ function renderModelOptions(provider, models, fetchedAt = 0) {
   ui.custom.classList.toggle('hidden', listed);
   if (!models.length) return;
   const age = fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString()}` : '';
+  ui.status.classList.remove('is-warning');
   ui.status.textContent = `${models.length} model${models.length === 1 ? '' : 's'} from the provider${age}. Choose one or enter a custom ID; your model changes only when you save. A listed model can still fail a cleanup.`;
 }
 
@@ -484,6 +511,7 @@ function invalidateModelCatalog(provider) {
   renderModelOptions(provider, []);
   ui.button.disabled = false;
   ui.button.textContent = 'Refresh models';
+  ui.status.classList.remove('is-warning');
   ui.status.textContent = 'Catalog needs refresh for the current connection settings.';
   const testButton = provider === 'gemini_api' ? btnTestGemini : btnTestCompatible;
   testButton.textContent = 'Test connection';
@@ -526,6 +554,7 @@ async function refreshModelCatalog(provider) {
 
   ui.button.disabled = true;
   ui.button.textContent = 'Loading…';
+  ui.status.classList.remove('is-warning');
   ui.status.textContent = 'Loading the live model catalog…';
   try {
     let listedProfiles = null;
@@ -547,6 +576,8 @@ async function refreshModelCatalog(provider) {
     return true;
   } catch (error) {
     if (isCurrent()) {
+      // A failed listing (access not allowed, rejected key, no answer) reads as a warning.
+      ui.status.classList.add('is-warning');
       ui.status.textContent = connectionErrorMessage(error, 'Model catalog request');
     }
     return false;
@@ -1223,19 +1254,10 @@ function renderRules(rules) {
   });
 }
 
+/** A Chrome tab group colour as the theme's token (tokens.css), so badges follow light and dark. */
 function getChromeColorHex(color) {
-  const map = {
-    grey: '#9aa0a6',
-    blue: '#1a73e8',
-    red: '#d93025',
-    yellow: '#f9ab00',
-    green: '#1e8e3e',
-    pink: '#e52592',
-    purple: '#9334e6',
-    cyan: '#12b5cb',
-    orange: '#e8710a'
-  };
-  return map[color] || '#1a73e8';
+  const known = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
+  return `var(--group-${known.includes(color) ? color : 'blue'})`;
 }
 
 // Search / Filter rules
