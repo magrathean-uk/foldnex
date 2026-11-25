@@ -4,7 +4,8 @@
  * Offline smart mode sends nothing: the local engine groups on this device.
  * Supports:
  *  1. Google Gemini API
- *  2. OpenAI-compatible cloud providers and local endpoints (Ollama)
+ *  2. Anthropic Messages API (Claude), over plain fetch
+ *  3. OpenAI-compatible cloud providers and local endpoints (Ollama)
  */
 
 import { hashToken, sanitizeUrl } from './cache-engine.js';
@@ -27,6 +28,15 @@ export const PROVIDER_CATALOG = Object.freeze({
     description: 'Gemini API',
     mode: 'gemini',
     defaultModel: 'gemini-flash-lite-latest'
+  },
+  anthropic: {
+    name: 'Anthropic · Claude',
+    description: 'Claude Messages API',
+    mode: 'anthropic',
+    baseUrl: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-opus-5-5',
+    // Optional host permission, granted on a user gesture in Settings or setup (D48).
+    hostPermission: 'https://api.anthropic.com/*'
   },
   openai: {
     name: 'OpenAI',
@@ -99,6 +109,11 @@ export function providerSettingKey(provider, suffix) {
 }
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+// Module constants, not catalog fields: the catalog's inner objects are not frozen.
+export const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
+export const ANTHROPIC_API_VERSION = '2026-10-21';
+export const ANTHROPIC_HOST_PERMISSION = 'https://api.anthropic.com/*';
+const ANTHROPIC_FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
@@ -122,6 +137,7 @@ export function isLoopbackUrl(url) {
 export function resolveProviderEndpoint(provider, savedBaseUrl = '') {
   const config = PROVIDER_CATALOG[provider];
   if (provider === 'gemini_api') return GEMINI_API_BASE;
+  if (provider === 'anthropic') return ANTHROPIC_API_BASE;
   if (config?.mode !== 'compatible') throw new Error(`No endpoint for ${provider || 'this engine'}`);
   if (provider !== 'ollama') return config.baseUrl;
   const raw = String(savedBaseUrl || '').trim() || config.baseUrl;
@@ -214,6 +230,83 @@ export function supportsOpenAIStructuredOutputs(model, baseUrl = PROVIDER_CATALO
   return /^o[134](?:-|$)/.test(modelId);
 }
 
+const ANTHROPIC_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+
+/**
+ * Thinking and effort of a Claude model (Models API, 25 Nov 2026): `efforts`
+ * the documented output_config.effort values and `off` the thinking type that
+ * turns thinking off, or null where it cannot be turned off. Opus 5.5 and the
+ * Fable and Mythos models think at every effort; Sonnet 5.5's off setting is
+ * between_tools; Haiku 5.5, Sonnet 5, Opus 5 and the 4.x models take disabled.
+ * An unknown model gets no controls, so it never receives a foreign field.
+ */
+const ANTHROPIC_MODEL_PROFILES = [
+  [/^claude-(?:fable|mythos)-/, { efforts: ANTHROPIC_EFFORTS, off: null }],
+  [/^claude-opus-5-5(?:-|$)/, { efforts: ANTHROPIC_EFFORTS, off: null }],
+  [/^claude-sonnet-5-5(?:-|$)/, { efforts: ANTHROPIC_EFFORTS, off: 'between_tools' }],
+  [/^claude-(?:haiku-5-5|opus-5|sonnet-5|opus-4-[78])(?:-|$)/, { efforts: ANTHROPIC_EFFORTS, off: 'disabled' }],
+  [/^claude-(?:opus|sonnet)-4-6(?:-|$)/, { efforts: Object.freeze(['low', 'medium', 'high', 'max']), off: 'disabled' }],
+  [/^claude-opus-4-5(?:-|$)/, { efforts: STANDARD_REASONING_EFFORTS, off: 'disabled' }],
+  [/^claude-(?:haiku-4-5|sonnet-4-5)(?:-|$)/, { efforts: Object.freeze([]), off: 'disabled' }]
+];
+
+// Profiles read from the Models API capabilities this page has loaded. Only
+// the page that listed the models holds them; elsewhere the table above applies.
+const anthropicCapabilityProfiles = new Map();
+
+/** A profile from one Models API entry's capabilities, or null when they are missing. */
+export function anthropicProfileFromCapabilities(capabilities) {
+  if (!capabilities || typeof capabilities !== 'object') return null;
+  const effort = capabilities.effort;
+  const types = capabilities.thinking?.types;
+  if (!effort || typeof effort !== 'object' || !types || typeof types !== 'object') return null;
+  const efforts = effort.supported === true
+    ? ANTHROPIC_EFFORTS.filter(level => effort[level]?.supported === true)
+    : [];
+  const off = types.between_tools?.supported === true ? 'between_tools'
+    : types.disabled?.supported === true ? 'disabled'
+      : null;
+  return { efforts: Object.freeze(efforts), off };
+}
+
+/** The thinking and effort profile of a Claude model: live capabilities first, then the table. */
+export function anthropicModelProfile(model) {
+  const modelId = normalizedModelId(model);
+  const live = anthropicCapabilityProfiles.get(modelId);
+  if (live) return live;
+  const match = ANTHROPIC_MODEL_PROFILES.find(([pattern]) => pattern.test(modelId));
+  return match ? match[1] : { efforts: Object.freeze([]), off: null };
+}
+
+/**
+ * Effort choices for a Claude model. 'none' stands for thinking off and is
+ * offered only where the model can turn thinking off; it is sent without an
+ * effort, so Sonnet 5.5's between_tools and the disabled setting stay within
+ * the efforts that accept them.
+ */
+function getAnthropicReasoningEffortOptions(model) {
+  const { efforts, off } = anthropicModelProfile(model);
+  return off && efforts.length ? Object.freeze(['none', ...efforts]) : efforts;
+}
+
+/**
+ * The thinking and effort fields of a Messages request for one effort value:
+ * 'none' sends the model's off setting, a listed effort is sent as
+ * output_config.effort with thinking left to the model, and anything else
+ * sends neither.
+ */
+export function anthropicThinkingControls(model, reasoningEffort) {
+  const { efforts, off } = anthropicModelProfile(model);
+  if (reasoningEffort === 'none' && off) return { thinking: { type: off }, effort: null };
+  if (efforts.includes(reasoningEffort)) return { thinking: null, effort: reasoningEffort };
+  return { thinking: null, effort: null };
+}
+
+/** Models that take the server-side refusal fallback (`fallbacks: "default"`); Haiku does not. */
+export function anthropicSupportsFallback(model) {
+  return /^claude-(?:opus-5|sonnet-5-5|fable-5|mythos-5)(?:-|$)/.test(normalizedModelId(model));
+}
+
 /**
  * Return only effort values that are documented for this provider/model pair.
  * A caller can use an empty result to omit a setting control altogether.
@@ -223,6 +316,7 @@ export function getReasoningEffortOptions(provider, model) {
   const leafId = modelId.split('/').at(-1) || '';
 
   if (provider === 'gemini_api') return getGeminiReasoningEffortOptions(modelId);
+  if (provider === 'anthropic') return getAnthropicReasoningEffortOptions(modelId);
   if (provider === 'openai') {
     if (/^gpt-6-luna(?:-\d{4}-\d{2}-\d{2})?$/.test(leafId)) return OPENAI_LUNA_REASONING_EFFORTS;
     return isOpenAIReasoningModel(modelId) && !isOpenAIResponsesOnlyModel(modelId)
@@ -299,7 +393,7 @@ export function labelCacheScope(settings = {}) {
   const config = PROVIDER_CATALOG[provider];
   const model = provider === 'gemini_api'
     ? settings.geminiModel || config.defaultModel
-    : config.mode === 'compatible'
+    : config.mode === 'compatible' || config.mode === 'anthropic'
       ? settings[providerSettingKey(provider, 'model')] || config.defaultModel
       : provider;
   const savedEffort = provider === 'gemini_api'
@@ -310,6 +404,7 @@ export function labelCacheScope(settings = {}) {
   let endpoint = provider === 'ollama'
     ? settings[providerSettingKey(provider, 'baseUrl')] || config.baseUrl
     : config.mode === 'compatible' ? config.baseUrl
+    : provider === 'anthropic' ? ANTHROPIC_API_BASE
     : provider === 'gemini_api' ? GEMINI_API_BASE : provider;
   try {
     const url = new URL(endpoint);
@@ -406,7 +501,7 @@ function cleanModelIds(ids) {
  */
 export async function listProviderModels(provider, { apiKey = '', baseUrl = '' } = {}) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || !['gemini', 'compatible'].includes(config.mode)) {
+  if (!config || !['gemini', 'compatible', 'anthropic'].includes(config.mode)) {
     throw new Error('This provider does not expose a remote model catalog');
   }
 
@@ -439,6 +534,8 @@ export async function listProviderModels(provider, { apiKey = '', baseUrl = '' }
     return cleanModelIds(modelIds);
   }
 
+  if (provider === 'anthropic') return listAnthropicModels(apiKey);
+
   if (!apiKey && !config.keyOptional && !config.modelListKeyOptional) {
     throw new Error(`Enter a ${config.name} API key to load models`);
   }
@@ -455,6 +552,50 @@ export async function listProviderModels(provider, { apiKey = '', baseUrl = '' }
   return cleanModelIds((data.data || data.models || []).map(model => (
     typeof model === 'string' ? model : model.id || model.name
   )));
+}
+
+/** Request headers for the Messages and Models APIs. The key is sent only to the fixed endpoint. */
+export function anthropicHeaders(apiKey, { fallback = false, json = false } = {}) {
+  return {
+    ...(json ? { 'content-type': 'application/json' } : {}),
+    'x-api-key': apiKey,
+    'anthropic-version': ANTHROPIC_API_VERSION,
+    // The request carries the extension's Origin; the API asks for this opt-in.
+    'anthropic-dangerous-direct-browser-access': 'true',
+    ...(fallback ? { 'anthropic-beta': ANTHROPIC_FALLBACK_BETA } : {})
+  };
+}
+
+/**
+ * Claude models visible to the key: GET /v1/models, paged by after_id within
+ * the same bound as the Gemini catalogue. Only Claude chat models are listed;
+ * their capabilities (effort, thinking) are kept for this page's controls.
+ */
+async function listAnthropicModels(apiKey) {
+  if (!apiKey) throw new Error('Enter an Anthropic API key to load models');
+  await requireHostAccess('anthropic');
+  const ids = [];
+  const seen = new Set();
+  let afterId = '';
+  let pages = 0;
+  do {
+    const query = new URLSearchParams({ limit: '1000' });
+    if (afterId) query.set('after_id', afterId);
+    const data = await fetchModelPage(`${ANTHROPIC_API_BASE}/models?${query}`, anthropicHeaders(apiKey));
+    for (const model of Array.isArray(data?.data) ? data.data : []) {
+      const id = typeof model?.id === 'string' ? model.id.trim() : '';
+      if (!/^claude-[a-z0-9.-]+$/i.test(id) || (model.type && model.type !== 'model')) continue;
+      ids.push(id);
+      const profile = anthropicProfileFromCapabilities(model.capabilities);
+      if (profile) anthropicCapabilityProfiles.set(normalizedModelId(id), profile);
+    }
+    const last = typeof data?.last_id === 'string' ? data.last_id : '';
+    // A bounded walk: a repeated cursor or too many pages ends the catalogue.
+    afterId = data?.has_more === true && last && !seen.has(last) ? last : '';
+    seen.add(last);
+    pages++;
+  } while (afterId && pages < MODEL_LIST_MAX_PAGES);
+  return cleanModelIds(ids);
 }
 
 /**
@@ -912,6 +1053,7 @@ async function fetchProviderRequest(url, options, consumeResponse, reasoningEffo
 
 function normalizeUsage(usage) {
   if (!usage) return null;
+  if (Object.hasOwn(usage, 'input_tokens') && !Object.hasOwn(usage, 'prompt_tokens')) return normalizeAnthropicUsage(usage);
   const reasoningTokens = usage.reasoning_tokens
     ?? usage.reasoningTokenCount
     ?? usage.thoughtsTokenCount
@@ -924,6 +1066,29 @@ function normalizeUsage(usage) {
     cachedTokens: Number(usage.prompt_tokens_details?.cached_tokens ?? usage.cachedContentTokenCount ?? 0),
     cacheWriteTokens: Number(usage.prompt_tokens_details?.cache_write_tokens ?? usage.input_tokens_details?.cache_write_tokens ?? 0),
     reasoningTokens: Number.isFinite(Number(reasoningTokens)) ? Number(reasoningTokens) : null
+  };
+}
+
+/**
+ * Messages API usage. input_tokens leaves out cache reads and writes, so the
+ * prompt total adds them back, as the other providers' prompt counts do.
+ * Thinking tokens are part of output_tokens; their count is reported when the
+ * API gives one.
+ */
+function normalizeAnthropicUsage(usage) {
+  const count = value => (Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0);
+  const cacheRead = count(usage.cache_read_input_tokens);
+  const cacheWrite = count(usage.cache_creation_input_tokens);
+  const promptTokens = count(usage.input_tokens) + cacheRead + cacheWrite;
+  const completionTokens = count(usage.output_tokens);
+  const thinking = usage.output_tokens_details?.thinking_tokens;
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+    cachedTokens: cacheRead,
+    cacheWriteTokens: cacheWrite,
+    reasoningTokens: Number.isFinite(Number(thinking)) && thinking !== null ? Number(thinking) : null
   };
 }
 
@@ -963,7 +1128,42 @@ export function ollamaKeepAlive(unloadAfter) {
 /* ------------------------------------------------------------------------ */
 
 export function isCloudProvider(provider) {
-  return provider === 'gemini_api' || PROVIDER_CATALOG[provider]?.mode === 'compatible';
+  return provider === 'gemini_api' || provider === 'anthropic' || PROVIDER_CATALOG[provider]?.mode === 'compatible';
+}
+
+/**
+ * The optional host permission an engine needs before any request, or null.
+ * Only Anthropic has one (D48); every other engine's host is granted at install.
+ */
+export function providerHostPermission(provider) {
+  return provider === 'anthropic' ? ANTHROPIC_HOST_PERMISSION : null;
+}
+
+/**
+ * Whether Chrome has granted the engine's host. Outside an extension (tests,
+ * evaluation) there is no permissions API and nothing to check.
+ */
+export async function hasProviderHostAccess(provider) {
+  const origin = providerHostPermission(provider);
+  if (!origin) return true;
+  const permissions = globalThis.chrome?.permissions;
+  if (typeof permissions?.contains !== 'function') return true;
+  try {
+    return Boolean(await permissions.contains({ origins: [origin] }));
+  } catch {
+    return false;
+  }
+}
+
+/** An error that says the engine's host access is not granted; nothing was sent. */
+export function hostAccessError(provider) {
+  const error = new Error(`${PROVIDER_CATALOG[provider]?.name || 'This engine'} needs access to its host: allow it in Settings`);
+  error.code = 'permission';
+  return error;
+}
+
+async function requireHostAccess(provider) {
+  if (!(await hasProviderHostAccess(provider))) throw hostAccessError(provider);
 }
 
 function resolveProviderRequest(settings = {}) {
@@ -976,6 +1176,17 @@ function resolveProviderRequest(settings = {}) {
       apiKey: settings.geminiApiKey || '',
       model: settings.geminiModel || config.defaultModel,
       savedEffort: settings.geminiReasoningEffort
+    };
+  }
+  if (provider === 'anthropic') {
+    return {
+      provider,
+      config,
+      apiKey: settings.anthropicApiKey || '',
+      model: settings.anthropicModel || config.defaultModel,
+      // Fixed: a saved or synced anthropicBaseUrl is never read (D40, D47).
+      baseUrl: resolveProviderEndpoint(provider),
+      savedEffort: settings.anthropicReasoningEffort
     };
   }
   if (config?.mode === 'compatible') {
@@ -1197,6 +1408,108 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
   };
 }
 
+function rejectsAnthropicFormat(error) {
+  return error?.status === 400 && /output_config|format|json_schema|schema/i.test(String(error.message || ''));
+}
+
+/**
+ * The answer text of a Messages response. A refusal (the whole fallback chain
+ * declined) or an answer cut off at max_tokens is an error, checked before any
+ * parsing. With server-side fallback the content may hold fallback blocks and
+ * text from a model that declined, so only text after the last fallback block
+ * counts; thinking blocks never do.
+ */
+export function anthropicAnswerText(data) {
+  const stop = data?.stop_reason;
+  if (stop === 'refusal') {
+    const error = new Error('Anthropic · Claude declined the request (refusal)');
+    error.code = 'refusal';
+    throw error;
+  }
+  if (stop === 'max_tokens') {
+    const error = new Error('Anthropic · Claude stopped at the output limit before the answer was complete');
+    error.code = 'max_tokens';
+    throw error;
+  }
+  const content = Array.isArray(data?.content) ? data.content : [];
+  let start = 0;
+  content.forEach((block, index) => { if (block?.type === 'fallback') start = index + 1; });
+  return content.slice(start)
+    .filter(block => block?.type === 'text' && typeof block.text === 'string')
+    .map(block => block.text)
+    .join('');
+}
+
+/** The Messages request body for one plan or JSON request (exported for tests). */
+export function buildAnthropicBody({ model, system, user, jsonSchema = null, maxTokens, reasoningEffort = null, jsonMode = false }) {
+  const controls = anthropicThinkingControls(model, reasoningEffort);
+  const outputConfig = {
+    ...(jsonSchema && !jsonMode ? { format: { type: 'json_schema', schema: jsonSchema } } : {}),
+    ...(controls.effort ? { effort: controls.effort } : {})
+  };
+  // No temperature, top_p or top_k (a 400 on this API version) and no
+  // assistant prefill: structured output carries the format.
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: 'user', content: user }]
+  };
+  if (Object.keys(outputConfig).length) body.output_config = outputConfig;
+  if (controls.thinking) body.thinking = controls.thinking;
+  if (anthropicSupportsFallback(model)) body.fallbacks = 'default';
+  return body;
+}
+
+async function requestAnthropicJson(request, { system, user, jsonSchema, outputBudget, minOutputBudget = 0, exactOutputBudget = null, signal, recordUsage, onDispatch, schemaRetry = true, jsonMode = false }) {
+  const { provider, config, apiKey, model, baseUrl, savedEffort } = request;
+  if (!apiKey) throw new Error(`${config.name} API key is not configured`);
+  // Without the optional host permission nothing is sent (D48).
+  await requireHostAccess(provider);
+  const reasoningEffort = getEffectiveReasoningEffort(provider, model, savedEffort);
+  const maxTokens = Number.isFinite(exactOutputBudget) ? exactOutputBudget
+    : Math.max(scaleOutputBudget(outputBudget, reasoningEffort), minOutputBudget);
+  const body = buildAnthropicBody({ model, system, user, jsonSchema, maxTokens, reasoningEffort, jsonMode });
+  const headers = anthropicHeaders(apiKey, { fallback: Boolean(body.fallbacks), json: true });
+
+  const send = payload => fetchProviderRequest(`${baseUrl}/messages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload)
+  }, async response => {
+    if (!response.ok) {
+      const { detail, param } = await readApiError(response);
+      const error = new Error(`${config.name} API HTTP ${response.status}: ${detail}`);
+      error.status = response.status;
+      error.param = param;
+      throw error;
+    }
+    return response.json();
+  }, reasoningEffort, signal, recordUsage ? { provider } : null, onDispatch);
+
+  let data;
+  try {
+    data = await send(body);
+  } catch (error) {
+    if (!body.output_config?.format || signal?.aborted || !rejectsAnthropicFormat(error)) throw error;
+    if (!schemaRetry) {
+      error.schemaRejected = true;
+      throw error;
+    }
+    const { format, ...rest } = body.output_config;
+    data = await send({ ...body, output_config: Object.keys(rest).length ? rest : undefined });
+  }
+
+  return {
+    json: extractJson(anthropicAnswerText(data)),
+    usage: normalizeUsage(data?.usage),
+    // The configured model, never the response's own field (D40 L3).
+    model,
+    provider,
+    reasoningEffort
+  };
+}
+
 /**
  * One JSON request to the configured cloud or Ollama provider, applying the
  * saved reasoning effort, the effort-based timeout and an optional external
@@ -1234,6 +1547,8 @@ export async function requestProviderJson(settings, {
   };
   const envelope = request.provider === 'gemini_api'
     ? await requestGeminiJson(request, { system, user, geminiSchema, outputBudget, minOutputBudget, exactOutputBudget, signal, recordUsage, onDispatch: dispatch, schemaRetry, jsonMode })
+    : request.provider === 'anthropic'
+      ? await requestAnthropicJson(request, { system, user, jsonSchema, outputBudget, minOutputBudget, exactOutputBudget, signal, recordUsage, onDispatch: dispatch, schemaRetry, jsonMode })
     : await requestCompatibleJson(request, { system, user, schemaName, jsonSchema, outputBudget, minOutputBudget, exactOutputBudget, signal, recordUsage, onDispatch: dispatch, schemaRetry, jsonMode });
   return { ...envelope, latencyMs: Math.round(performance.now() - startedAt) };
 }

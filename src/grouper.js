@@ -100,7 +100,7 @@ function modelForSettings(settings) {
   const provider = resolveProvider(settings.provider);
   const config = PROVIDER_CATALOG[provider];
   if (provider === 'gemini_api') return settings.geminiModel || config.defaultModel || 'gemini';
-  if (config.mode === 'compatible') {
+  if (config.mode === 'compatible' || config.mode === 'anthropic') {
     return settings[providerSettingKey(provider, 'model')] || config.defaultModel || 'default';
   }
   return provider;
@@ -146,6 +146,8 @@ async function recordRun(run) {
 }
 
 function classifyProviderFailure(error) {
+  // The engine's optional host permission is not granted: nothing was sent.
+  if (error?.code === 'permission') return { code: 'permission', detail: 'Host access for this engine is not allowed in Chrome' };
   const message = String(error?.message || '');
   if (/429|quota/i.test(message)) return { code: 'quota', detail: 'Provider quota or rate limit reached' };
   if (/401|API key/i.test(message)) return { code: 'auth', detail: 'Provider authentication failed' };
@@ -1521,6 +1523,8 @@ async function groupWindow(windowId, settings, budget, budgetMs, { onPlanOffer =
         ? `Organized ${n} tabs into ${groupsCreatedCount} groups locally; the model put every tab in Review Later.`
       : upkeep
         ? `Kept the model's groups for ${n} tabs${upkeep.attached > 0 ? ` and added ${upkeep.attached} new ${upkeep.attached === 1 ? 'tab' : 'tabs'} to existing groups` : ''}; no request sent.`
+      : fallbackUsed && fallbackCode === 'permission'
+        ? `Organized ${n} tabs into ${groupsCreatedCount} groups locally; nothing was sent because access to ${PROVIDER_CATALOG[provider]?.name || 'the engine'} is not allowed. Allow it in Settings.`
       : fallbackUsed
         ? `Organized ${n} tabs into ${groupsCreatedCount} groups using Offline Smart Mode (AI unavailable/blocked).`
         : `Successfully organized ${n} tabs into ${groupsCreatedCount} groups!`,

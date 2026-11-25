@@ -1,6 +1,6 @@
 /** Shared settings reads, engine-choice writes, atomic legacy credential migration and the moves off Gemini Nano and the label pipeline. */
 export const PROVIDER_SECRET_KEYS = Object.freeze([
-  'geminiApiKey', 'openaiApiKey', 'openaiOAuthToken', 'xaiApiKey',
+  'geminiApiKey', 'anthropicApiKey', 'openaiApiKey', 'openaiOAuthToken', 'xaiApiKey',
   'groqApiKey', 'openrouterApiKey', 'deepseekApiKey', 'cerebrasApiKey', 'ollamaApiKey'
 ]);
 const secretKeys = new Set(PROVIDER_SECRET_KEYS);

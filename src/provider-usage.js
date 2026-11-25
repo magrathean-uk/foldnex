@@ -1,6 +1,6 @@
 /** Content-free provider request totals, including late and background work. */
 export const PROVIDER_USAGE_KEY = 'foldnex_provider_usage_v1';
-const PROVIDERS = new Set(['gemini_api', 'openai', 'xai', 'groq', 'openrouter', 'deepseek', 'cerebras', 'ollama']);
+const PROVIDERS = new Set(['gemini_api', 'anthropic', 'openai', 'xai', 'groq', 'openrouter', 'deepseek', 'cerebras', 'ollama']);
 const COUNTERS = ['calls', 'unknownUsageCalls', 'promptTokens', 'completionTokens', 'cachedTokens',
   'cacheWriteTokens', 'reasoningTokens', 'totalTokens'];
 let writes = Promise.resolve();
