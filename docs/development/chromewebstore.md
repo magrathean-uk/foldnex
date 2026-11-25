@@ -45,7 +45,7 @@ The popup and settings page include a user-initiated Donate link to `https://mag
 
 - Store icon: `store-assets/store-icon-128.png`
 - Prepared screenshots (upload these derived images in this order):
-  1. `store-assets/screenshots/01-grouping-engines.png`: engine chooser, Offline smart mode selected
+  1. `store-assets/screenshots/01-grouping-engines.png`: engine chooser with Anthropic · Claude listed, Offline smart mode selected
   2. `store-assets/screenshots/02-provider-usage.png`: provider request usage (example totals)
   3. `store-assets/screenshots/03-behaviour.png`: Behaviour settings
   4. `store-assets/screenshots/04-rules-and-memory.png`: Rules & memory
@@ -54,7 +54,7 @@ The popup and settings page include a user-initiated Donate link to `https://mag
 - Marquee promotional tile: `store-assets/marquee-promo-1400x560.png`
 - Asset provenance: `store-assets/manifest.json`
 
-Screenshots 01, 02, 03 and 05 are automated headless captures of the unpacked 2.1.0 extension taken on 23 November 2026; they replace 2.0.0 captures that showed Gemini Nano, background preparation or cloud Auto-group copy. 02 shows seeded example usage totals, not recorded traffic. 05 shows a model list answered by a loopback stand-in; no model ran. Screenshot 04 is a retained crop of the owner-supplied 2.0.0 capture of 6 October 2026, showing the Rules & memory controls. The documents review corrections changed Settings copy visible in all five screenshots (provider pills, key help, Priority, Behaviour and usage descriptions, the rule-pattern label); recapture them from the corrected build before upload. They predate 2.2.0, so 01's engine list has no Anthropic · Claude row. Source captures are retained in `store-assets/source-captures/`; upload the prepared `screenshots/` images (1280 × 800, RGB, full bleed, following Google's [store-image guidance](https://developer.chrome.com/docs/webstore/images)). Their presence in the repository does not establish that they have been uploaded to the dashboard.
+All five screenshots are automated headless captures of the unpacked 2.2.0 extension taken on 25 November 2026, so they show the current Settings copy and 01 lists the Anthropic · Claude engine. 02 shows seeded example usage totals, not recorded traffic. 05 shows a model list answered by a loopback stand-in; no model ran. Source captures are retained in `store-assets/source-captures/`; upload the prepared `screenshots/` images (1280 × 800, RGB, full bleed, following Google's [store-image guidance](https://developer.chrome.com/docs/webstore/images)). Their presence in the repository does not establish that they have been uploaded to the dashboard.
 
 To regenerate the prepared images from the source captures, run the artwork helper with Pillow available:
 
