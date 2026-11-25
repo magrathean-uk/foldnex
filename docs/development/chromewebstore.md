@@ -45,20 +45,21 @@ The popup and settings page include a user-initiated Donate link to `https://mag
 
 - Store icon: `store-assets/store-icon-128.png`
 - Prepared screenshots (upload these derived images in this order):
-  1. `store-assets/screenshots/01-grouping-engines.png`: engine chooser with Anthropic · Claude listed, Offline smart mode selected
-  2. `store-assets/screenshots/02-provider-usage.png`: provider request usage (example totals)
-  3. `store-assets/screenshots/03-behaviour.png`: Behaviour settings
-  4. `store-assets/screenshots/04-rules-and-memory.png`: Rules & memory
-  5. `store-assets/screenshots/05-on-device-memory.png`: Ollama configuration and model memory
+  1. `store-assets/screenshots/01-popup.png`: the popup before and after a cleanup
+  2. `store-assets/screenshots/02-grouping-engines.png`: engine chooser, local engines and cloud providers in separate columns
+  3. `store-assets/screenshots/03-provider-settings.png`: Ollama configuration with its model list
+  4. `store-assets/screenshots/04-rules-and-memory.png`: Rules & memory with example rules
+  5. `store-assets/screenshots/05-behaviour.png`: Behaviour settings and keyboard shortcuts
 - Small promotional tile: `store-assets/small-promo-440x280.png`
 - Marquee promotional tile: `store-assets/marquee-promo-1400x560.png`
 - Asset provenance: `store-assets/manifest.json`
 
-All five screenshots are automated headless captures of the unpacked 2.2.0 extension taken on 25 November 2026, so they show the current Settings copy and 01 lists the Anthropic · Claude engine. 02 shows seeded example usage totals, not recorded traffic. 05 shows a model list answered by a loopback stand-in; no model ran. Source captures are retained in `store-assets/source-captures/`; upload the prepared `screenshots/` images (1280 × 800, RGB, full bleed, following Google's [store-image guidance](https://developer.chrome.com/docs/webstore/images)). Their presence in the repository does not establish that they have been uploaded to the dashboard.
+All five screenshots are automated headless captures of the unpacked 2.3.0 extension in the light theme, taken on 25 November 2026. 01 places two real popup captures side by side (`scripts/compose-popup-screenshot.py`); its result line comes from a stubbed reply, so no tabs moved. 03 shows a model list answered by a loopback stand-in; no model ran. 04 shows example rules. Source captures are retained in `store-assets/source-captures/`; upload the prepared `screenshots/` images (1280 × 800, RGB, full bleed, following Google's [store-image guidance](https://developer.chrome.com/docs/webstore/images)). The marquee tile still shows the 2.2 popup. Their presence in the repository does not establish that they have been uploaded to the dashboard.
 
 To regenerate the prepared images from the source captures, run the artwork helper with Pillow available:
 
 ```sh
+python3 scripts/compose-popup-screenshot.py POPUP_READY.png POPUP_RESULT.png store-assets/source-captures/01-popup.png
 python3 scripts/prepare-store-screenshots.py store-assets/source-captures/*.png
 ```
 

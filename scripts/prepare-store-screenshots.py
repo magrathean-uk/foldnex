@@ -12,11 +12,11 @@ from PIL import Image, ImageOps
 
 
 NAMES = (
-    "01-grouping-engines.png",
-    "02-provider-usage.png",
-    "03-behaviour.png",
+    "01-popup.png",
+    "02-grouping-engines.png",
+    "03-provider-settings.png",
     "04-rules-and-memory.png",
-    "05-on-device-memory.png",
+    "05-behaviour.png",
 )
 SIZE = (1280, 800)
 
@@ -24,7 +24,7 @@ SIZE = (1280, 800)
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("captures", type=Path, nargs=5,
-                        help="engine chooser, usage, behaviour, rules, Nano memory")
+                        help="popup, engine chooser, provider settings, rules, behaviour")
     parser.add_argument("--output-dir", type=Path,
                         default=Path("store-assets/screenshots"))
     args = parser.parse_args()

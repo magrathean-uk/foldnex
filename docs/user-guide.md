@@ -11,6 +11,8 @@ Foldnex removes conservative duplicate pages and organises the remaining tabs in
 
 A new install starts on Offline smart mode with **By task**. The setup card stays until you answer it, but never blocks a cleanup.
 
+![The popup before and after a cleanup](../store-assets/screenshots/01-popup.png)
+
 Duplicate cleanup prefers a pinned survivor, then the active tab, then the leftmost copy. It preserves query differences and routes in URL fragments, while ignoring ordinary document anchors. A small allowlist of stateless Chrome pages can also be deduplicated. Pinned and browser-internal tabs stay outside grouping.
 
 ## Gemini Nano has moved to Offline smart mode
@@ -60,7 +62,7 @@ Cleanups and tests request the lowest reasoning effort Foldnex offers for the mo
 
 API credentials are stored locally in trusted extension storage until you replace them: clear the field and save. For OpenAI clear both the API key and the bearer token. Other settings, including model IDs and an Ollama address, may sync through Chrome. Rule export does not include credentials.
 
-![Grouping engine choices](../store-assets/screenshots/01-grouping-engines.png)
+![Grouping engine choices](../store-assets/screenshots/02-grouping-engines.png)
 
 ## Ollama on this device
 
@@ -68,7 +70,7 @@ Loopback Ollama is the first hop: the request goes to the Ollama server on this 
 
 For Ollama at a local address, **Model memory → Unload the Ollama model** tells your Ollama server how long to keep its model loaded after a request: right after use, 2, 5 (default), 15 or 60 minutes, or keep loaded. Foldnex sends it with each cleanup as Ollama's `keep_alive`; whether it is honoured depends on your Ollama server.
 
-![Ollama configuration and model memory](../store-assets/screenshots/05-on-device-memory.png)
+![Ollama configuration](../store-assets/screenshots/03-provider-settings.png)
 
 ## Auto-group new tabs
 
@@ -105,11 +107,9 @@ These are suggested shortcuts and work while Chrome is focused. Check or change 
 
 **Last cleanup** reports the engine, source (for example cloud plan, plan upkeep, exact cache or offline fallback), requests, tokens, latency, quality and any fallback. **Provider request usage** counts every cleanup and test request Foldnex starts, including failed and late ones. Model lists and incognito cleanups do not count. It stores counts and reported tokens, not tab content, prompts, responses or credentials, and is not a bill.
 
-![Behaviour controls](../store-assets/screenshots/03-behaviour.png)
+![Behaviour controls](../store-assets/screenshots/05-behaviour.png)
 
-![Provider request usage example](../store-assets/screenshots/02-provider-usage.png)
-
-Screenshots 01, 02, 03 and 05 are automated captures of the 2.1.0 extension; the usage figures in 02 are seeded examples, and 05 shows a model list from a local stand-in. Screenshot 04 is a retained 2.0.0 capture of the Rules & memory controls. Provenance is recorded in [the store asset manifest](../store-assets/manifest.json).
+The screenshots are automated captures of the 2.3.0 extension in the light theme; the popup result line is a stubbed reply, the Ollama model list comes from a local stand-in and the rules are examples. Foldnex follows Chrome's light or dark appearance. Provenance is recorded in [the store asset manifest](../store-assets/manifest.json).
 
 ## Incognito
 
