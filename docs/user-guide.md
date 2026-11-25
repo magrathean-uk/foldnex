@@ -26,9 +26,11 @@ Foldnex 2.1 no longer uses Chrome's built-in Gemini Nano. If you had chosen it, 
 | By task: Ollama | At most one request per cleanup to your Ollama server | Titles and short site hints, to your Ollama server; at a loopback address that server is the first hop and can itself run cloud models |
 | By task: cloud engine | At most one request per cleanup; the model returns groups and names | Titles and short site hints, to the provider you chose, when you clean up |
 
-Cloud engines are Google Gemini, OpenAI, xAI, Groq, OpenRouter, DeepSeek and Cerebras. Cloud engines always use their provider's own address; a saved address override is ignored. Ollama defaults to `http://localhost:11434`. An Ollama address must use HTTPS unless it is on this device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects. A saved Ollama address does not grant additional Chrome host permissions.
+Cloud engines are Google Gemini, Anthropic · Claude, OpenAI, xAI, Groq, OpenRouter, DeepSeek and Cerebras. Cloud engines always use their provider's own address; a saved address override is ignored. Ollama defaults to `http://localhost:11434`. An Ollama address must use HTTPS unless it is on this device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects. A saved Ollama address does not grant additional Chrome host permissions.
 
 Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
+
+**Anthropic needs Chrome's permission first.** Foldnex can reach `api.anthropic.com` only after you allow it: Chrome asks when you choose or save Anthropic, or run its Test connection, in Settings, in the popup's engine list or in the setup card. If you decline, or have not been asked yet, the popup shows **Access needed** and a cleanup with Anthropic groups on this computer, sends nothing and says that access must be allowed in Settings. Choosing another engine does not withdraw the permission; remove it at `chrome://extensions` → Foldnex → Details if you want to. Anthropic's default model is `claude-opus-5-5` at low effort.
 
 **How a cloud cleanup works.** Foldnex sends at most one request for the window: each eligible tab's title (up to 160 characters) and a short host/path hint. For web addresses the hint has no query string, fragment or credentials, and long identifiers in the path are replaced with `:id`, but titles and paths can still contain private text. Pinned and browser-internal tabs are not sent; some other tabs, such as local files, can be. Tabs matched by your URL rules and social sites stay in their own groups and are not sent. The model returns named groups; Foldnex checks and repairs the answer (each tab placed at most once, names validated) and applies it. Tabs the model leaves out go to **Review Later**. If no usable task group remains, Foldnex groups locally instead.
 
@@ -38,7 +40,7 @@ Private (Incognito) windows send nothing, whatever engine is selected: By task u
 - Foldnex waits about 5.4 seconds for the answer. If it is later, the local grouping is applied straight away, and an answer that arrives within 30 seconds and still matches the window is offered in the popup. It is applied only when you select **Apply**. Cancelling or ignoring it does not retract what the provider already received.
 - If the request fails, the local grouping is applied and the popup says why. The request has still been sent.
 
-On twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups), a Claude Sonnet 5.5 plan measured directly against the Claude API scored 0.84 and OpenAI's default model scored 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels. Offline smart mode scored 0.39, against 0.19 for 2.0's local rules. Other engines' default models were not measured, and results on your windows will differ.
+On twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups), Foldnex's Anthropic engine with its default model (Claude Opus 5.5, low effort) scored 0.88, a Claude Sonnet 5.5 plan measured directly against the Claude API 0.84 and OpenAI's default model 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels. Offline smart mode scored 0.39, against 0.19 for 2.0's local rules. Other engines' default models were not measured, and results on your windows will differ.
 
 In By task mode Foldnex's own result uses at most ten groups, counting rule, Socials and Review Later groups. Rule and Socials groups are always kept, so many matching rules can exceed ten, and groups already in the window can remain. When the slots run out, some tabs stay ungrouped. By site category has no ten-group ceiling.
 
@@ -47,7 +49,7 @@ Renaming a tab group in a regular window, including one you created yourself, te
 ## Configure a cloud provider
 
 1. Open **Rules and settings → Grouping engines** and select a provider.
-2. Enter its API key or supported bearer token.
+2. Enter its API key or supported bearer token. For Anthropic, allow access to `api.anthropic.com` when Chrome asks.
 3. Choose from the live model catalog, or use **Custom model** to enter an ID.
 4. Save the provider.
 5. Use **Test connection** beside the key: it sends one grouping request for two made-up tabs, never your window.

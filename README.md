@@ -12,7 +12,14 @@
 
 Foldnex is a Manifest V3 Chrome extension that removes conservative exact duplicate tabs and organises the remaining tabs in the current window into Chrome tab groups. By task, it groups with a local engine on your device or, if you choose, with at most one request per cleanup to a cloud model or Ollama; By site category groups locally by address.
 
-Start with the [user guide](docs/user-guide.md) for setup, engine choices, rules, memory controls, and troubleshooting. The [changelog](CHANGELOG.md) records what changed in 2.1. The extension is free; optional cloud providers may charge for API use.
+Start with the [user guide](docs/user-guide.md) for setup, engine choices, rules, memory controls, and troubleshooting. The [changelog](CHANGELOG.md) records what changed in 2.2 and 2.1. The extension is free; optional cloud providers may charge for API use.
+
+## What's new in 2.2
+
+- **Anthropic · Claude engine.** Plans a window in one request to Anthropic's Messages API (`https://api.anthropic.com/v1`, fixed), like the other cloud engines. The default model is `claude-opus-5-5` at low effort; the model list comes from Anthropic's Models API.
+- **Optional host access.** `api.anthropic.com` is an optional host permission, not an install-time one: Chrome asks for it when you choose or save Anthropic, or run its Test connection, in Settings, in the popup's engine list or in the setup card. Until it is allowed, cleanups with Anthropic run locally, send nothing and say so.
+
+On the twelve evaluation windows the shipped request scored 0.88 (all tabs) in 3.3 s median (3.6 s p90) for about 2.2 US cents per window ([results](eval/results/provider/phase1-engines/report.md)).
 
 ## What's new in 2.1
 
@@ -51,6 +58,7 @@ Each cleanup operates on one window at a time. Private (Incognito) windows send 
 | --- | --- | --- |
 | Offline smart mode (default) | Local engine on this device | None |
 | Google Gemini | Google Gemini API | User API key |
+| Anthropic · Claude | Anthropic Messages API; host access allowed when chosen | User API key |
 | OpenAI | OpenAI chat completions | User API key or bearer token |
 | xAI · Grok | xAI API | User API key |
 | Groq | Groq OpenAI-compatible API | User API key |
@@ -60,6 +68,8 @@ Each cleanup operates on one window at a time. Private (Incognito) windows send 
 | Ollama | Configured server; `http://localhost:11434` by default | Optional |
 
 Cloud model catalogs are fetched from the configured provider and shown in a dropdown, with a **Custom model** option. Settings fetches the catalog when it opens on a provider, when you finish editing a credential, after Save and after a successful connection test, using the key currently typed even before Save; it sends no tab data. A listed model can still fail a cleanup. Cleanups request the lowest reasoning effort Foldnex offers for the model.
+
+Anthropic's host is an optional permission: Chrome asks for it when you choose or save Anthropic or run its Test connection, and without it a cleanup with Anthropic runs locally and sends nothing. Removing the engine choice does not remove the grant; remove it at `chrome://extensions` if you want to. Anthropic requests carry the `anthropic-dangerous-direct-browser-access` header that Anthropic requires for requests from a browser origin; the key is sent only in `x-api-key` to the fixed address.
 
 Cloud engines always use their provider's own address; a saved address override is ignored. An Ollama address must use HTTPS unless it is on this device, and must not contain credentials (any `@`), a query or a fragment; otherwise it is not used and cleanups run locally. Provider requests do not follow redirects. Loopback Ollama is the first hop: the request goes to the Ollama server on this device, and that server can itself run cloud models. A remote Ollama address receives tab titles and hints like a cloud engine. Changing the Ollama address does not grant access to a new host: requests remain subject to the hosts in `manifest.json` and Chrome's network rules.
 

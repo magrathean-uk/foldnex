@@ -2,6 +2,26 @@
 
 This changelog summarises source changes. A version entry does not establish Chrome Web Store approval or public availability.
 
+## 2.2.0
+
+Release candidate, 25 November 2026. Not yet submitted to the Chrome Web Store.
+
+### Engines
+
+- Added **Anthropic · Claude** as a cloud engine. It plans the window in one request to Anthropic's Messages API at the fixed address `https://api.anthropic.com/v1`, with the same local checks, click budget, late-plan offer, stored plans and upkeep as the other cloud engines. No SDK: plain `fetch`, as for the other engines.
+- Default model `claude-opus-5-5` at low effort. Thinking and effort follow the model: Sonnet 5.5 is sent with thinking off (`between_tools`), Haiku 5.5 and older models with thinking disabled, and an unknown model with neither. No sampling parameters or prefill; the answer format is set by structured output.
+- Models that support it ask Anthropic to fall back to another of its models on a refusal (`fallbacks: "default"`). A final refusal, or an answer cut off at its output limit, ends the request and the cleanup groups locally.
+- Settings lists Claude models from Anthropic's Models API and offers an effort only where the model supports one.
+- Provider usage records Anthropic's input, output, cache-read and cache-write tokens.
+- Measured on the twelve evaluation windows: 0.88 F1 over all tabs, 3.3 s median and 3.6 s p90 per window, about 2.2 US cents per window (`eval/results/provider/phase1-engines/report.md`).
+
+### Permissions and privacy
+
+- `https://api.anthropic.com/*` is an **optional** host permission, so the update adds no install-time warning. Foldnex asks Chrome for it when you choose or save Anthropic, or run its Test connection, in Settings, in the popup's engine list or in the setup card.
+- Without the permission nothing is sent to Anthropic: a cleanup groups locally and says that access must be allowed in Settings, and the popup shows **Access needed**. Choosing another engine does not remove the grant.
+- Anthropic keys are stored in local extension storage like the other keys and sent only in the `x-api-key` header to the fixed address, never through a redirect. Requests carry the `anthropic-dangerous-direct-browser-access` header Anthropic requires from a browser origin. Private windows send nothing, as for every engine.
+- Privacy policy and terms name Anthropic as a recipient of titles and hints when chosen.
+
 ## 2.1.0
 
 Release candidate, 23 November 2026. Not yet submitted to the Chrome Web Store.

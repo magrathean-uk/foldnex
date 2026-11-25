@@ -1,6 +1,6 @@
 # Foldnex Terms of Service
 
-**Effective date:** 23 November 2026 (Foldnex 2.1.0)
+**Effective date:** 25 November 2026 (Foldnex 2.2.0)
 
 **Provider:** MAGRATHEAN UK LTD, trading as Magrathean, company number 16955343, registered office 16 Caledonian Court, West Street, Watford, England, WD17 1RY.
 
@@ -44,7 +44,7 @@ By installing, copying, accessing, or using the published Extension, you confirm
 
 ## 4. Third-Party AI Services & Bring Your Own Key (BYOK)
 
-4.1. If you enable optional cloud AI providers (including OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), you do so by supplying your own API credentials ("Bring Your Own Key").
+4.1. If you enable optional cloud AI providers (including Anthropic Claude, OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, or xAI Grok), you do so by supplying your own API credentials ("Bring Your Own Key").
 
 4.2. When you configure and run a cloud AI provider:
 - Your browser communicates directly with the endpoint configured for that engine; cloud engines always use their provider's own HTTPS address, and a saved Ollama address must use HTTPS unless it is on your machine, and can belong to someone other than you;
@@ -52,7 +52,7 @@ By installing, copying, accessing, or using the published Extension, you confirm
 - You are solely responsible for compliance with that provider's terms of service, acceptable use policies, rate limits, data usage policies, and payment for any API tokens consumed;
 - Magrathean does not sell API access and is not liable for service outages, inaccuracies, rate limits, token billing, or policy enforcement actions imposed by any third-party AI provider.
 
-4.3. A cloud request sends tab titles (up to 160 characters each) and a compact host/path hint for eligible tabs. Tabs matched by your URL rules and recognised social sites are not sent. Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local. For web addresses URL credentials, query values and fragments are excluded from the hint, but titles and retained paths can still contain sensitive information. In Settings, model-list requests and **Test connection** use the credential currently typed, including one not yet saved; tests use two synthetic example tabs and model lists send no tab data. A reply that arrives after a cleanup has finished is only offered in the popup and is applied only if you choose to apply it. These data paths and the local retention controls are described in the Privacy Policy.
+4.3. A cloud request sends tab titles (up to 160 characters each) and a compact host/path hint for eligible tabs. Tabs matched by your URL rules and recognised social sites are not sent. Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local. For web addresses URL credentials, query values and fragments are excluded from the hint, but titles and retained paths can still contain sensitive information. In Settings, model-list requests and **Test connection** use the credential currently typed, including one not yet saved; tests use two synthetic example tabs and model lists send no tab data. A reply that arrives after a cleanup has finished is only offered in the popup and is applied only if you choose to apply it. Anthropic is reached only after you allow Foldnex access to `api.anthropic.com` when Chrome asks; until then a cleanup with Anthropic sends nothing and groups on your machine. These data paths and the local retention controls are described in the Privacy Policy.
 
 ---
 
@@ -86,7 +86,7 @@ name, icons, and store listing are not covered by that code licence and remain M
 a fork or redistribution needs its own name and may not present itself as the official
 Foldnex listing.
 
-7.2. Google Chrome is a trademark of Google LLC. Names of third-party AI providers (OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, xAI, Ollama) are trademarks of their respective owners and are used solely for descriptive compatibility purposes. Foldnex is an independent product and is not affiliated with, sponsored by, or endorsed by Google or any AI provider.
+7.2. Google Chrome is a trademark of Google LLC. Names of third-party AI providers (Anthropic, Claude, OpenAI, Google Gemini, Groq, Cerebras, OpenRouter, DeepSeek, xAI, Ollama) are trademarks of their respective owners and are used solely for descriptive compatibility purposes. Foldnex is an independent product and is not affiliated with, sponsored by, or endorsed by Google or any AI provider.
 
 ---
 
