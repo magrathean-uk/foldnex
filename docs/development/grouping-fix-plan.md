@@ -1,6 +1,6 @@
 # Grouping fix plan: model plan, local floor
 
-Status: Phases 1 to 5 done, 23 November 2026; Foldnex 2.1.0 is the release candidate. Foldnex 2.2.0 adds the direct Anthropic engine (D47); its measurement on these twelve windows is in `eval/results/provider/phase1-engines/report.md`. Phase 0 measured the pilot design on twelve windows and it failed its gate on two of three criteria; this version replaced the pilot plan. The results of each phase are under "Phase 1 result" to "Phase 5 result". Publishing to the Chrome Web Store is a manual release step.
+Status: Phases 1 to 5 done, 23 November 2026; Foldnex 2.1.0 shipped them. Foldnex 2.2.0 adds the direct Anthropic engine; its measurement on these twelve windows is in `eval/results/provider/phase1-engines/report.md`. Phase 0 measured the pilot design on twelve windows and it failed its gate on two of three criteria; this version replaced the pilot plan. The results of each phase are under "Phase 1 result" to "Phase 5 result". Publishing to the Chrome Web Store is a manual release step.
 
 ## Outcome
 
