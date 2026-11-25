@@ -224,12 +224,12 @@ test('minor 2: diagnostics count plan requests and show a plan run as a model ru
     promptTokens: 900, completionTokens: 140, reasoningTokens: 0, reasoningEffort: 'none'
   };
   const options = await openOptions({ run });
-  assert.match(options.byId('diagSource').textContent, /cloud plan · 1 cloud request/);
+  assert.match(options.byId('diagSource').textContent, /cloud plan · 1 cloud plan/);
   assert.match(options.byId('diagTokens').textContent, /900 in · 140 out/);
   assert.equal(options.byId('diagReasoning').textContent, 'None');
   // A late plan: the request went out, its usage arrives with the answer.
   await options.updateRun({ ...run, source: 'plan-pending', promptTokens: 0, completionTokens: 0, reasoningTokens: null });
-  assert.match(options.byId('diagSource').textContent, /plan pending · 1 cloud request/);
+  assert.match(options.byId('diagSource').textContent, /plan pending · 1 cloud plan/);
   assert.doesNotMatch(options.byId('diagTokens').textContent, /Local or cache result/);
 });
 

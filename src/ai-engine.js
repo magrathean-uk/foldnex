@@ -256,10 +256,25 @@ const ANTHROPIC_MODEL_PROFILES = [
   [/^claude-(?:haiku-4-5|sonnet-4-5)(?:-|$)/, { efforts: Object.freeze([]), off: 'disabled' }]
 ];
 
-// Profiles read from the Models API capabilities: those this page listed, and
-// the chosen model's, which Settings stores and every context loads with the
-// settings (ANTHROPIC_PROFILE_KEY, registerAnthropicModelProfile).
+// Profiles read from the Models API capabilities. Two separate sources: the
+// catalogues this page accepted (page-local, replaced by each accepted listing's
+// own entries), and the chosen model's stored record, a snapshot that every
+// settings load replaces, an absent record included (ANTHROPIC_PROFILE_KEY,
+// registerAnthropicModelProfile).
 const anthropicCapabilityProfiles = new Map();
+let anthropicStoredSnapshot = null;
+
+function anthropicLiveProfile(modelId) {
+  const listed = anthropicCapabilityProfiles.get(modelId);
+  if (listed) return listed;
+  return anthropicStoredSnapshot?.model === modelId ? anthropicStoredSnapshot.profile : null;
+}
+
+/** Make the profiles of an accepted catalogue listing current (the page checked it was the current request). */
+export function publishAnthropicCatalogProfiles(profiles) {
+  if (!(profiles instanceof Map)) return;
+  for (const [modelId, profile] of profiles) anthropicCapabilityProfiles.set(modelId, profile);
+}
 
 /** chrome.storage.local key of the chosen model's capability profile (small, no key). */
 export const ANTHROPIC_PROFILE_KEY = 'anthropicModelProfile';
@@ -282,7 +297,7 @@ export function anthropicProfileFromCapabilities(capabilities) {
 /** The listed (not table) profile of a model as a storable record, or null when none is known. */
 export function anthropicStoredProfile(model) {
   const modelId = normalizedModelId(model);
-  const live = anthropicCapabilityProfiles.get(modelId);
+  const live = anthropicLiveProfile(modelId);
   return live ? { model: modelId, efforts: [...live.efforts], off: live.off } : null;
 }
 
@@ -292,23 +307,25 @@ export function anthropicStoredProfile(model) {
  * shape is ignored, so a damaged value can only fall back to the table.
  */
 export function registerAnthropicModelProfile(record) {
+  // Replaced on every call: a record that is absent or damaged clears the snapshot.
+  anthropicStoredSnapshot = null;
   if (!record || typeof record !== 'object' || typeof record.model !== 'string' || !Array.isArray(record.efforts)) return false;
   if (record.off !== null && record.off !== 'disabled' && record.off !== 'between_tools') return false;
   const efforts = record.efforts.filter(level => ANTHROPIC_EFFORTS.includes(level));
-  anthropicCapabilityProfiles.set(normalizedModelId(record.model), { efforts: Object.freeze(efforts), off: record.off });
+  anthropicStoredSnapshot = { model: normalizedModelId(record.model), profile: { efforts: Object.freeze(efforts), off: record.off } };
   return true;
 }
 
 /** Whether a model has a known profile, from the listing or the family table. */
 export function anthropicProfileKnown(model) {
   const modelId = normalizedModelId(model);
-  return anthropicCapabilityProfiles.has(modelId) || ANTHROPIC_MODEL_PROFILES.some(([pattern]) => pattern.test(modelId));
+  return Boolean(anthropicLiveProfile(modelId)) || ANTHROPIC_MODEL_PROFILES.some(([pattern]) => pattern.test(modelId));
 }
 
 /** The thinking and effort profile of a Claude model: live capabilities first, then the table. */
 export function anthropicModelProfile(model) {
   const modelId = normalizedModelId(model);
-  const live = anthropicCapabilityProfiles.get(modelId);
+  const live = anthropicLiveProfile(modelId);
   if (live) return live;
   const match = ANTHROPIC_MODEL_PROFILES.find(([pattern]) => pattern.test(modelId));
   return match ? match[1] : { efforts: Object.freeze([]), off: null };
@@ -505,18 +522,24 @@ export function getGeminiGenerationConfig(model, config = {}, savedReasoningEffo
 const MODEL_LIST_TIMEOUT_MS = 15000;
 const MODEL_LIST_MAX_PAGES = 10;
 
-async function fetchModelPage(url, headers) {
+async function fetchModelPage(url, headers, { fixedErrors = false } = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), MODEL_LIST_TIMEOUT_MS);
   try {
     const response = await fetch(url, { headers, signal: controller.signal, redirect: 'error' });
     if (!response.ok) {
+      if (fixedErrors) throw anthropicHttpError(response.status);
       throw new Error(`HTTP ${response.status}: ${await getSafeApiError(response)}`);
     }
-    return await response.json();
+    try {
+      return await response.json();
+    } catch (error) {
+      if (fixedErrors) throw fixedAnthropicError('Anthropic · Claude response could not be read', 'unreadable');
+      throw error;
+    }
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('Model catalog request timed out');
-    throw error;
+    throw fixedErrors ? safeAnthropicError(error) : error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -535,7 +558,7 @@ function cleanModelIds(ids) {
  * Provider catalogs change frequently, so the options page uses this instead of
  * shipping a long, stale hard-coded list.
  */
-export async function listProviderModels(provider, { apiKey = '', baseUrl = '' } = {}) {
+export async function listProviderModels(provider, { apiKey = '', baseUrl = '', onProfiles = null } = {}) {
   const config = PROVIDER_CATALOG[provider];
   if (!config || !CLOUD_PROVIDER_MODES.includes(config.mode)) {
     throw new Error('This provider does not expose a remote model catalog');
@@ -570,7 +593,7 @@ export async function listProviderModels(provider, { apiKey = '', baseUrl = '' }
     return cleanModelIds(modelIds);
   }
 
-  if (provider === 'anthropic') return listAnthropicModels(apiKey);
+  if (provider === 'anthropic') return listAnthropicModels(apiKey, onProfiles);
 
   if (!apiKey && !config.keyOptional && !config.modelListKeyOptional) {
     throw new Error(`Enter a ${config.name} API key to load models`);
@@ -607,23 +630,25 @@ export function anthropicHeaders(apiKey, { fallback = false, json = false } = {}
  * the same bound as the Gemini catalogue. Only Claude chat models are listed;
  * their capabilities (effort, thinking) are kept for this page's controls.
  */
-async function listAnthropicModels(apiKey) {
+async function listAnthropicModels(apiKey, onProfiles) {
   if (!apiKey) throw new Error('Enter an Anthropic API key to load models');
-  await requireHostAccess('anthropic');
   const ids = [];
+  const profiles = new Map();
   const seen = new Set();
   let afterId = '';
   let pages = 0;
   do {
+    // Access is checked before every page: a grant removed meanwhile ends the walk.
+    await requireHostAccess('anthropic');
     const query = new URLSearchParams({ limit: '1000' });
     if (afterId) query.set('after_id', afterId);
-    const data = await fetchModelPage(`${ANTHROPIC_API_BASE}/models?${query}`, anthropicHeaders(apiKey));
+    const data = await fetchModelPage(`${ANTHROPIC_API_BASE}/models?${query}`, anthropicHeaders(apiKey), { fixedErrors: true });
     for (const model of Array.isArray(data?.data) ? data.data : []) {
       const id = typeof model?.id === 'string' ? model.id.trim() : '';
       if (!/^claude-[a-z0-9.-]+$/i.test(id) || (model.type && model.type !== 'model')) continue;
       ids.push(id);
       const profile = anthropicProfileFromCapabilities(model.capabilities);
-      if (profile) anthropicCapabilityProfiles.set(normalizedModelId(id), profile);
+      if (profile) profiles.set(normalizedModelId(id), profile);
     }
     const last = typeof data?.last_id === 'string' ? data.last_id : '';
     // A bounded walk: a repeated cursor or too many pages ends the catalogue.
@@ -631,6 +656,10 @@ async function listAnthropicModels(apiKey) {
     seen.add(last);
     pages++;
   } while (afterId && pages < MODEL_LIST_MAX_PAGES);
+  // A caller that asks (the Settings page) publishes the profiles itself, only once
+  // it knows this listing is still the current request.
+  if (typeof onProfiles === 'function') onProfiles(profiles);
+  else publishAnthropicCatalogProfiles(profiles);
   return cleanModelIds(ids);
 }
 
@@ -1051,9 +1080,12 @@ function anySignal(signals) {
   return controller.signal;
 }
 
-async function fetchProviderRequest(url, options, consumeResponse, reasoningEffort = null, signal = null, usageContext = null, onDispatch = null) {
+async function fetchProviderRequest(url, options, consumeResponse, reasoningEffort = null, signal = null, usageContext = null, onDispatch = null, beforeSend = null) {
   if (signal?.aborted) throw abortReason(signal);
   const usageEpoch = usageContext ? await beginProviderUsage().catch(() => null) : null;
+  if (signal?.aborted) throw abortReason(signal);
+  // The last check before the request goes out, after any asynchronous preparation.
+  await beforeSend?.();
   if (signal?.aborted) throw abortReason(signal);
   const timeoutMs = providerRequestTimeoutMs(reasoningEffort);
   const timeoutController = new AbortController();
@@ -1464,17 +1496,64 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
   };
 }
 
-/** A 400 about the structured-output format or schema, and nothing else. */
-function rejectsAnthropicFormat(error) {
-  if (error?.status !== 400) return false;
-  return error.param === 'output_config.format'
-    || /output_config\.format|json_schema|\bschema\b|response format|structured output/i.test(String(error.message || ''));
+const ANTHROPIC_HTTP_LABELS = Object.freeze({
+  400: 'invalid request', 401: 'authentication failed', 403: 'not permitted', 404: 'not found',
+  413: 'request too large', 429: 'rate limited', 500: 'server error', 502: 'bad gateway',
+  503: 'unavailable', 504: 'gateway timeout', 529: 'overloaded'
+});
+
+/** An outward error with fixed text: no provider wording, request excerpt or credential can reach it. */
+function fixedAnthropicError(message, code, status) {
+  const error = new Error(message);
+  error.code = code;
+  if (status) error.status = status;
+  error.fixed = true;
+  return error;
 }
 
-/** A 400 about effort or thinking that is not about the format: retried once without both. */
-function rejectsAnthropicControls(error) {
-  if (error?.status !== 400 || rejectsAnthropicFormat(error)) return false;
-  return /\beffort\b|\bthinking\b/i.test(`${error.param || ''} ${error.message || ''}`);
+/** The only error a failed Anthropic response becomes: the status and a fixed label. */
+function anthropicHttpError(status, flags = {}) {
+  const code = Number(status);
+  const label = ANTHROPIC_HTTP_LABELS[code] || 'request failed';
+  return Object.assign(fixedAnthropicError(`Anthropic · Claude API HTTP ${code} (${label})`, `http_${code}`, code), flags);
+}
+
+/**
+ * Anything that is not already fixed text (a Fetch TypeError can quote a header
+ * value, a JSON SyntaxError a clip of the body) becomes a fixed message. Aborts
+ * and timeouts keep their own fixed wording.
+ */
+function safeAnthropicError(error) {
+  if (error?.fixed || error?.code === 'permission' || error?.code === 'refusal' || error?.code === 'max_tokens') return error;
+  if (error?.name === 'AbortError' || /^(Provider|Model catalog) request timed out/.test(String(error?.message || ''))) return error;
+  return fixedAnthropicError('Anthropic · Claude request failed', 'network');
+}
+
+/**
+ * What a rejected 400 is about, decided once from the provider's wording and
+ * parameter path and then discarded with them. A recognised parameter path
+ * decides; only a response without one is judged by its text (L2).
+ */
+function classifyAnthropicRejection(status, param, text) {
+  if (status !== 400) return { format: false, controls: false };
+  const path = String(param || '');
+  const names = value => ({
+    format: /(^|\.)format\b|json_schema/i.test(value),
+    controls: /\beffort\b|\bthinking\b/i.test(value)
+  });
+  if (path) {
+    const byPath = names(path);
+    if (byPath.format || byPath.controls) return { format: byPath.format && !byPath.controls, controls: byPath.controls };
+  }
+  const words = String(text || '');
+  const format = /output_config\.format|json_schema|\bschema\b|response format|structured output/i.test(words);
+  const controls = /\beffort\b|\bthinking\b/i.test(words);
+  if (format && controls) {
+    // Both named with no parameter path: the field the message names directly wins.
+    return /output_config\.effort|\bthinking\b/i.test(words) && !/output_config\.format|json_schema/i.test(words)
+      ? { format: false, controls: true } : { format: true, controls: false };
+  }
+  return { format, controls };
 }
 
 function withoutAnthropicControls(body) {
@@ -1535,28 +1614,36 @@ export function buildAnthropicBody({ model, system, user, jsonSchema = null, max
 async function requestAnthropicJson(request, { system, user, jsonSchema, outputBudget, minOutputBudget = 0, exactOutputBudget = null, signal, recordUsage, onDispatch, schemaRetry = true, jsonMode = false }) {
   const { provider, config, apiKey, model, baseUrl, savedEffort } = request;
   if (!apiKey) throw new Error(`${config.name} API key is not configured`);
-  // Without the optional host permission nothing is sent (D48).
-  await requireHostAccess(provider);
   const reasoningEffort = getEffectiveReasoningEffort(provider, model, savedEffort);
   const maxTokens = Number.isFinite(exactOutputBudget) ? exactOutputBudget
     : Math.max(scaleOutputBudget(outputBudget, reasoningEffort), minOutputBudget);
   const body = buildAnthropicBody({ model, system, user, jsonSchema, maxTokens, reasoningEffort, jsonMode });
   const headers = anthropicHeaders(apiKey, { fallback: Boolean(body.fallbacks), json: true });
 
-  const send = payload => fetchProviderRequest(`${baseUrl}/messages`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload)
-  }, async response => {
-    if (!response.ok) {
-      const { detail, param } = await readApiError(response);
-      const error = new Error(`${config.name} API HTTP ${response.status}: ${detail}`);
-      error.status = response.status;
-      error.param = param;
-      throw error;
+  // Without the optional host permission nothing is sent (D48). The grant is
+  // checked again immediately before every POST, the compatibility retry included.
+  const send = async payload => {
+    try {
+      return await fetchProviderRequest(`${baseUrl}/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      }, async response => {
+        if (!response.ok) {
+          // The provider's words steer the retry decision and are then dropped.
+          const { detail, param } = await readApiError(response);
+          throw anthropicHttpError(response.status, { rejection: classifyAnthropicRejection(response.status, param, detail) });
+        }
+        try {
+          return await response.json();
+        } catch {
+          throw fixedAnthropicError('Anthropic · Claude response could not be read', 'unreadable');
+        }
+      }, reasoningEffort, signal, recordUsage ? { provider } : null, onDispatch, () => requireHostAccess(provider));
+    } catch (error) {
+      throw safeAnthropicError(error);
     }
-    return response.json();
-  }, reasoningEffort, signal, recordUsage ? { provider } : null, onDispatch);
+  };
 
   // A 400 is met by at most two retries: a rejected effort or thinking field is
   // dropped (never a reason for JSON mode), a rejected format falls back to the
@@ -1571,12 +1658,12 @@ async function requestAnthropicJson(request, { system, user, jsonSchema, outputB
       break;
     } catch (error) {
       if (signal?.aborted) throw error;
-      if (!controlsRetried && (payload.thinking || payload.output_config?.effort) && rejectsAnthropicControls(error)) {
+      if (!controlsRetried && (payload.thinking || payload.output_config?.effort) && error.rejection?.controls) {
         controlsRetried = true;
         payload = withoutAnthropicControls(payload);
         continue;
       }
-      if (!formatRetried && payload.output_config?.format && rejectsAnthropicFormat(error)) {
+      if (!formatRetried && payload.output_config?.format && error.rejection?.format) {
         if (!schemaRetry) {
           error.schemaRejected = true;
           throw error;

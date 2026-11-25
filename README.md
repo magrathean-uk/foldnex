@@ -23,7 +23,7 @@ On the twelve evaluation windows the shipped request scored 0.88 (all tabs) in 3
 
 ## What's new in 2.1
 
-- **At most one request per window.** With a cloud engine or Ollama, a cleanup sends at most one request for the window and the model returns named groups. Foldnex checks and repairs the answer locally and applies it. The 2.0 per-tab labels, their batches, naming and consolidation requests are gone.
+- **At most one request per window.** With a cloud engine or Ollama, a cleanup sends at most one request for the window and the model returns named groups. The one exception is Anthropic: if it rejects the thinking or effort setting with HTTP 400, Foldnex repeats the same request once without that setting. Foldnex checks and repairs the answer locally and applies it. The 2.0 per-tab labels, their batches, naming and consolidation requests are gone.
 - **A local engine for everything else.** Offline smart mode and a failed or late request use a local engine that clusters tab titles and address words with a small word table built into the extension (potion-base-4M, MIT). It sends nothing.
 - **Fewer requests.** A regular window whose applied plan is still current is not sent again, and when at most 10% of its tabs are new or changed since the model's last plan, Foldnex adds them on the device instead of asking again. A failed or discarded request can be sent again on the next click.
 - **Late answers are offered, not applied.** Foldnex waits about 5.4 seconds. A later answer that still matches the window appears in the popup with **Apply**; the strip never changes on its own.

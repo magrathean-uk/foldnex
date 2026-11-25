@@ -13,6 +13,7 @@ import {
   ANTHROPIC_HOST,
   ANTHROPIC_PROFILE_KEY,
   anthropicStoredProfile,
+  publishAnthropicCatalogProfiles,
   CLOUD_PROVIDER_MODES,
   providerHostPermission,
   requestProviderHostAccess,
@@ -522,9 +523,15 @@ async function refreshModelCatalog(provider) {
   ui.button.textContent = 'Loading…';
   ui.status.textContent = 'Loading the live model catalog…';
   try {
-    const models = await listProviderModels(provider, context);
+    let listedProfiles = null;
+    const models = await listProviderModels(provider, { ...context, onProfiles: profiles => { listedProfiles = profiles; } });
     if (!models.length) throw new Error('The provider returned no models');
     if (!isCurrent()) return false;
+    // Only a current request's capabilities become the page's profiles; the effort control follows them.
+    if (listedProfiles) {
+      publishAnthropicCatalogProfiles(listedProfiles);
+      renderReasoningControl(provider, ui.input.value.trim() || PROVIDER_CATALOG[provider].defaultModel, compatibleReasoningEffort, compatibleReasoningHelp);
+    }
     renderModelOptions(provider, models, Date.now());
     if (provider === 'anthropic') {
       // The listing just showed the saved model's capabilities: keep them with the settings.
@@ -835,7 +842,8 @@ async function loadRunDiagnostics() {
     || (!sharedCloudResult && ['cloud', 'nano', 'cloud-plan', 'plan-pending'].includes(run.source));
   const cloudWork = didModelWork && isCloudProvider(run.provider);
   const requestSummary = modelCallCount > 0
-    ? ` · ${modelCallCount} ${cloudWork ? 'cloud' : 'model'} request${modelCallCount === 1 ? '' : 's'}`
+    // Plan calls count logical plans: a compatibility retry is a second HTTP request the usage totals show.
+    ? ` · ${modelCallCount} ${cloudWork ? 'cloud' : 'model'} ${Number(run.modelCalls?.plan) === modelCallCount ? 'plan' : 'request'}${modelCallCount === 1 ? '' : 's'}`
     : sharedCloudResult ? ' · shared result · 0 new requests'
       : cloudWork ? ' · request count not recorded' : '';
   diagSource.textContent = `${String(run.source || 'unknown').replaceAll('-', ' ')}${requestSummary}${provisional > 0 ? ` · ${provisional} provisional` : ''}`;

@@ -11,6 +11,7 @@ import {
   getReasoningEffortOptions,
   hasProviderHostAccess,
   isOpenAIResponsesOnlyModel,
+  providerHostPermission,
   requestProviderHostAccess,
   planReasoningEffort,
   isLoopbackUrl,
@@ -216,6 +217,14 @@ function renderConfiguredProvider(config, lastRun, provider, model) {
 // access from it, synchronously, before any storage read can spend the gesture.
 let loadedSettings = null;
 
+// The setup card takes clicks only once the status has loaded the settings its
+// host-access request is made from; before that a click would find the saved
+// key after a storage read, when the user gesture may have expired.
+function setSetupChoicesActive() {
+  const active = loadedSettings !== null;
+  setupChoices.forEach(choice => { choice.disabled = !active; });
+}
+
 async function refreshEngineStatus() {
   const revision = ++engineStatusRevision;
   const [syncSettings, runData] = await Promise.all([
@@ -225,6 +234,7 @@ async function refreshEngineStatus() {
   if (revision !== engineStatusRevision) return;
   const secrets = syncSettings;
   loadedSettings = syncSettings;
+  setSetupChoicesActive();
   const lastRun = latestPopupRun || runData.foldnex_last_run;
 
   const provider = resolveProvider(syncSettings.provider);
@@ -392,6 +402,7 @@ async function refreshSetupCard() {
   setupKeepChoice.classList.toggle('hidden', current !== 'keep');
   // Ollama at another address is not on this device: say where titles go.
   const ollamaEndpoint = requestEndpoint(settings, 'ollama');
+  setSetupChoicesActive();
   setupKeepCopy.textContent = current !== 'keep' || (ollamaEndpoint && isLoopbackUrl(ollamaEndpoint))
     ? 'Runs through the Ollama server on this device, which can itself run cloud models.'
     : ollamaEndpoint
@@ -447,9 +458,16 @@ async function chooseCloudSetup() {
   const secrets = await loadSettings();
   const keyed = keyedCloudProvider(secrets);
   if (keyed) {
-    if (keyed !== guess) access = requestProviderHostAccess(keyed);
     await saveEngineChoice({ provider: keyed, setupChoice: 'cloud' });
-    finishSetup(await access
+    if (keyed !== guess && providerHostPermission(keyed)) {
+      // The fresh read picked an engine needing access the click did not ask for,
+      // and the gesture is spent: Settings asks from a new click.
+      loadedSettings = secrets;
+      finishSetup(`${PROVIDER_CATALOG[keyed].name} selected with your saved key. Allow its access in Settings; until then cleanups run locally.`);
+      await openEngineSettings();
+      return;
+    }
+    finishSetup(keyed !== guess || await access
       ? `${PROVIDER_CATALOG[keyed].name} selected with your saved key.`
       : `${PROVIDER_CATALOG[keyed].name} selected. Allow its access in Settings; until then cleanups run locally.`);
     return;

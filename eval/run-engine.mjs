@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_GROUPS, PROVIDER_CATALOG, providerSettingKey, planWindowWithCloud } from '../src/ai-engine.js';
+import { MAX_GROUPS, PROVIDER_CATALOG, anthropicProfileKnown, buildPlanSystem, buildPlanUser, planReasoningEffort, planRequestBudget, providerSettingKey, planWindowWithCloud } from '../src/ai-engine.js';
 import { loadWindows } from './lib.mjs';
 import { makeUnit, planOutputBudget, stabilityOf, stamp, writeRun } from './phase1-lib.mjs';
 
@@ -41,21 +41,25 @@ const HELP = `Usage: node eval/run-engine.mjs --engine <engine> [options]
   --base-url <url>     override the engine's base URL (a remote Ollama, for example)
   --price-in <usd>     USD per million input tokens; with --price-out, cost is reported in USD (never assumed)
   --price-out <usd>    USD per million output tokens (reasoning tokens counted as output)
-  --max-cost <usd>     with prices: stop before a request that could take the run past this total
-                       (the next request is assumed to cost as much as the dearest one so far)
+  --max-cost <usd>     with prices: stop before a window whose worst case could take the run past this total.
+                       The worst case is reserved before dispatch: the prompt's characters / 2 as input tokens (a
+                       bound, not a count) plus the output limit the product would send, for the two HTTP attempts
+                       the product can make; a dispatched request with no usage in its answer keeps its reservation
   --out <dir>          default eval/results/provider/phase1 (--stub: a temporary directory)
   --stub               no network: fetch is replaced by a local function answering in each provider's shape
+  --stub-fail          with --stub: every request fails with a 400 that quotes the key (checks nothing of it reaches the log)
 
 Key variables (read from the environment only):
 ${Object.entries(KEY_ENV).map(([engine, name]) => `  ${engine.padEnd(11)} ${name}`).join('\n')}
 `;
 
 function parseArgs(argv) {
-  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, maxCost: null, out: '', stub: false };
+  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, maxCost: null, out: '', stub: false, stubFail: false };
   const names = { '--engine': 'engine', '--model': 'model', '--windows': 'windows', '--repeats': 'repeats', '--effort': 'effort', '--priority': 'priority', '--base-url': 'baseUrl', '--price-in': 'priceIn', '--price-out': 'priceOut', '--max-cost': 'maxCost', '--out': 'out' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--help' || argv[i] === '-h') { console.log(HELP); process.exit(0); }
     else if (argv[i] === '--stub') options.stub = true;
+    else if (argv[i] === '--stub-fail') options.stubFail = true;
     else if (names[argv[i]]) options[names[argv[i]]] = argv[++i];
     else throw new Error(`Unknown option ${argv[i]}`);
   }
@@ -76,6 +80,7 @@ function parseArgs(argv) {
     if (!Number.isFinite(options.maxCost) || options.maxCost <= 0) throw new Error('--max-cost must be a positive number of USD');
     if (options.priceIn === null) throw new Error('--max-cost needs --price-in and --price-out');
   }
+  if (options.stubFail && !options.stub) throw new Error('--stub-fail needs --stub');
   options.out = options.out || (options.stub ? path.join(os.tmpdir(), `foldnex-eval-stub-${options.engine}`) : DEFAULT_OUT);
   return options;
 }
@@ -132,6 +137,7 @@ function makeStubFetch(options, apiKey) {
     const headers = init.headers || {};
     const note = { url: String(url), method: init.method };
     seen.push(note);
+    if (options.stubFail) return reply(400, { type: 'error', error: { message: `stub: bad request for key ${apiKey} and body ${init.body.slice(0, 80)}` } });
     if (options.engine === 'anthropic') {
       if (String(url) !== `${PROVIDER_CATALOG.anthropic.baseUrl}/messages`) return reply(404, { type: 'error', error: { message: `stub: unexpected URL ${url}` } });
       if (headers['x-api-key'] !== apiKey || !headers['anthropic-version']) return reply(401, { type: 'error', error: { message: 'stub: missing x-api-key or anthropic-version' } });
@@ -192,7 +198,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const { engine } = options;
   const config = PROVIDER_CATALOG[engine];
-  const apiKey = options.stub ? 'stub-key' : (process.env[envName(engine)] || '');
+  const apiKey = options.stub ? (process.env[envName(engine)] || 'stub-key') : (process.env[envName(engine)] || '');
   if (!apiKey && !config.keyOptional) throw new Error(`${envName(engine)} is not set`);
   const redact = text => (apiKey ? String(text).split(apiKey).join('[key]') : String(text));
 
@@ -215,21 +221,29 @@ async function main() {
   let effortSeen = null;
   let modelSeen = null;
   let spentUsd = 0;
-  let dearestUsd = 0;
   const priced = options.priceIn !== null;
+  const maxAttempts = 2;
+  // Worst case of one HTTP attempt for a window: input bounded by the prompt's characters / 2, output by the limit the product sends.
+  const attemptUsd = tabs => {
+    const effort = planReasoningEffort(engine, options.model);
+    const outputLimit = planRequestBudget(tabs.length, effort, engine === 'anthropic' && !anthropicProfileKnown(options.model));
+    const inputBound = Math.ceil((buildPlanSystem(MAX_GROUPS).length + buildPlanUser(tabs).length) / 2);
+    return (inputBound * options.priceIn + outputLimit * options.priceOut) / 1e6;
+  };
 
   outer: for (let repeat = 0; repeat < options.repeats; repeat++) {
     for (let windowIndex = 0; windowIndex < names.length; windowIndex++) {
       const first = (repeat * names.length + windowIndex) % variants.length;
       for (let rank = 0; rank < variants.length; rank++) {
         if (interrupted) break outer;
-        if (options.maxCost !== null && spentUsd + dearestUsd > options.maxCost) {
-          console.log(`Stopping: the next request could take the run past the ${options.maxCost} USD cap (spent ${spentUsd.toFixed(4)} USD)`);
-          break outer;
-        }
         const variant = variants[(first + rank) % variants.length];
         const name = names[windowIndex];
         const tabs = all[name];
+        const reserveUsd = options.maxCost !== null ? attemptUsd(tabs) : 0;
+        if (options.maxCost !== null && spentUsd + reserveUsd * maxAttempts > options.maxCost) {
+          console.log(`Stopping: window ${name} could take the run past the ${options.maxCost} USD cap (spent or reserved ${spentUsd.toFixed(4)} USD, worst case for this window ${(reserveUsd * maxAttempts).toFixed(4)} USD)`);
+          break outer;
+        }
         attempts = 0;
         const t0 = performance.now();
         let response = null;
@@ -249,14 +263,14 @@ async function main() {
         // Gemini's candidate count leaves thoughts out; the others include reasoning in completion tokens.
         const output = usage ? usage.completionTokens + (engine === 'gemini_api' ? usage.reasoningTokens || 0 : 0) : null;
         const cost = priced && usage ? ((input || 0) * options.priceIn + (output || 0) * options.priceOut) / 1e6 : null;
-        if (cost !== null) {
-          spentUsd += cost;
-          dearestUsd = Math.max(dearestUsd, cost);
-        }
+        if (cost !== null) spentUsd += cost;
+        // An attempt that was dispatched but left no usage (a failure, or an earlier try before a retry) is charged its reservation.
+        if (options.maxCost !== null) spentUsd += reserveUsd * Math.max(0, attempts - (cost !== null ? 1 : 0));
         if (response?.reasoningEffort && !effortSeen) effortSeen = response.reasoningEffort;
         if (response?.model && !modelSeen) modelSeen = response.model;
         const request = {
           ok: !failed, status: error?.status ?? (error ? null : 200),
+          error_code: error?.code ?? null,
           error: error ? redact(error.message || error).slice(0, 600) : (failed ? 'answer is not {"folders": [...]}' : null),
           wall_ms: response?.latencyMs ?? outer, http_attempts: attempts,
           input_tokens: input, output_tokens: output, thinking_tokens: usage?.reasoningTokens ?? null, cache_read_tokens: usage?.cachedTokens ?? null,

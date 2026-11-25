@@ -21,12 +21,18 @@ import {
   anthropicStoredProfile,
   PROVIDER_CATALOG,
   planRequestBudget,
+  publishAnthropicCatalogProfiles,
   registerAnthropicModelProfile,
   requestProviderHostAccess,
   resolveProviderEndpoint
 } from '../src/ai-engine.js';
 import { executeTabGrouping } from '../src/grouper.js';
 import { loadSettings } from '../src/settings.js';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { installBrowser, makeTabs, topicFolders } from './plan-harness.js';
 
 const KEY = 'synthetic-anthropic-key';
@@ -47,7 +53,8 @@ function installAnthropic({ reply = null, fail = null, status = 200, usage = { i
     requests.push({ url: String(url), options, payload, rows: tabRows });
     const refusal = fail?.(payload, requests.length);
     if (refusal) {
-      return { ok: false, status: 400, statusText: 'Bad Request', async json() { return { type: 'error', error: { type: 'invalid_request_error', message: refusal } }; } };
+      const { message, param } = typeof refusal === 'string' ? { message: refusal } : refusal;
+      return { ok: false, status: 400, statusText: 'Bad Request', async json() { return { type: 'error', error: { type: 'invalid_request_error', message, ...(param ? { param } : {}) } }; } };
     }
     if (status !== 200) {
       return { ok: false, status, statusText: 'Error', async json() { return { type: 'error', error: { type: 'invalid_request_error', message: 'Synthetic failure' } }; } };
@@ -65,7 +72,8 @@ function installAnthropic({ reply = null, fail = null, status = 200, usage = { i
 function setPermission(granted) {
   const calls = [];
   globalThis.chrome.permissions = {
-    async contains(query) { calls.push(query); return granted; }
+    // `granted` is a boolean, or a function of the number of checks so far (a grant revoked mid-operation).
+    async contains(query) { calls.push(query); return typeof granted === 'function' ? granted(calls.length) : granted; }
   };
   return calls;
 }
@@ -384,6 +392,9 @@ test('the chosen model\'s profile saved with the settings is the one every conte
   local[ANTHROPIC_PROFILE_KEY] = { model: 'claude-stored-f', efforts: 'low', off: 'disabled' };
   await loadSettings();
   assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-stored-f')], [], 'a damaged record is ignored');
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-stored-e')], [], 'the snapshot is replaced by every load (L3)');
+  local[ANTHROPIC_PROFILE_KEY] = { model: 'claude-stored-e', efforts: ['low', 'high', 'bogus'], off: 'between_tools' };
+  await loadSettings();
 
   const api = installAnthropic();
   try {
@@ -436,4 +447,225 @@ test('requestProviderHostAccess asks Chrome synchronously for Anthropic only', a
   assert.equal(asked.length, 1, 'engines with install-time hosts never ask');
   assert.equal(await requestProviderHostAccess('anthropic', { request: () => Promise.reject(new Error('no')) }), false);
   assert.equal(await requestProviderHostAccess('anthropic', { request() { throw new Error('no'); } }), false);
+});
+
+test('M1: the grant is checked before every catalogue page and before the compatibility retry', async () => {
+  installBrowser([]);
+  // Catalogue: access is there for page 1, gone before page 2.
+  const checks = setPermission(count => count <= 1);
+  const pages = [
+    { data: [{ type: 'model', id: 'claude-test-alpha' }], has_more: true, last_id: 'claude-test-alpha' },
+    { data: [{ type: 'model', id: 'claude-opus-5-5' }], has_more: false, last_id: 'claude-opus-5-5' }
+  ];
+  const catalogue = installAnthropic({ reply: () => pages.shift() });
+  try {
+    await assert.rejects(listProviderModels('anthropic', { apiKey: KEY }), error => error.code === 'permission');
+    assert.equal(catalogue.requests.length, 1, 'page 2 is never requested without access');
+    assert.equal(checks.length, 2, 'one check per page');
+  } finally {
+    catalogue.restore();
+  }
+
+  // Plan: access is there for the first POST; the effort rejection comes back; access is gone before the retry.
+  registerAnthropicModelProfile({ model: 'claude-effort-m1', ...EFFORT_ONLY });
+  setPermission(count => count <= 1);
+  const plan = installAnthropic({ fail: payload => (payload.output_config?.effort ? { message: 'rejected', param: 'output_config.effort' } : null) });
+  try {
+    await assert.rejects(
+      planWindowWithCloud(rows, 2, { ...ANTHROPIC, anthropicModel: 'claude-effort-m1' }, { recordUsage: false }),
+      error => error.code === 'permission'
+    );
+    assert.equal(plan.requests.length, 1, 'the retry with the key and rows is not sent');
+  } finally {
+    plan.restore();
+  }
+
+  // A cleanup that loses access mid-way says the request may already have been sent.
+  const tabs = makeTabs(970, 97000);
+  installBrowser(tabs);
+  registerAnthropicModelProfile({ model: 'claude-effort-m1', ...EFFORT_ONLY });
+  setPermission(count => count <= 1);
+  const cleanup = installAnthropic({ fail: payload => (payload.output_config?.effort ? { message: 'rejected', param: 'output_config.effort' } : null) });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const result = await executeTabGrouping(970, { ...ANTHROPIC, anthropicModel: 'claude-effort-m1' });
+    assert.equal(cleanup.requests.length, 1);
+    assert.equal(result.fallbackCode, 'permission');
+    assert.match(result.message, /withdrawn while the request was running/);
+    assert.doesNotMatch(result.message, /nothing was sent/);
+  } finally {
+    console.warn = warn;
+    cleanup.restore();
+  }
+});
+
+test('M2: a failed Anthropic response, an unreadable body and a bad header carry no provider text and no key fragment', async () => {
+  installBrowser([]);
+  setPermission(true);
+  const secret = 'sk-ant-api03-SYNTHETICKEYMATERIAL0123456789abcdef';
+  const echoed = `invalid x-api-key ${secret} near "Tokyo hotel" in row 2`;
+  const settings = { provider: 'anthropic', anthropicApiKey: secret, groupingStrategy: 'task' };
+  const leaks = error => {
+    const text = JSON.stringify({ ...error, message: error.message, stack: undefined });
+    return /SYNTHETICKEY|ant-api03|Tokyo hotel|invalid x-api-key|near/i.test(text) || secret.split('').some((_, index) => index + 8 <= secret.length && text.includes(secret.slice(index, index + 8)));
+  };
+  const original = globalThis.fetch;
+  try {
+    // A 400 that quotes the key and a row, on the Messages endpoint and the Models endpoint.
+    const quoting = installAnthropic({ fail: () => echoed });
+    try {
+      await assert.rejects(planWindowWithCloud(rows, 2, settings, { recordUsage: false }), error => {
+        assert.equal(error.status, 400);
+        assert.equal(error.message, 'Anthropic · Claude API HTTP 400 (invalid request)');
+        assert.equal(leaks(error), false, JSON.stringify(error));
+        return true;
+      });
+    } finally {
+      quoting.restore();
+    }
+    globalThis.fetch = async () => ({ ok: false, status: 401, statusText: echoed, async json() { return { error: { message: echoed } }; } });
+    for (const attempt of [
+      () => listProviderModels('anthropic', { apiKey: secret }),
+      () => planWindowWithCloud(rows, 2, settings, { recordUsage: false })
+    ]) {
+      await assert.rejects(attempt(), error => {
+        assert.equal(error.status, 401);
+        assert.match(error.message, /^Anthropic · Claude API HTTP 401 \(authentication failed\)$/);
+        assert.equal(leaks(error), false);
+        return true;
+      });
+    }
+    // A 200 whose body does not parse (a SyntaxError quotes a clip of it), and a Fetch header TypeError quoting the key.
+    globalThis.fetch = async () => ({ ok: true, status: 200, async json() { throw new SyntaxError(`Unexpected token in "${echoed}"`); } });
+    for (const attempt of [
+      () => listProviderModels('anthropic', { apiKey: secret }),
+      () => planWindowWithCloud(rows, 2, settings, { recordUsage: false })
+    ]) {
+      await assert.rejects(attempt(), error => {
+        assert.equal(error.message, 'Anthropic · Claude response could not be read');
+        assert.equal(leaks(error), false);
+        return true;
+      });
+    }
+    globalThis.fetch = async () => { throw new TypeError(`Headers.append: "${secret}" is an invalid header value.`); };
+    for (const attempt of [
+      () => listProviderModels('anthropic', { apiKey: secret }),
+      () => planWindowWithCloud(rows, 2, settings, { recordUsage: false })
+    ]) {
+      await assert.rejects(attempt(), error => {
+        assert.equal(error.message, 'Anthropic · Claude request failed');
+        assert.equal(leaks(error), false);
+        return true;
+      });
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+function runEngineScript(args, key) {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'foldnex-run-engine-'));
+  try {
+    const run = spawnSync(process.execPath, [path.join(REPO, 'eval/run-engine.mjs'), '--engine', 'anthropic', '--stub', '--windows', 'b-move', '--repeats', '1', '--out', out, ...args], {
+      env: { ...process.env, ANTHROPIC_API_KEY: key }, encoding: 'utf8'
+    });
+    const files = fs.readdirSync(out).map(name => fs.readFileSync(path.join(out, name), 'utf8'));
+    return { status: run.status, output: `${run.stdout}\n${run.stderr}`, files };
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+}
+
+test('M2: the evaluation runner logs a safe code and status, with no key fragment or provider text', () => {
+  const secret = 'sk-ant-api03-EVALSYNTHETICMATERIAL0123456789abcdefghij';
+  const run = runEngineScript(['--stub-fail'], secret);
+  assert.equal(run.status, 0, run.output);
+  assert.equal(run.files.length, 1);
+  const record = JSON.parse(run.files[0]);
+  const request = record.units[0].requests[0];
+  assert.equal(request.status, 400);
+  assert.equal(request.error_code, 'http_400');
+  assert.equal(request.error, 'Anthropic · Claude API HTTP 400 (invalid request)');
+  for (const text of [run.output, run.files[0]]) {
+    assert.doesNotMatch(text, /EVALSYNTHETIC|ant-api03|stub: bad request/);
+    for (let index = 0; index + 8 <= secret.length; index++) assert.equal(text.includes(secret.slice(index, index + 8)), false, secret.slice(index, index + 8));
+  }
+});
+
+test('M3: a run whose first window could pass the cap sends nothing; a roomy cap runs', () => {
+  const prices = ['--price-in', '5', '--price-out', '25'];
+  const capped = runEngineScript([...prices, '--max-cost', '0.001'], 'stub-key');
+  assert.equal(capped.status, 0, capped.output);
+  assert.match(capped.output, /Stopping: window b-move could take the run past the 0\.001 USD cap/);
+  assert.match(capped.output, /stub saw 0 request\(s\)/);
+  assert.equal(capped.files.length, 0, 'no unit was run');
+  const roomy = runEngineScript([...prices, '--max-cost', '5'], 'stub-key');
+  assert.equal(roomy.status, 0, roomy.output);
+  assert.match(roomy.output, /stub saw 1 request\(s\)/);
+  assert.doesNotMatch(roomy.output, /Stopping/);
+});
+
+test('L2: a rejected effort parameter wins over a message that mentions structured output', async () => {
+  installBrowser([]);
+  setPermission(true);
+  registerAnthropicModelProfile({ model: 'claude-effort-l2', ...EFFORT_ONLY });
+  const settings = { ...ANTHROPIC, anthropicModel: 'claude-effort-l2' };
+  const api = installAnthropic({ fail: payload => (payload.output_config?.effort
+    ? { message: 'This value is not supported when structured output is requested', param: 'output_config.effort' }
+    : null) });
+  try {
+    const first = await planWindowWithCloud(rows, 2, settings);
+    assert.equal(api.requests.length, 2, 'the effort-less retry went out');
+    assert.equal(api.requests[1].payload.output_config.format.type, 'json_schema', 'the schema stays');
+    assert.equal(api.requests[1].payload.output_config.effort, undefined);
+    assert.ok(first.json);
+    await planWindowWithCloud(rows, 2, settings);
+    assert.equal(api.requests[2].payload.output_config.format.type, 'json_schema', 'no JSON mode was remembered');
+    // Without a parameter path the text decides, as before.
+    const textOnly = installAnthropic({ fail: payload => (payload.output_config?.format ? 'output_config.format.schema is not supported' : null) });
+    try {
+      await assert.rejects(planWindowWithCloud(rows, 2, { ...settings, anthropicModel: 'claude-format-l2' }), error => error.schemaRejected === true);
+    } finally {
+      textOnly.restore();
+    }
+  } finally {
+    api.restore();
+  }
+});
+
+test('L3: every settings load replaces the stored profile, an absent record included; catalogue profiles stay page-local', async () => {
+  const { local } = installBrowser([]);
+  local[ANTHROPIC_PROFILE_KEY] = { model: 'claude-l3-model', efforts: ['low', 'high'], off: 'disabled' };
+  await loadSettings();
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-model')], ['none', 'low', 'high']);
+  const withProfile = planRequestBudget(rows.length, 'low', false);
+  assert.ok(withProfile > 0);
+  delete local[ANTHROPIC_PROFILE_KEY];
+  await loadSettings();
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-model')], [], 'the running context drops it with the stored record');
+  assert.equal(anthropicStoredProfile('claude-l3-model'), null);
+});
+
+test('L3: a catalogue answered for the page is published only when the page says it is current', async () => {
+  installBrowser([]);
+  setPermission(true);
+  const api = installAnthropic({ reply: () => ({ data: [{ type: 'model', id: 'claude-l3-listed', capabilities: { effort: { supported: true, low: { supported: true } }, thinking: { types: { disabled: { supported: true } } } } }], has_more: false, last_id: 'claude-l3-listed' }) });
+  try {
+    let held = null;
+    await listProviderModels('anthropic', { apiKey: KEY, onProfiles: profiles => { held = profiles; } });
+    assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-listed')], [], 'a stale or unaccepted listing publishes nothing');
+    publishAnthropicCatalogProfiles(held);
+    assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-listed')], ['none', 'low']);
+  } finally {
+    api.restore();
+  }
+});
+
+test('L4: the documents that state the one-request limit also disclose the Anthropic compatibility retry', () => {
+  for (const file of ['README.md', 'docs/user-guide.md', 'docs/legal/privacy.md', 'docs/legal/terms.md', 'docs/development/chromewebstore.md', 'docs/architecture/product.md']) {
+    const text = fs.readFileSync(path.join(REPO, file), 'utf8');
+    assert.match(text, /Anthropic[^.]{0,200}(?:HTTP 400)/, `${file} names the retry and its trigger`);
+  }
 });

@@ -312,3 +312,5 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.setup-choice:disabled { opacity: 0.6; cursor: default; }
+.setup-choice:disabled:hover { border-color: inherit; background: inherit; }

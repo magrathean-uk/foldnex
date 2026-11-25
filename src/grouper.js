@@ -1526,6 +1526,8 @@ async function groupWindow(windowId, settings, budget, budgetMs, { onPlanOffer =
         ? `Organized ${n} tabs into ${groupsCreatedCount} groups locally; the model put every tab in Review Later.`
       : upkeep
         ? `Kept the model's groups for ${n} tabs${upkeep.attached > 0 ? ` and added ${upkeep.attached} new ${upkeep.attached === 1 ? 'tab' : 'tabs'} to existing groups` : ''}; no request sent.`
+      : fallbackUsed && fallbackCode === 'permission' && Object.values(modelCalls).some(count => count > 0)
+        ? `Organized ${n} tabs into ${groupsCreatedCount} groups locally; access to ${PROVIDER_CATALOG[provider]?.name || 'the engine'} was withdrawn while the request was running, so it may already have been sent. Allow it in Settings to use it again.`
       : fallbackUsed && fallbackCode === 'permission'
         ? `Organized ${n} tabs into ${groupsCreatedCount} groups locally; nothing was sent because access to ${PROVIDER_CATALOG[provider]?.name || 'the engine'} is not allowed. Allow it in Settings.`
       : fallbackUsed
