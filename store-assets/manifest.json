@@ -22,9 +22,9 @@
       "file": "screenshots/02-grouping-engines.png",
       "dimensions": "1280x800",
       "source": "source-captures/02-grouping-engines.png",
-      "sourceDimensions": "2560x1600",
-      "subject": "Grouping engines with the chooser open: local engines and cloud providers in separate columns, Anthropic Claude listed",
-      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits).",
+      "sourceDimensions": "2880x1800",
+      "subject": "Grouping engines with the chooser open: Offline smart mode, cloud providers (Anthropic Claude listed) and Ollama as your own server, in three labelled sections",
+      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1440x900 CSS pixels so all three sections fit, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes and the chooser-order fix; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize from 2880x1800 to 1280x800, RGB, no content edits).",
       "capturedAt": "2026-11-25"
     },
     {
@@ -33,7 +33,7 @@
       "source": "source-captures/03-provider-settings.png",
       "sourceDimensions": "2560x1600",
       "subject": "Ollama configuration: key, model list, reasoning effort and address",
-      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). A loopback stand-in on port 11434 answered the model-list request with three example model names (llama3.2:3b selected); no model ran.",
+      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes and the chooser-order fix; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). A loopback stand-in on port 11434 answered the model-list request with three example model names (llama3.2:3b selected); no model ran.",
       "capturedAt": "2026-11-25"
     },
     {
@@ -42,7 +42,7 @@
       "source": "source-captures/04-rules-and-memory.png",
       "sourceDimensions": "2560x1600",
       "subject": "Rules and memory: add a rule, four example rules, import, export and the separated Clear all rules",
-      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). The four rules were seeded in local storage as examples.",
+      "method": "Automated headless capture of the unpacked 2.3.0 extension (Chrome for Testing 158, fresh profile, light theme, en-GB locale, DevTools Page.captureScreenshot at 1280x800 CSS pixels, device scale 2) on 2026-11-25, from the design-2.3 tree after the review fixes and the chooser-order fix; prepared with scripts/prepare-store-screenshots.py (proportional Lanczos resize to 1280x800, RGB, no content edits). The four rules were seeded in local storage as examples.",
       "capturedAt": "2026-11-25"
     },
     {
