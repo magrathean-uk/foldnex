@@ -10,7 +10,12 @@ import {
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   isOpenAIResponsesOnlyModel,
+  ANTHROPIC_HOST,
+  ANTHROPIC_PROFILE_KEY,
+  anthropicStoredProfile,
+  CLOUD_PROVIDER_MODES,
   providerHostPermission,
+  requestProviderHostAccess,
   listProviderModels,
   planWindowWithCloud,
   providerSettingKey,
@@ -124,22 +129,7 @@ function usesKeyPanel(provider) {
   return ['compatible', 'anthropic'].includes(PROVIDER_CATALOG[provider]?.mode);
 }
 
-/**
- * Ask Chrome for an engine's optional host (Anthropic, D48). Called first in a
- * click or change handler so it runs on the user's gesture; resolves to whether
- * access is granted. Engines without one resolve true.
- */
-function requestHostAccess(provider) {
-  const origin = providerHostPermission(provider);
-  if (!origin || typeof chrome.permissions?.request !== 'function') return Promise.resolve(true);
-  try {
-    return Promise.resolve(chrome.permissions.request({ origins: [origin] })).then(Boolean, () => false);
-  } catch {
-    return Promise.resolve(false);
-  }
-}
-
-const HOST_ACCESS_DENIED = 'Chrome did not allow access to api.anthropic.com, so cleanups run locally and nothing is sent. Save or Test connection asks again.';
+const HOST_ACCESS_DENIED = `Chrome did not allow access to ${ANTHROPIC_HOST}, so cleanups run locally and nothing is sent. Save or Test connection asks again.`;
 let selectedCompatibleProvider = 'openai';
 let selectedProvider = DEFAULT_PROVIDER;
 let providerTransitionId = 0;
@@ -479,7 +469,7 @@ function renderModelOptions(provider, models, fetchedAt = 0) {
 }
 
 function invalidateModelCatalog(provider) {
-  if (!PROVIDER_CATALOG[provider] || !['gemini', 'compatible', 'anthropic'].includes(PROVIDER_CATALOG[provider].mode)) return;
+  if (!PROVIDER_CATALOG[provider] || !CLOUD_PROVIDER_MODES.includes(PROVIDER_CATALOG[provider].mode)) return;
   const slot = catalogSlot(provider);
   catalogRevisions[slot]++;
   connectionRevisions[slot]++;
@@ -494,9 +484,30 @@ function invalidateModelCatalog(provider) {
   testButton.disabled = provider === 'openai' && isOpenAIResponsesOnlyModel(ui.input.value.trim() || PROVIDER_CATALOG[provider].defaultModel);
 }
 
+/**
+ * Store the chosen Claude model's capability profile (from the Models API
+ * listing this page holds; no key in it) so the popup and the service worker
+ * send the same thinking and effort fields as Test connection. A model the
+ * listing never showed leaves a profile of another model alone, and removes
+ * one that is stale for this model's slot.
+ */
+async function persistAnthropicProfile(model) {
+  try {
+    const profile = anthropicStoredProfile(model);
+    if (profile) {
+      await chrome.storage.local.set({ [ANTHROPIC_PROFILE_KEY]: profile });
+      return;
+    }
+    const stored = (await chrome.storage.local.get(ANTHROPIC_PROFILE_KEY))[ANTHROPIC_PROFILE_KEY];
+    if (stored && stored.model !== String(model).trim().toLowerCase()) await chrome.storage.local.remove(ANTHROPIC_PROFILE_KEY);
+  } catch (error) {
+    console.warn('[Foldnex] Could not store the model profile:', error?.message);
+  }
+}
+
 async function refreshModelCatalog(provider) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || !['gemini', 'compatible', 'anthropic'].includes(config.mode) || !catalogProviderCurrent(provider)) return false;
+  if (!config || !CLOUD_PROVIDER_MODES.includes(config.mode) || !catalogProviderCurrent(provider)) return false;
 
   const ui = modelUi(provider);
   const slot = catalogSlot(provider);
@@ -515,6 +526,12 @@ async function refreshModelCatalog(provider) {
     if (!models.length) throw new Error('The provider returned no models');
     if (!isCurrent()) return false;
     renderModelOptions(provider, models, Date.now());
+    if (provider === 'anthropic') {
+      // The listing just showed the saved model's capabilities: keep them with the settings.
+      const { anthropicModel } = await chrome.storage.sync.get('anthropicModel');
+      const saved = anthropicModel || PROVIDER_CATALOG.anthropic.defaultModel;
+      await persistAnthropicProfile(saved);
+    }
     return true;
   } catch (error) {
     if (isCurrent()) {
@@ -674,7 +691,7 @@ function updateProviderPanels(provider) {
 
 function isCloudProvider(provider) {
   const config = PROVIDER_CATALOG[provider];
-  return Boolean(config && ['gemini', 'compatible', 'anthropic'].includes(config.mode) && !config.local);
+  return Boolean(config && CLOUD_PROVIDER_MODES.includes(config.mode) && !config.local);
 }
 
 function onDeviceProvider(provider) {
@@ -716,7 +733,7 @@ getProviderRadios().forEach(radio => {
     if (!e.target.checked) return;
     const provider = e.target.value;
     // Choosing Anthropic asks for its host now, on this gesture (D48).
-    const access = requestHostAccess(provider);
+    const access = requestProviderHostAccess(provider);
     access.then(granted => {
       if (!granted) showToast(HOST_ACCESS_DENIED, 'error');
       else if (providerHostPermission(provider)) refreshModelCatalog(provider);
@@ -921,7 +938,7 @@ btnRefreshCompatibleModels.addEventListener('click', () => {
  * bodies, which can echo request content.
  */
 function connectionErrorMessage(error, operation = 'Grouping test') {
-  if (error?.code === 'permission') return 'Allow access to api.anthropic.com first: Save or Test connection asks Chrome.';
+  if (error?.code === 'permission') return `Allow access to ${ANTHROPIC_HOST} first: Save or Test connection asks Chrome.`;
   if (error?.code === 'refusal') return 'The model declined the request. Try again or choose another model.';
   if (error?.code === 'max_tokens') return 'The answer was cut off at its output limit. Try again or choose another model.';
   const message = String(error?.message || '');
@@ -1015,8 +1032,6 @@ btnTestGemini.addEventListener('click', async () => {
 btnSaveCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
-  // Saving Anthropic asks for its host on this click (D48); the save goes on either way.
-  const access = requestHostAccess(provider);
   const apiKeyName = providerSettingKey(provider, 'apiKey');
   const modelName = providerSettingKey(provider, 'model');
   const reasoningName = providerSettingKey(provider, 'reasoningEffort');
@@ -1038,10 +1053,15 @@ btnSaveCompatible.addEventListener('click', async () => {
     ...(provider === 'ollama' ? { [baseUrlName]: providerEndpoint(provider, compatibleBaseUrl.value) } : {})
   };
   const hasAuth = Boolean(secrets[apiKeyName] || (provider === 'openai' && secrets.openaiOAuthToken));
+  // Saving Anthropic with a key asks for its host on this click (D48), after the
+  // checks above and before any await so the gesture still counts. The save
+  // goes on either way.
+  const access = hasAuth ? requestProviderHostAccess(provider) : Promise.resolve(true);
   await saveProviderSecrets(secrets);
   await chrome.storage.sync.set(preferences);
   // A fixed provider's endpoint is never stored; a stale synced override goes.
   if (provider !== 'ollama') await chrome.storage.sync.remove(baseUrlName);
+  if (provider === 'anthropic') await persistAnthropicProfile(model);
   const granted = await access;
   if (pendingCloudProvider === provider && hasAuth) {
     await activatePendingProvider(provider);
@@ -1056,8 +1076,6 @@ btnSaveCompatible.addEventListener('click', async () => {
 btnTestCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
-  // A test of Anthropic asks for its host on this click (D48).
-  const access = requestHostAccess(provider);
   const selectedModel = compatibleModel.value.trim() || config.defaultModel;
   if (provider === 'openai' && isOpenAIResponsesOnlyModel(selectedModel)) {
     showToast('Choose an OpenAI Chat Completions model.', 'error');
@@ -1069,6 +1087,9 @@ btnTestCompatible.addEventListener('click', async () => {
     showToast(`Enter a ${config.name} API key first.`, 'error');
     return;
   }
+  // A test of Anthropic asks for its host on this click (D48): after the checks,
+  // before any await, so it still runs inside the user's gesture.
+  const access = requestProviderHostAccess(provider);
   const context = catalogContext(provider);
   const reasoning = compatibleReasoningEffort.value;
   const priority = prefOpenaiPriority.checked;
@@ -1537,6 +1558,10 @@ window.addEventListener('hashchange', () => {
 
 // Initial boot
 document.addEventListener('DOMContentLoaded', async () => {
+  // The sidebar shows the installed version; the HTML holds the same text as a fallback.
+  const version = chrome.runtime?.getManifest?.()?.version;
+  const versionLabel = document.getElementById('appVersion');
+  if (version && versionLabel) versionLabel.textContent = `Foldnex v${version}`;
   try {
     await loadSettings();
   } catch (error) {

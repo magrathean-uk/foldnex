@@ -17,10 +17,16 @@ import {
   planJsonSchema,
   planReasoningEffort,
   planWindowWithCloud,
+  ANTHROPIC_PROFILE_KEY,
+  anthropicStoredProfile,
   PROVIDER_CATALOG,
+  planRequestBudget,
+  registerAnthropicModelProfile,
+  requestProviderHostAccess,
   resolveProviderEndpoint
 } from '../src/ai-engine.js';
 import { executeTabGrouping } from '../src/grouper.js';
+import { loadSettings } from '../src/settings.js';
 import { installBrowser, makeTabs, topicFolders } from './plan-harness.js';
 
 const KEY = 'synthetic-anthropic-key';
@@ -31,7 +37,7 @@ const rows = [
 ];
 
 /** A Messages API stand-in: records requests and answers with `reply(payload, rows)`. */
-function installAnthropic({ reply = null, status = 200, usage = { input_tokens: 700, output_tokens: 60, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } = {}) {
+function installAnthropic({ reply = null, fail = null, status = 200, usage = { input_tokens: 700, output_tokens: 60, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } = {}) {
   const original = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, options = {}) => {
@@ -39,6 +45,10 @@ function installAnthropic({ reply = null, status = 200, usage = { input_tokens: 
     const user = payload?.messages?.at(-1)?.content || '';
     const tabRows = user.includes('{"tabs":') ? JSON.parse(user.slice(user.indexOf('{"tabs":'))).tabs : [];
     requests.push({ url: String(url), options, payload, rows: tabRows });
+    const refusal = fail?.(payload, requests.length);
+    if (refusal) {
+      return { ok: false, status: 400, statusText: 'Bad Request', async json() { return { type: 'error', error: { type: 'invalid_request_error', message: refusal } }; } };
+    }
     if (status !== 200) {
       return { ok: false, status, statusText: 'Error', async json() { return { type: 'error', error: { type: 'invalid_request_error', message: 'Synthetic failure' } }; } };
     }
@@ -297,4 +307,133 @@ test('the model catalogue lists only Claude chat models, pages by after_id and k
   } finally {
     api.restore();
   }
+});
+
+const EFFORT_ONLY = { efforts: ['low', 'high'], off: null };
+
+test('a 400 about effort retries once without effort and thinking, keeps the schema and never sets JSON mode', async () => {
+  const { local } = installBrowser([]);
+  registerAnthropicModelProfile({ model: 'claude-effort-a', ...EFFORT_ONLY });
+  const settings = { ...ANTHROPIC, anthropicModel: 'claude-effort-a' };
+  const api = installAnthropic({ fail: payload => payload.output_config?.effort ? 'output_config.effort: Input should be a supported level' : null });
+  try {
+    const first = await planWindowWithCloud(rows, 2, settings);
+    assert.equal(api.requests.length, 2, 'one retry');
+    assert.equal(api.requests[0].payload.output_config.effort, 'low');
+    const retry = api.requests[1].payload;
+    assert.equal(retry.output_config.effort, undefined, 'the retry drops effort');
+    assert.equal(retry.thinking, undefined, 'and thinking');
+    assert.equal(retry.output_config.format.type, 'json_schema', 'the schema stays');
+    assert.ok(first.json, 'the retried answer is used');
+    assert.equal(Object.keys(local).some(key => /json_mode/.test(key)), false);
+
+    // The next plan still sends the schema: nothing remembered JSON mode.
+    await planWindowWithCloud(rows, 2, settings);
+    assert.equal(api.requests[2].payload.output_config.format.type, 'json_schema');
+  } finally {
+    api.restore();
+  }
+});
+
+test('an effort 400 that persists is not a schema rejection; a format 400 is', async () => {
+  installBrowser([]);
+  registerAnthropicModelProfile({ model: 'claude-effort-b', ...EFFORT_ONLY });
+  const settings = { ...ANTHROPIC, anthropicModel: 'claude-effort-b' };
+  const stubborn = installAnthropic({ fail: () => 'thinking: this model does not accept the field' });
+  try {
+    await assert.rejects(planWindowWithCloud(rows, 2, settings), error => error.status === 400 && !error.schemaRejected);
+    assert.equal(stubborn.requests.length, 2, 'retried once, then the error stands');
+  } finally {
+    stubborn.restore();
+  }
+  const after = installAnthropic();
+  try {
+    await planWindowWithCloud(rows, 2, settings);
+    assert.equal(after.requests[0].payload.output_config.format.type, 'json_schema', 'no JSON mode was remembered');
+  } finally {
+    after.restore();
+  }
+
+  registerAnthropicModelProfile({ model: 'claude-format-c', ...EFFORT_ONLY });
+  const formatSettings = { ...ANTHROPIC, anthropicModel: 'claude-format-c' };
+  const format = installAnthropic({ fail: payload => payload.output_config?.format ? 'output_config.format.schema: not supported' : null });
+  try {
+    await assert.rejects(planWindowWithCloud(rows, 2, formatSettings), error => error.schemaRejected === true);
+    assert.equal(format.requests.length, 1, 'a schema rejection is not retried inside the plan');
+    await planWindowWithCloud(rows, 2, formatSettings);
+    assert.equal(format.requests[1].payload.output_config?.format, undefined, 'the next plan goes out in JSON mode');
+  } finally {
+    format.restore();
+  }
+});
+
+test('the chosen model\'s profile saved with the settings is the one every context sends, and an unknown model gets reasoning headroom', async () => {
+  const { local } = installBrowser([]);
+  registerAnthropicModelProfile({ model: 'claude-stored-d', efforts: ['low', 'medium'], off: 'disabled' });
+  const stored = anthropicStoredProfile('claude-stored-d');
+  assert.deepEqual(stored, { model: 'claude-stored-d', efforts: ['low', 'medium'], off: 'disabled' });
+  assert.equal(anthropicStoredProfile('claude-never-listed'), null);
+
+  // Another context (the service worker, the popup) starts without it, then loads the settings.
+  local[ANTHROPIC_PROFILE_KEY] = { model: 'claude-stored-e', efforts: ['low', 'high', 'bogus'], off: 'between_tools' };
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-stored-e')], [], 'unknown before the settings load');
+  const settings = await loadSettings();
+  assert.equal(settings[ANTHROPIC_PROFILE_KEY].model, 'claude-stored-e', 'no key in the stored record');
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-stored-e')], ['none', 'low', 'high']);
+  assert.equal(planReasoningEffort('anthropic', 'claude-stored-e'), 'none');
+  local[ANTHROPIC_PROFILE_KEY] = { model: 'claude-stored-f', efforts: 'low', off: 'disabled' };
+  await loadSettings();
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-stored-f')], [], 'a damaged record is ignored');
+
+  const api = installAnthropic();
+  try {
+    await planWindowWithCloud(rows, 2, { ...ANTHROPIC, anthropicModel: 'claude-stored-e' }, { recordUsage: false });
+    const known = api.requests.at(-1).payload;
+    assert.deepEqual(known.thinking, { type: 'between_tools' });
+    assert.equal(known.max_tokens, planRequestBudget(rows.length, 'none'), 'thinking off: no headroom');
+    await planWindowWithCloud(rows, 2, { ...ANTHROPIC, anthropicModel: 'claude-unlisted-g' }, { recordUsage: false });
+    const unknown = api.requests.at(-1).payload;
+    assert.equal(unknown.thinking, undefined);
+    assert.equal(unknown.output_config.effort, undefined);
+    assert.equal(unknown.max_tokens, planRequestBudget(rows.length, null, true));
+    assert.ok(unknown.max_tokens > known.max_tokens, 'an unknown model gets reasoning headroom');
+  } finally {
+    api.restore();
+  }
+});
+
+test('a refusal and a cut-off answer fall back locally with their own classes', async () => {
+  for (const [reply, code] of [
+    [{ stop_reason: 'refusal', content: [], usage: { input_tokens: 5, output_tokens: 0 } }, 'refusal'],
+    [{ stop_reason: 'max_tokens', content: [{ type: 'text', text: '{"folders":[' }], usage: { input_tokens: 5, output_tokens: 9 } }, 'max_tokens']
+  ]) {
+    const tabs = makeTabs(960, 96000);
+    installBrowser(tabs);
+    setPermission(true);
+    const api = installAnthropic({ reply: () => reply });
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      const result = await executeTabGrouping(960, ANTHROPIC);
+      assert.equal(result.fallbackUsed, true);
+      assert.equal(result.fallbackCode, code);
+      assert.ok(result.groupsCreated > 0, 'the cleanup ran locally');
+    } finally {
+      console.warn = warn;
+      api.restore();
+    }
+  }
+});
+
+test('requestProviderHostAccess asks Chrome synchronously for Anthropic only', async () => {
+  const asked = [];
+  const permissions = { request(query) { asked.push(query); return Promise.resolve(true); } };
+  const pending = requestProviderHostAccess('anthropic', permissions);
+  assert.equal(asked.length, 1, 'the request is made before any await');
+  assert.deepEqual(asked[0], { origins: ['https://api.anthropic.com/*'] });
+  assert.equal(await pending, true);
+  assert.equal(await requestProviderHostAccess('openai', permissions), true);
+  assert.equal(asked.length, 1, 'engines with install-time hosts never ask');
+  assert.equal(await requestProviderHostAccess('anthropic', { request: () => Promise.reject(new Error('no')) }), false);
+  assert.equal(await requestProviderHostAccess('anthropic', { request() { throw new Error('no'); } }), false);
 });

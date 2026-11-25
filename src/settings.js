@@ -1,3 +1,5 @@
+import { ANTHROPIC_PROFILE_KEY, registerAnthropicModelProfile } from './ai-engine.js';
+
 /** Shared settings reads, engine-choice writes, atomic legacy credential migration and the moves off Gemini Nano and the label pipeline. */
 export const PROVIDER_SECRET_KEYS = Object.freeze([
   'geminiApiKey', 'anthropicApiKey', 'openaiApiKey', 'openaiOAuthToken', 'xaiApiKey',
@@ -70,7 +72,7 @@ export function loadSettings() {
   return withSecretLock(async () => {
     await trustLocalStorage();
     const [preferences, local] = await Promise.all([
-      chrome.storage.sync.get(), chrome.storage.local.get([...PROVIDER_SECRET_KEYS, ...RETIRED_LOCAL_KEYS])
+      chrome.storage.sync.get(), chrome.storage.local.get([...PROVIDER_SECRET_KEYS, ...RETIRED_LOCAL_KEYS, ANTHROPIC_PROFILE_KEY])
     ]);
     const localRetired = RETIRED_LOCAL_KEYS.filter(key => Object.hasOwn(local, key));
     for (const key of localRetired) delete local[key];
@@ -90,6 +92,10 @@ export function loadSettings() {
     // Remove only after successful local persistence. Failure preserves the source.
     if (legacyKeys.length) await chrome.storage.sync.remove(legacyKeys);
     for (const key of PROVIDER_SECRET_KEYS) delete preferences[key];
+    // The chosen Claude model's capability profile (no key in it) is made the
+    // one every request in this context uses, so Settings, the popup and the
+    // service worker send the same thinking and effort fields.
+    registerAnthropicModelProfile(local[ANTHROPIC_PROFILE_KEY]);
     return { ...preferences, ...local };
   });
 }

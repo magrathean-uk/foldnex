@@ -148,6 +148,9 @@ async function recordRun(run) {
 function classifyProviderFailure(error) {
   // The engine's optional host permission is not granted: nothing was sent.
   if (error?.code === 'permission') return { code: 'permission', detail: 'Host access for this engine is not allowed in Chrome' };
+  // The provider declined this window, or its answer was cut off (Anthropic).
+  if (error?.code === 'refusal') return { code: 'refusal', detail: 'The provider declined this window' };
+  if (error?.code === 'max_tokens') return { code: 'max_tokens', detail: 'The answer was cut off at its output limit' };
   const message = String(error?.message || '');
   if (/429|quota/i.test(message)) return { code: 'quota', detail: 'Provider quota or rate limit reached' };
   if (/401|API key/i.test(message)) return { code: 'auth', detail: 'Provider authentication failed' };

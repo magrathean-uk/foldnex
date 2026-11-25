@@ -115,6 +115,8 @@ async function openOptions({
   const context = vm.createContext({
     ...ai,
     isLocalOllama,
+    // The page's own chrome lives in this context, not in the test's realm.
+    requestProviderHostAccess: provider => ai.requestProviderHostAccess(provider, permissions),
     enforcePlan,
     PROVIDER_USAGE_KEY,
     readProviderUsageSummary: async () => summary,
@@ -569,4 +571,41 @@ test('Anthropic: choosing it, Save and Test connection each ask Chrome for its h
   assert.equal(options.local.anthropicApiKey, 'synthetic-anthropic-key', 'the key goes to local storage');
   assert.equal(Object.hasOwn(options.sync, 'anthropicApiKey'), false);
   assert.equal(Object.hasOwn(options.sync, 'anthropicBaseUrl'), false, 'no endpoint is stored');
+});
+
+test('Anthropic: the host is asked for after the checks and inside the click; Save stores the chosen model profile', async () => {
+  const asked = [];
+  const permissions = { request(query) { asked.push(query); return Promise.resolve(true); }, async contains() { return true; } };
+  const options = await openOptions({ sync: { provider: 'anthropic' }, models: ['claude-opus-5-5'], permissions });
+  await flush();
+  asked.length = 0;
+
+  // No key: nothing to test or save with, so Chrome is not asked.
+  options.byId('compatibleApiKey').value = '';
+  await options.byId('btnTestCompatible').fire('click');
+  assert.equal(asked.length, 0, 'an empty key is refused before the prompt');
+  await options.byId('btnSaveCompatible').fire('click');
+  assert.equal(asked.length, 0, 'saving without a key does not ask either');
+
+  // With a key the request is made before the handler's first await.
+  options.byId('compatibleApiKey').value = 'synthetic-anthropic-key';
+  const pending = options.byId('btnTestCompatible').fire('click');
+  assert.equal(asked.length, 1, 'asked synchronously inside the click');
+  await pending;
+  const save = options.byId('btnSaveCompatible').fire('click');
+  assert.equal(asked.length, 2);
+  await save;
+
+  // The listing gave this model's capabilities: Save keeps them with the settings.
+  ai.registerAnthropicModelProfile({ model: 'claude-profile-h', efforts: ['low', 'high'], off: 'disabled' });
+  options.byId('compatibleModel').value = 'claude-profile-h';
+  await options.byId('btnSaveCompatible').fire('click');
+  assert.equal(JSON.stringify(options.local[ai.ANTHROPIC_PROFILE_KEY]), JSON.stringify({ model: 'claude-profile-h', efforts: ['low', 'high'], off: 'disabled' }));
+  assert.equal(JSON.stringify(options.local).includes('synthetic-anthropic-key'), true, 'the key is saved in local storage as before');
+  assert.equal(JSON.stringify(options.local[ai.ANTHROPIC_PROFILE_KEY]).includes('synthetic'), false, 'no key in the profile record');
+
+  // A model the listing never showed leaves no stale profile behind.
+  options.byId('compatibleModel').value = 'claude-never-listed-z';
+  await options.byId('btnSaveCompatible').fire('click');
+  assert.equal(ai.ANTHROPIC_PROFILE_KEY in options.local, false);
 });

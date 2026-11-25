@@ -17,6 +17,16 @@ export const CHROME_GROUP_COLORS = [
   'grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'
 ];
 
+// Module constants, not catalog fields: the catalog's inner objects are not frozen.
+// The one definition of Anthropic's host, endpoint and optional host permission (D48).
+export const ANTHROPIC_HOST = 'api.anthropic.com';
+export const ANTHROPIC_API_BASE = `https://${ANTHROPIC_HOST}/v1`;
+export const ANTHROPIC_HOST_PERMISSION = `https://${ANTHROPIC_HOST}/*`;
+export const ANTHROPIC_API_VERSION = '2026-10-21';
+
+/** Catalog modes that send tab titles to a cloud provider; the one list every page uses. */
+export const CLOUD_PROVIDER_MODES = Object.freeze(['gemini', 'compatible', 'anthropic']);
+
 export const PROVIDER_CATALOG = Object.freeze({
   offline: {
     name: 'Offline smart mode',
@@ -33,10 +43,10 @@ export const PROVIDER_CATALOG = Object.freeze({
     name: 'Anthropic · Claude',
     description: 'Claude Messages API',
     mode: 'anthropic',
-    baseUrl: 'https://api.anthropic.com/v1',
+    baseUrl: ANTHROPIC_API_BASE,
     defaultModel: 'claude-opus-5-5',
     // Optional host permission, granted on a user gesture in Settings or setup (D48).
-    hostPermission: 'https://api.anthropic.com/*'
+    hostPermission: ANTHROPIC_HOST_PERMISSION
   },
   openai: {
     name: 'OpenAI',
@@ -109,10 +119,6 @@ export function providerSettingKey(provider, suffix) {
 }
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-// Module constants, not catalog fields: the catalog's inner objects are not frozen.
-export const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
-export const ANTHROPIC_API_VERSION = '2026-10-21';
-export const ANTHROPIC_HOST_PERMISSION = 'https://api.anthropic.com/*';
 const ANTHROPIC_FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -250,9 +256,13 @@ const ANTHROPIC_MODEL_PROFILES = [
   [/^claude-(?:haiku-4-5|sonnet-4-5)(?:-|$)/, { efforts: Object.freeze([]), off: 'disabled' }]
 ];
 
-// Profiles read from the Models API capabilities this page has loaded. Only
-// the page that listed the models holds them; elsewhere the table above applies.
+// Profiles read from the Models API capabilities: those this page listed, and
+// the chosen model's, which Settings stores and every context loads with the
+// settings (ANTHROPIC_PROFILE_KEY, registerAnthropicModelProfile).
 const anthropicCapabilityProfiles = new Map();
+
+/** chrome.storage.local key of the chosen model's capability profile (small, no key). */
+export const ANTHROPIC_PROFILE_KEY = 'anthropicModelProfile';
 
 /** A profile from one Models API entry's capabilities, or null when they are missing. */
 export function anthropicProfileFromCapabilities(capabilities) {
@@ -267,6 +277,32 @@ export function anthropicProfileFromCapabilities(capabilities) {
     : types.disabled?.supported === true ? 'disabled'
       : null;
   return { efforts: Object.freeze(efforts), off };
+}
+
+/** The listed (not table) profile of a model as a storable record, or null when none is known. */
+export function anthropicStoredProfile(model) {
+  const modelId = normalizedModelId(model);
+  const live = anthropicCapabilityProfiles.get(modelId);
+  return live ? { model: modelId, efforts: [...live.efforts], off: live.off } : null;
+}
+
+/**
+ * Make a stored profile (settings.anthropicModelProfile) the one every request
+ * in this context uses for its model. Anything that does not have the stored
+ * shape is ignored, so a damaged value can only fall back to the table.
+ */
+export function registerAnthropicModelProfile(record) {
+  if (!record || typeof record !== 'object' || typeof record.model !== 'string' || !Array.isArray(record.efforts)) return false;
+  if (record.off !== null && record.off !== 'disabled' && record.off !== 'between_tools') return false;
+  const efforts = record.efforts.filter(level => ANTHROPIC_EFFORTS.includes(level));
+  anthropicCapabilityProfiles.set(normalizedModelId(record.model), { efforts: Object.freeze(efforts), off: record.off });
+  return true;
+}
+
+/** Whether a model has a known profile, from the listing or the family table. */
+export function anthropicProfileKnown(model) {
+  const modelId = normalizedModelId(model);
+  return anthropicCapabilityProfiles.has(modelId) || ANTHROPIC_MODEL_PROFILES.some(([pattern]) => pattern.test(modelId));
 }
 
 /** The thinking and effort profile of a Claude model: live capabilities first, then the table. */
@@ -501,7 +537,7 @@ function cleanModelIds(ids) {
  */
 export async function listProviderModels(provider, { apiKey = '', baseUrl = '' } = {}) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || !['gemini', 'compatible', 'anthropic'].includes(config.mode)) {
+  if (!config || !CLOUD_PROVIDER_MODES.includes(config.mode)) {
     throw new Error('This provider does not expose a remote model catalog');
   }
 
@@ -1140,6 +1176,22 @@ export function providerHostPermission(provider) {
 }
 
 /**
+ * Ask Chrome for an engine's optional host (Anthropic, D48). Call it first in a
+ * click or change handler, with no await before it, so it runs inside the
+ * user's gesture. Resolves to whether access is granted; engines without an
+ * optional host resolve true, and a refusal or an error resolves false.
+ */
+export function requestProviderHostAccess(provider, permissions = globalThis.chrome?.permissions) {
+  const origin = providerHostPermission(provider);
+  if (!origin || typeof permissions?.request !== 'function') return Promise.resolve(true);
+  try {
+    return Promise.resolve(permissions.request({ origins: [origin] })).then(Boolean, () => false);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+/**
  * Whether Chrome has granted the engine's host. Outside an extension (tests,
  * evaluation) there is no permissions API and nothing to check.
  */
@@ -1245,9 +1297,13 @@ export function planReasoningEffort(provider, model) {
   return getEffectiveReasoningEffort(provider, model, null);
 }
 
-/** Total output tokens for a plan: the visible answer, reasoning headroom unless none, one ceiling. */
-export function planRequestBudget(tabCount, reasoningEffort) {
-  const thinks = Boolean(reasoningEffort) && reasoningEffort !== 'none';
+/**
+ * Total output tokens for a plan: the visible answer, reasoning headroom unless
+ * none, one ceiling. `unknownModel` is a model with no known thinking profile:
+ * it is sent no thinking field, so it may think by default and gets the room.
+ */
+export function planRequestBudget(tabCount, reasoningEffort, unknownModel = false) {
+  const thinks = unknownModel || (Boolean(reasoningEffort) && reasoningEffort !== 'none');
   return Math.min(PLAN_OUTPUT_CEILING, planOutputBudget(tabCount) + (thinks ? PLAN_REASONING_HEADROOM : 0));
 }
 
@@ -1408,8 +1464,23 @@ async function requestCompatibleJson(request, { system, user, schemaName, jsonSc
   };
 }
 
+/** A 400 about the structured-output format or schema, and nothing else. */
 function rejectsAnthropicFormat(error) {
-  return error?.status === 400 && /output_config|format|json_schema|schema/i.test(String(error.message || ''));
+  if (error?.status !== 400) return false;
+  return error.param === 'output_config.format'
+    || /output_config\.format|json_schema|\bschema\b|response format|structured output/i.test(String(error.message || ''));
+}
+
+/** A 400 about effort or thinking that is not about the format: retried once without both. */
+function rejectsAnthropicControls(error) {
+  if (error?.status !== 400 || rejectsAnthropicFormat(error)) return false;
+  return /\beffort\b|\bthinking\b/i.test(`${error.param || ''} ${error.message || ''}`);
+}
+
+function withoutAnthropicControls(body) {
+  const { thinking, output_config: outputConfig, ...rest } = body;
+  const { effort, ...config } = outputConfig || {};
+  return { ...rest, ...(Object.keys(config).length ? { output_config: config } : {}) };
 }
 
 /**
@@ -1487,17 +1558,37 @@ async function requestAnthropicJson(request, { system, user, jsonSchema, outputB
     return response.json();
   }, reasoningEffort, signal, recordUsage ? { provider } : null, onDispatch);
 
+  // A 400 is met by at most two retries: a rejected effort or thinking field is
+  // dropped (never a reason for JSON mode), a rejected format falls back to the
+  // caller's schemaRetry policy.
+  let payload = body;
+  let controlsRetried = false;
+  let formatRetried = false;
   let data;
-  try {
-    data = await send(body);
-  } catch (error) {
-    if (!body.output_config?.format || signal?.aborted || !rejectsAnthropicFormat(error)) throw error;
-    if (!schemaRetry) {
-      error.schemaRejected = true;
+  for (;;) {
+    try {
+      data = await send(payload);
+      break;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (!controlsRetried && (payload.thinking || payload.output_config?.effort) && rejectsAnthropicControls(error)) {
+        controlsRetried = true;
+        payload = withoutAnthropicControls(payload);
+        continue;
+      }
+      if (!formatRetried && payload.output_config?.format && rejectsAnthropicFormat(error)) {
+        if (!schemaRetry) {
+          error.schemaRejected = true;
+          throw error;
+        }
+        formatRetried = true;
+        const { format, ...rest } = payload.output_config;
+        const { output_config: dropped, ...bare } = payload;
+        payload = Object.keys(rest).length ? { ...bare, output_config: rest } : bare;
+        continue;
+      }
       throw error;
     }
-    const { format, ...rest } = body.output_config;
-    data = await send({ ...body, output_config: Object.keys(rest).length ? rest : undefined });
   }
 
   return {
@@ -1629,7 +1720,7 @@ export async function planWindowWithCloud(pool, limit, settings, { signal = null
       schemaName: 'tab_folders',
       jsonSchema: planJsonSchema(),
       geminiSchema: planGeminiSchema(),
-      exactOutputBudget: planRequestBudget(tabs.length, reasoningEffort),
+      exactOutputBudget: planRequestBudget(tabs.length, reasoningEffort, provider === 'anthropic' && !anthropicProfileKnown(model)),
       reasoningEffort,
       schemaRetry: false,
       jsonMode,

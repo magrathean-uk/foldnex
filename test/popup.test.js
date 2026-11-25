@@ -648,3 +648,43 @@ test('Anthropic without its host permission: the popup says access must be allow
   assert.equal(asked[0][0], 'request', 'the request comes first, on the gesture');
   assert.equal(select.sync.provider, 'anthropic');
 });
+
+test('Cloud setup with a saved Anthropic key asks Chrome first, on the click itself; the footer shows the manifest version', async () => {
+  const asked = [];
+  const permissions = {
+    async contains() { return true; },
+    request(query) { asked.push(query); return Promise.resolve(true); },
+    onAdded: { addListener() {} },
+    onRemoved: { addListener() {} }
+  };
+  const popup = await openPopup({ sync: { provider: 'anthropic' }, local: { anthropicApiKey: 'synthetic-anthropic-key' }, permissions });
+  asked.length = 0;
+  // Start the click and look before anything is awaited: the request must already be made.
+  const pending = popup.choice('cloud').click();
+  assert.equal(asked.length, 1, 'permissions.request runs synchronously inside the click');
+  assert.equal(asked[0].origins[0], 'https://api.anthropic.com/*');
+  await pending;
+  await sleep(10);
+  assert.equal(popup.sync.provider, 'anthropic');
+  assert.equal(popup.sync.setupChoice, 'cloud');
+  assert.equal(asked.length, 1, 'asked once');
+  const { version } = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8'));
+  assert.equal(popup.byId('appVersion').textContent, `Foldnex ${version.split('.').slice(0, 2).join('.')}`, 'the static text matches the manifest');
+  const optionsHtml = await readFile(new URL('../options/options.html', import.meta.url), 'utf8');
+  assert.ok(optionsHtml.includes(`>Foldnex v${version}<`), 'Settings shows the manifest version');
+});
+
+test('a refusal or a cut-off answer in the last run gets its own plain explanation', async () => {
+  for (const [code, pattern] of [['refusal', /declined this window/], ['max_tokens', /cut off/]]) {
+    const popup = await openPopup({
+      sync: { provider: 'anthropic', setupChoice: 'cloud' },
+      local: {
+        anthropicApiKey: 'synthetic-anthropic-key',
+        foldnex_last_run: { provider: 'anthropic', strategy: 'task', model: 'claude-opus-5-5', fallbackCode: code }
+      },
+      permissions: { async contains() { return true; }, onAdded: { addListener() {} }, onRemoved: { addListener() {} } }
+    });
+    assert.match(popup.byId('engineHint').textContent, pattern, code);
+    assert.doesNotMatch(popup.byId('engineHint').textContent, /Check the connection in Settings/, code);
+  }
+});

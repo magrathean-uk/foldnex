@@ -4,12 +4,14 @@
 
 import { LearningCache } from './src/cache-engine.js';
 import {
+  ANTHROPIC_HOST,
+  CLOUD_PROVIDER_MODES,
   PROVIDER_CATALOG,
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   hasProviderHostAccess,
   isOpenAIResponsesOnlyModel,
-  providerHostPermission,
+  requestProviderHostAccess,
   planReasoningEffort,
   isLoopbackUrl,
   providerSettingKey,
@@ -53,25 +55,10 @@ const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
 // Engines that send tab data to a provider: Gemini, Anthropic and compatible APIs except Ollama.
 const CLOUD_PROVIDERS = Object.keys(PROVIDER_CATALOG).filter(id => {
   const config = PROVIDER_CATALOG[id];
-  return ['gemini', 'anthropic', 'compatible'].includes(config.mode) && !config.local;
+  return CLOUD_PROVIDER_MODES.includes(config.mode) && !config.local;
 });
 
-/**
- * Ask Chrome for an engine's optional host (Anthropic) on the user gesture
- * that chooses it. Call before any other await so the gesture still counts;
- * resolves to whether access is granted, false when Chrome refuses.
- */
-function requestHostAccess(provider) {
-  const origin = providerHostPermission(provider);
-  if (!origin || typeof chrome.permissions?.request !== 'function') return Promise.resolve(true);
-  try {
-    return Promise.resolve(chrome.permissions.request({ origins: [origin] })).then(Boolean, () => false);
-  } catch {
-    return Promise.resolve(false);
-  }
-}
-
-const HOST_ACCESS_HINT = 'Allow access to api.anthropic.com in Settings. Until then cleanups run locally and nothing is sent.';
+const HOST_ACCESS_HINT = `Allow access to ${ANTHROPIC_HOST} in Settings. Until then cleanups run locally and nothing is sent.`;
 let statusHideTimer = null;
 let setupBusy = false;
 let latestPopupRun = null;
@@ -214,6 +201,8 @@ function renderConfiguredProvider(config, lastRun, provider, model) {
     quota: ['warning', 'Last run: quota', 'Last cleanup ran offline because the provider reported a quota or rate limit. Check your provider account before retrying.'],
     timeout: ['warning', 'Last run: timed out', 'Last cleanup ran offline because the provider timed out. Try again or choose another engine.'],
     permission: ['warning', 'Last run: access needed', 'Last cleanup ran locally because Chrome has not allowed access to this engine. Allow it in Settings.'],
+    refusal: ['warning', 'Last run: declined', 'Last cleanup ran offline because the provider declined this window. Try again or choose another model.'],
+    max_tokens: ['warning', 'Last run: cut off', 'Last cleanup ran offline because the answer was cut off at its output limit. Try again or choose another model.'],
     provider_error: ['danger', 'Last run: failed', 'Last cleanup ran offline because the provider request failed. Check the connection in Settings.']
   };
   const failure = failures[lastRun.fallbackCode];
@@ -223,6 +212,10 @@ function renderConfiguredProvider(config, lastRun, provider, model) {
   engineHint.textContent += ` ${failure[2]}`;
 }
 
+// The settings the status last showed: the setup click asks Chrome for host
+// access from it, synchronously, before any storage read can spend the gesture.
+let loadedSettings = null;
+
 async function refreshEngineStatus() {
   const revision = ++engineStatusRevision;
   const [syncSettings, runData] = await Promise.all([
@@ -231,6 +224,7 @@ async function refreshEngineStatus() {
   ]);
   if (revision !== engineStatusRevision) return;
   const secrets = syncSettings;
+  loadedSettings = syncSettings;
   const lastRun = latestPopupRun || runData.foldnex_last_run;
 
   const provider = resolveProvider(syncSettings.provider);
@@ -432,20 +426,28 @@ function finishSetup(message) {
   btnGroupTabs.focus({ preventScroll: true });
 }
 
+/** The cloud engine a setup click would use: the current one, OpenAI, then any other with a saved key. */
+function keyedCloudProvider(settings) {
+  const hasKey = id => Boolean(settings[apiKeyStorageKey(id)] || (id === 'openai' && settings.openaiOAuthToken));
+  return [settings.provider, 'openai', ...CLOUD_PROVIDERS]
+    .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
+}
+
 /**
  * Cloud: reuse a key already saved for the current or another cloud engine
  * (presence only; the value is never shown). Without one, keep the engine
  * unchanged and open Settings so the user can add a key.
  */
 async function chooseCloudSetup() {
+  // Anthropic's host is optional: ask on this click, first and synchronously,
+  // from the settings the status already loaded (the user's gesture ends at
+  // the first slow await). A saved key the popup had not seen is asked for below.
+  const guess = loadedSettings ? keyedCloudProvider(loadedSettings) : null;
+  let access = guess ? requestProviderHostAccess(guess) : null;
   const secrets = await loadSettings();
-  const { provider } = secrets;
-  const hasKey = id => Boolean(secrets[apiKeyStorageKey(id)] || (id === 'openai' && secrets.openaiOAuthToken));
-  const keyed = [provider, 'openai', ...CLOUD_PROVIDERS]
-    .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
+  const keyed = keyedCloudProvider(secrets);
   if (keyed) {
-    // Anthropic's host is optional: ask on this click, which is the user's gesture.
-    const access = requestHostAccess(keyed);
+    if (keyed !== guess) access = requestProviderHostAccess(keyed);
     await saveEngineChoice({ provider: keyed, setupChoice: 'cloud' });
     finishSetup(await access
       ? `${PROVIDER_CATALOG[keyed].name} selected with your saved key.`
@@ -582,6 +584,10 @@ btnGroupTabs.addEventListener('click', async () => {
         reasonSnippet = 'AI timed out';
       } else if (res.fallbackCode === 'permission') {
         reasonSnippet = 'access not allowed; allow it in Settings';
+      } else if (res.fallbackCode === 'refusal') {
+        reasonSnippet = 'the provider declined this window';
+      } else if (res.fallbackCode === 'max_tokens') {
+        reasonSnippet = 'the answer was cut off';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else {
@@ -683,7 +689,7 @@ strategyInputs.forEach(input => input.addEventListener('change', async () => {
 providerSelect.addEventListener('change', async (e) => {
   const newProvider = e.target.value;
   // First, while the change is still the user's gesture (D48).
-  const access = requestHostAccess(newProvider);
+  const access = requestProviderHostAccess(newProvider);
   await saveEngineChoice({ provider: newProvider });
   await access;
   await refreshEngineStatus();
@@ -740,6 +746,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return refreshPlanOffer(popupWindowId);
     })
     .catch(() => {});
+  // The footer shows the installed version; the HTML holds the same text as a fallback.
+  const version = chrome.runtime.getManifest?.()?.version;
+  const versionLabel = document.getElementById('appVersion');
+  if (version && versionLabel) versionLabel.textContent = `Foldnex ${version.split('.').slice(0, 2).join('.')}`;
   renderProviderSelect();
   chrome.commands.getAll().then(commands => {
     const shortcut = commands.find(command => command.name === 'group-tabs')?.shortcut;
