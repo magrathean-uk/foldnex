@@ -46,7 +46,7 @@ The popup and settings page include a user-initiated Donate link to `https://mag
 - Store icon: `store-assets/store-icon-128.png`
 - Prepared screenshots (upload these derived images in this order):
   1. `store-assets/screenshots/01-popup.png`: the popup before and after a cleanup
-  2. `store-assets/screenshots/02-grouping-engines.png`: engine chooser, local engines and cloud providers in separate columns
+  2. `store-assets/screenshots/02-grouping-engines.png`: engine chooser, on-device, cloud and own-server engines in three labelled sections
   3. `store-assets/screenshots/03-provider-settings.png`: Ollama configuration with its model list
   4. `store-assets/screenshots/04-rules-and-memory.png`: Rules & memory with example rules
   5. `store-assets/screenshots/05-behaviour.png`: Behaviour settings and keyboard shortcuts

@@ -195,11 +195,18 @@ navItems.forEach((item, index) => {
   });
 });
 
-// The chooser shows local engines apart from cloud ones; one radio group spans both.
+// The chooser has three labelled sections in catalogue order (Offline smart mode,
+// cloud providers, Ollama) so one radio group keeps the arrow-key order of 2.2.0.
 const PROVIDER_GROUPS = [
-  { id: 'providerGroupLocal', title: 'On this device or your own server', local: true },
-  { id: 'providerGroupCloud', title: 'Cloud providers, with your own API key', local: false }
+  { id: 'providerGroupLocal', title: 'On this device', section: 'device' },
+  { id: 'providerGroupCloud', title: 'Cloud providers', section: 'cloud' },
+  { id: 'providerGroupServer', title: 'Your own server', section: 'server' }
 ];
+
+function providerSection(provider) {
+  if (provider.mode === 'local') return 'device';
+  return provider.local ? 'server' : 'cloud';
+}
 
 function renderProviderList() {
   providerList.textContent = '';
@@ -216,8 +223,8 @@ function renderProviderList() {
     rows.className = 'provider-group-rows';
 
     Object.entries(PROVIDER_CATALOG).forEach(([id, provider]) => {
+      if (providerSection(provider) !== group.section) return;
       const isLocal = provider.mode === 'local' || Boolean(provider.local);
-      if (isLocal !== group.local) return;
       const label = document.createElement('label');
       label.className = 'provider-row';
 

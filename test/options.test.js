@@ -291,6 +291,22 @@ test('provider usage updates after late replies independently of Last cleanup an
   assert.equal(options.byId('diagSource').textContent, sourceBefore);
 });
 
+test('the engine chooser lists radios in catalogue order under three labelled sections, as one radio group', async () => {
+  const options = await openOptions({ sync: { provider: 'offline' } });
+  const list = options.byId('providerList');
+  const radios = list.descendants().filter(node => node.tagName === 'INPUT' && node.name === 'providerSelect');
+  assert.deepEqual(radios.map(radio => radio.value), Object.keys(ai.PROVIDER_CATALOG), 'DOM order equals the catalogue order');
+  assert.equal(radios[0].value, 'offline');
+  assert.equal(radios.at(-1).value, 'ollama');
+  const groups = list.children.filter(node => node.getAttribute('role') === 'group');
+  assert.deepEqual(groups.map(group => options.byId(group.getAttribute('aria-labelledby')).textContent),
+    ['On this device', 'Cloud providers', 'Your own server']);
+  const perGroup = groups.map(group => group.descendants().filter(node => node.name === 'providerSelect').map(radio => radio.value));
+  assert.deepEqual(perGroup[0], ['offline']);
+  assert.deepEqual(perGroup[2], ['ollama']);
+  assert.equal(perGroup[1].length, radios.length - 2);
+});
+
 test('Settings offers no Gemini Nano engine, describes Offline smart mode plainly and keeps the model memory setting for Ollama', async () => {
   const pageText = element => [element.textContent, ...element.descendants().map(child => child.textContent)].join(' ');
   const options = await openOptions({ sync: { provider: 'gemini_nano', backgroundPrep: true } });
