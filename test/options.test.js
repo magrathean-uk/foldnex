@@ -609,3 +609,50 @@ test('Anthropic: the host is asked for after the checks and inside the click; Sa
   await options.byId('btnSaveCompatible').fire('click');
   assert.equal(ai.ANTHROPIC_PROFILE_KEY in options.local, false);
 });
+
+test('N2: a catalogue refresh does not re-enable a Test connection that is still running', async () => {
+  const permissions = { request() { return Promise.resolve(true); }, async contains() { return true; } };
+  let release = null;
+  const options = await openOptions({
+    sync: { provider: 'anthropic' }, models: ['claude-opus-5-5'], permissions,
+    connectionResponse: () => new Promise(resolve => { release = () => resolve({ json: { folders: [{ name: 'Project', ids: [0, 1] }] } }); }),
+    catalogResponse: async request => {
+      request.onProfiles?.(new Map([['claude-opus-5-5', { efforts: Object.freeze(['low']), off: null }]]));
+      return ['claude-opus-5-5'];
+    }
+  });
+  const button = options.byId('btnTestCompatible');
+  options.byId('compatibleApiKey').value = 'synthetic-anthropic-key';
+  const running = button.fire('click');
+  await flush();
+  assert.equal(button.textContent, 'Testing…');
+  assert.equal(button.disabled, true);
+  // The catalogue answers first and re-renders the effort control.
+  await options.byId('btnRefreshCompatibleModels').fire('click');
+  assert.equal(options.catalogRequests.length >= 1, true);
+  assert.equal(button.disabled, true, 'still disabled while the test runs');
+  assert.equal(button.textContent, 'Testing…');
+  assert.equal(options.requests.length, 1);
+  release();
+  await running;
+  await flush();
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, 'Test connection');
+});
+
+test('L3: editing the key retires the catalogue profiles listed for the old one', async () => {
+  const permissions = { request() { return Promise.resolve(true); }, async contains() { return true; } };
+  const options = await openOptions({
+    sync: { provider: 'anthropic' }, permissions,
+    catalogResponse: async request => {
+      request.onProfiles?.(new Map([['claude-l3-listed-key', { efforts: Object.freeze(['low', 'high']), off: 'disabled' }]]));
+      return ['claude-l3-listed-key'];
+    }
+  });
+  options.byId('compatibleApiKey').value = 'synthetic-key-one';
+  await options.byId('compatibleApiKey').fire('change');
+  assert.deepEqual([...ai.getReasoningEffortOptions('anthropic', 'claude-l3-listed-key')], ['none', 'low', 'high']);
+  options.byId('compatibleApiKey').value = 'synthetic-key-two';
+  await options.byId('compatibleApiKey').fire('input');
+  assert.deepEqual([...ai.getReasoningEffortOptions('anthropic', 'claude-l3-listed-key')], [], 'the old connection\'s listing is gone');
+});

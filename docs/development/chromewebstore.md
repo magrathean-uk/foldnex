@@ -24,7 +24,7 @@ Foldnex removes duplicate tabs and organises the current Chrome window into clea
 
 - Removes conservative, exact-page duplicates, keeping a pinned copy first, then the active tab, then the leftmost copy.
 - Groups tabs by task with Offline smart mode, which runs on your device with a small word table built into Foldnex: no account, no key, nothing sent.
-- Or groups by task with a cloud model you choose (Google Gemini, Anthropic Claude, OpenAI, xAI, Groq, OpenRouter, DeepSeek, Cerebras) or your own Ollama server: at most one request per cleanup, and the model returns named groups that Foldnex checks before applying.
+- Or groups by task with a cloud model you choose (Google Gemini, Anthropic Claude, OpenAI, xAI, Groq, OpenRouter, DeepSeek, Cerebras) or your own Ollama server: at most one request per cleanup (Anthropic: one identical repeat without the thinking or effort setting if Anthropic rejects it with HTTP 400), and the model returns named groups that Foldnex checks before applying.
 - Reuses an applied plan for an unchanged window, and adds a few new tabs on your device instead of asking again.
 - If the model answers late, the local grouping is applied at once and an answer that still matches the window is offered in the popup; it changes your tabs only when you select Apply.
 - Groups locally by site category when you want groups such as Socials, Email, AI, Code and Video.
@@ -78,7 +78,7 @@ The top-level `commands` manifest entry declares user-visible keyboard shortcuts
 
 ## Host permission justifications
 
-These hosts are contacted only when the user runs a By task cleanup with that engine selected (at most one request for the window), runs Test connection (two synthetic tabs) or when Settings loads the engine's model list (no tab data; with the key currently typed, even before Save). Nothing is sent in the background. Cloud engines always use their provider's own address; a saved override is ignored. Only the Ollama address can differ, and it can use HTTP only on this device (`localhost`, `127.0.0.1` or `[::1]`). A saved address grants no further host permission; the extension does not request unrestricted URL access.
+These hosts are contacted only when the user runs a By task cleanup with that engine selected (at most one request for the window; for Anthropic one identical repeat without the thinking or effort setting after an HTTP 400 that rejects it), runs Test connection (two synthetic tabs) or when Settings loads the engine's model list (no tab data; with the key currently typed, even before Save). Nothing is sent in the background. Cloud engines always use their provider's own address; a saved override is ignored. Only the Ollama address can differ, and it can use HTTP only on this device (`localhost`, `127.0.0.1` or `[::1]`). A saved address grants no further host permission; the extension does not request unrestricted URL access.
 
 - `https://generativelanguage.googleapis.com/*`: Google Gemini models, connection test, and grouping.
 - `https://api.openai.com/*`: OpenAI models, connection test, and grouping.
@@ -134,7 +134,7 @@ No account or API key is required for the main path.
 6. Select **Ungroup current window** to remove the groups. It does not reopen the closed duplicate or restore the original tab order.
 7. Open **Rules and settings** to inspect engines, rules, diagnostics and behaviour settings.
 
-Cloud providers are optional and require reviewer-supplied credentials. Choosing **Cloud AI** in the setup card without a saved key opens Settings at the engine section and keeps the current engine until a key is saved. Entering a key in Settings loads that provider's model list with it. With a key and a compatible model, **Test connection** sends one grouping request for two synthetic tabs; a cleanup on a window with two or more unlocked tabs sends one request, and once that plan has been applied a second cleanup on the unchanged window sends none (see **Provider request usage** in Behaviour). For OpenAI, turning Priority processing off makes the test and cleanups request the default tier. For Anthropic, choosing the engine, **Save** or **Test connection** shows Chrome's prompt for `api.anthropic.com`; declining it leaves cleanups local, with the popup showing **Access needed**.
+Cloud providers are optional and require reviewer-supplied credentials. Choosing **Cloud AI** in the setup card without a saved key opens Settings at the engine section and keeps the current engine until a key is saved. Entering a key in Settings loads that provider's model list with it. With a key and a compatible model, **Test connection** sends one grouping request for two synthetic tabs; a cleanup on a window with two or more unlocked tabs sends one request (for Anthropic, one identical repeat without the thinking or effort setting if it answers HTTP 400 to that setting), and once that plan has been applied a second cleanup on the unchanged window sends none (see **Provider request usage** in Behaviour). For OpenAI, turning Priority processing off makes the test and cleanups request the default tier. For Anthropic, choosing the engine, **Save** or **Test connection** shows Chrome's prompt for `api.anthropic.com`; declining it leaves cleanups local, with the popup showing **Access needed**.
 
 ## Package and submission checklist
 

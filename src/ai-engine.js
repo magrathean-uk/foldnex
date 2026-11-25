@@ -270,10 +270,19 @@ function anthropicLiveProfile(modelId) {
   return anthropicStoredSnapshot?.model === modelId ? anthropicStoredSnapshot.profile : null;
 }
 
-/** Make the profiles of an accepted catalogue listing current (the page checked it was the current request). */
+/**
+ * Make an accepted catalogue listing current (the page checked it was the current
+ * request). The listing replaces the earlier one: a model it omits is no longer known.
+ */
 export function publishAnthropicCatalogProfiles(profiles) {
   if (!(profiles instanceof Map)) return;
+  anthropicCapabilityProfiles.clear();
   for (const [modelId, profile] of profiles) anthropicCapabilityProfiles.set(modelId, profile);
+}
+
+/** Forget the catalogue's profiles: the connection (key) they were listed for has changed. */
+export function clearAnthropicCatalogProfiles() {
+  anthropicCapabilityProfiles.clear();
 }
 
 /** chrome.storage.local key of the chosen model's capability profile (small, no key). */
@@ -307,8 +316,10 @@ export function anthropicStoredProfile(model) {
  * shape is ignored, so a damaged value can only fall back to the table.
  */
 export function registerAnthropicModelProfile(record) {
-  // Replaced on every call: a record that is absent or damaged clears the snapshot.
+  // Replaced on every call: a record that is absent or damaged clears the snapshot,
+  // and a fresher stored record is never masked by an older page listing.
   anthropicStoredSnapshot = null;
+  anthropicCapabilityProfiles.clear();
   if (!record || typeof record !== 'object' || typeof record.model !== 'string' || !Array.isArray(record.efforts)) return false;
   if (record.off !== null && record.off !== 'disabled' && record.off !== 'between_tools') return false;
   const efforts = record.efforts.filter(level => ANTHROPIC_EFFORTS.includes(level));
@@ -534,6 +545,8 @@ async function fetchModelPage(url, headers, { fixedErrors = false } = {}) {
     try {
       return await response.json();
     } catch (error) {
+      // A body read cut off by the timeout is a timeout, not an unreadable answer.
+      if (error?.name === 'AbortError' || controller.signal.aborted) throw error;
       if (fixedErrors) throw fixedAnthropicError('Anthropic · Claude response could not be read', 'unreadable');
       throw error;
     }
@@ -1014,7 +1027,8 @@ async function readApiError(response) {
   let param = '';
   try {
     const body = await response.json();
-    detail = body?.error?.message || body?.message || '';
+    const message = body?.error?.message || body?.message;
+    detail = typeof message === 'string' ? message : '';
     if (typeof body?.error?.param === 'string') param = body.error.param.slice(0, 64);
   } catch {
     detail = response.statusText || '';
@@ -1120,7 +1134,8 @@ async function fetchProviderRequest(url, options, consumeResponse, reasoningEffo
 }
 
 function normalizeUsage(usage) {
-  if (!usage) return null;
+  // Absent, not an object or empty: no usage was reported (never a zero-priced one).
+  if (!usage || typeof usage !== 'object' || !Object.keys(usage).length) return null;
   if (Object.hasOwn(usage, 'input_tokens') && !Object.hasOwn(usage, 'prompt_tokens')) return normalizeAnthropicUsage(usage);
   const reasoningTokens = usage.reasoning_tokens
     ?? usage.reasoningTokenCount
@@ -1549,8 +1564,9 @@ function classifyAnthropicRejection(status, param, text) {
   const format = /output_config\.format|json_schema|\bschema\b|response format|structured output/i.test(words);
   const controls = /\beffort\b|\bthinking\b/i.test(words);
   if (format && controls) {
-    // Both named with no parameter path: the field the message names directly wins.
-    return /output_config\.effort|\bthinking\b/i.test(words) && !/output_config\.format|json_schema/i.test(words)
+    // Both named with no parameter path: a format rejection wins over an incidental
+    // mention of thinking; controls only when a control field is named as the rejected one.
+    return /output_config\.effort|\bthinking\.\w+/i.test(words) && !/output_config\.format|json_schema/i.test(words)
       ? { format: false, controls: true } : { format: true, controls: false };
   }
   return { format, controls };
@@ -1630,9 +1646,16 @@ async function requestAnthropicJson(request, { system, user, jsonSchema, outputB
         body: JSON.stringify(payload)
       }, async response => {
         if (!response.ok) {
-          // The provider's words steer the retry decision and are then dropped.
-          const { detail, param } = await readApiError(response);
-          throw anthropicHttpError(response.status, { rejection: classifyAnthropicRejection(response.status, param, detail) });
+          // The error is built from the status first. Only a 400's words steer the retry
+          // decision (string fields only), and a body that cannot be read changes nothing.
+          const error = anthropicHttpError(response.status);
+          if (response.status === 400) {
+            try {
+              const { detail, param } = await readApiError(response);
+              error.rejection = classifyAnthropicRejection(400, param, detail);
+            } catch { /* keep the status error */ }
+          }
+          throw error;
         }
         try {
           return await response.json();
@@ -1734,6 +1757,15 @@ export async function requestProviderJson(settings, {
 // A plan may land after the click has applied its local result; it is then
 // stored and offered. This bounds the whole request.
 export const PLAN_REQUEST_TIMEOUT_MS = 30000;
+
+/**
+ * The most HTTP requests one plan can send. The plan never retries a rejected
+ * schema (schemaRetry false); only Anthropic may retry once, without a rejected
+ * effort or thinking field. Callers that budget a run (eval/run-engine.mjs) read it here.
+ */
+export function planMaxAttempts(provider) {
+  return provider === 'anthropic' ? 2 : 1;
+}
 
 // Engines and models whose plan schema was rejected this browser session: their
 // next plan request goes out in JSON mode. Held as hashes of provider, model

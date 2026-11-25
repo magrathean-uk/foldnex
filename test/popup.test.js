@@ -677,7 +677,7 @@ test('Cloud setup with a saved Anthropic key asks Chrome first, on the click its
 test('L1: the setup card takes clicks only after the settings snapshot, and a stale snapshot never asks Chrome after the gesture is gone', async () => {
   const asked = [];
   const permissions = {
-    async contains() { return true; },
+    async contains() { return false; },
     request(query) { asked.push(query); return Promise.resolve(true); },
     onAdded: { addListener() {} },
     onRemoved: { addListener() {} }
@@ -697,6 +697,28 @@ test('L1: the setup card takes clicks only after the settings snapshot, and a st
   assert.equal(popup.sync.setupChoice, 'cloud');
   assert.ok(popup.opened.some(url => /options\.html#engine/.test(url)), 'Settings opens so the next click can ask');
   assert.match(popup.byId('statusMessage').textContent, /Allow its access in Settings/);
+});
+
+test('N3: a stale snapshot that newly resolves to Anthropic does not send the user to Settings when Chrome already granted access', async () => {
+  const asked = [];
+  const permissions = {
+    async contains() { return true; },
+    request(query) { asked.push(query); return Promise.resolve(true); },
+    onAdded: { addListener() {} },
+    onRemoved: { addListener() {} }
+  };
+  const popup = await openPopup({ sync: { provider: 'offline' }, permissions });
+  popup.sync.provider = 'anthropic';
+  popup.local.anthropicApiKey = 'synthetic-anthropic-key';
+  asked.length = 0;
+  await popup.choice('cloud').click();
+  await sleep(10);
+  assert.equal(asked.length, 0, 'no permissions.request after an await');
+  assert.equal(popup.sync.provider, 'anthropic');
+  assert.equal(popup.sync.setupChoice, 'cloud');
+  assert.equal(popup.opened.some(url => /options\.html#engine/.test(url)), false, 'Settings stays closed');
+  assert.match(popup.byId('statusMessage').textContent, /Anthropic · Claude selected with your saved key\.?$/);
+  assert.doesNotMatch(popup.byId('statusMessage').textContent, /Allow its access/);
 });
 
 test('a refusal or a cut-off answer in the last run gets its own plain explanation', async () => {

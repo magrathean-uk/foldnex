@@ -13,6 +13,7 @@ import {
   ANTHROPIC_HOST,
   ANTHROPIC_PROFILE_KEY,
   anthropicStoredProfile,
+  clearAnthropicCatalogProfiles,
   publishAnthropicCatalogProfiles,
   CLOUD_PROVIDER_MODES,
   providerHostPermission,
@@ -140,6 +141,8 @@ let savedProvider = DEFAULT_PROVIDER;
 let pendingCloudProvider = null;
 let savedOllamaBaseUrl = '';
 const catalogRevisions = { gemini: 0, compatible: 0 };
+// The connection revision of the Test connection run in flight (null when none).
+let compatibleTestRevision = null;
 const connectionRevisions = { gemini: 0, compatible: 0 };
 let compatibleLoadRevision = 0;
 const MODEL_UNLOAD_VALUES = ['immediately', '2m', '5m', '15m', '60m', 'never'];
@@ -474,6 +477,8 @@ function invalidateModelCatalog(provider) {
   const slot = catalogSlot(provider);
   catalogRevisions[slot]++;
   connectionRevisions[slot]++;
+  // Profiles listed for the old connection (key) are not the new one's.
+  if (provider === 'anthropic') clearAnthropicCatalogProfiles();
   if (!catalogProviderCurrent(provider)) return;
   const ui = modelUi(provider);
   renderModelOptions(provider, []);
@@ -559,7 +564,8 @@ function renderReasoningControl(provider, model, select, help) {
   const responsesOnly = provider === 'openai' && isOpenAIResponsesOnlyModel(model);
   if (provider !== 'gemini_api') {
     btnSaveCompatible.disabled = responsesOnly;
-    btnTestCompatible.disabled = responsesOnly;
+    // A test in flight keeps its button disabled whatever the effort control does.
+    btnTestCompatible.disabled = responsesOnly || compatibleTestRevision === connectionRevisions.compatible;
   }
   select.textContent = '';
 
@@ -1109,6 +1115,7 @@ btnTestCompatible.addEventListener('click', async () => {
 
   btnTestCompatible.textContent = 'Testing…';
   btnTestCompatible.disabled = true;
+  compatibleTestRevision = revision;
 
   try {
     if (!(await access)) {
@@ -1130,6 +1137,7 @@ btnTestCompatible.addEventListener('click', async () => {
   } catch (e) {
     if (isCurrent()) showToast(connectionErrorMessage(e), 'error');
   } finally {
+    if (compatibleTestRevision === revision) compatibleTestRevision = null;
     if (revision === connectionRevisions.compatible && catalogProviderCurrent(provider)) {
       btnTestCompatible.textContent = 'Test connection';
       btnTestCompatible.disabled = provider === 'openai'

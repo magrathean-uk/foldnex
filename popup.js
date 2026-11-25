@@ -459,9 +459,9 @@ async function chooseCloudSetup() {
   const keyed = keyedCloudProvider(secrets);
   if (keyed) {
     await saveEngineChoice({ provider: keyed, setupChoice: 'cloud' });
-    if (keyed !== guess && providerHostPermission(keyed)) {
-      // The fresh read picked an engine needing access the click did not ask for,
-      // and the gesture is spent: Settings asks from a new click.
+    if (keyed !== guess && providerHostPermission(keyed) && !(await hasProviderHostAccess(keyed))) {
+      // The fresh read picked an engine needing access the click did not ask for, Chrome has
+      // not granted it and the gesture is spent: Settings asks from a new click.
       loadedSettings = secrets;
       finishSetup(`${PROVIDER_CATALOG[keyed].name} selected with your saved key. Allow its access in Settings; until then cleanups run locally.`);
       await openEngineSettings();

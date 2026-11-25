@@ -8,8 +8,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { MAX_GROUPS, PROVIDER_CATALOG, anthropicProfileKnown, buildPlanSystem, buildPlanUser, planReasoningEffort, planRequestBudget, providerSettingKey, planWindowWithCloud } from '../src/ai-engine.js';
+import { MAX_GROUPS, PROVIDER_CATALOG, anthropicProfileKnown, buildPlanSystem, buildPlanUser, planMaxAttempts, planReasoningEffort, planRequestBudget, providerSettingKey, planWindowWithCloud } from '../src/ai-engine.js';
 import { loadWindows } from './lib.mjs';
 import { makeUnit, planOutputBudget, stabilityOf, stamp, writeRun } from './phase1-lib.mjs';
 
@@ -41,12 +42,14 @@ const HELP = `Usage: node eval/run-engine.mjs --engine <engine> [options]
   --base-url <url>     override the engine's base URL (a remote Ollama, for example)
   --price-in <usd>     USD per million input tokens; with --price-out, cost is reported in USD (never assumed)
   --price-out <usd>    USD per million output tokens (reasoning tokens counted as output)
-  --max-cost <usd>     with prices: stop before a window whose worst case could take the run past this total.
-                       The worst case is reserved before dispatch: the prompt's characters / 2 as input tokens (a
-                       bound, not a count) plus the output limit the product would send, for the two HTTP attempts
-                       the product can make; a dispatched request with no usage in its answer keeps its reservation
+  --max-cost <usd>     with prices: stop before a window whose estimated cost could take the run past this total.
+                       The cap is an estimate, not a guarantee: before dispatch it reserves the prompt's characters / 2
+                       as input tokens (the schema and framing are not counted) plus the output limit the product would
+                       send, for the HTTP attempts the engine's plan can make (two for Anthropic, one for the others);
+                       a dispatched request whose answer has no usable usage (absent, empty or invalid) keeps its reservation
   --out <dir>          default eval/results/provider/phase1 (--stub: a temporary directory)
   --stub               no network: fetch is replaced by a local function answering in each provider's shape
+  --stub-usage empty|invalid   with --stub: every answer carries an empty or an invalid usage object (checks the cost cap keeps its reservation)
   --stub-fail          with --stub: every request fails with a 400 that quotes the key (checks nothing of it reaches the log)
 
 Key variables (read from the environment only):
@@ -54,12 +57,13 @@ ${Object.entries(KEY_ENV).map(([engine, name]) => `  ${engine.padEnd(11)} ${name
 `;
 
 function parseArgs(argv) {
-  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, maxCost: null, out: '', stub: false, stubFail: false };
+  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, maxCost: null, out: '', stub: false, stubFail: false, stubUsage: '' };
   const names = { '--engine': 'engine', '--model': 'model', '--windows': 'windows', '--repeats': 'repeats', '--effort': 'effort', '--priority': 'priority', '--base-url': 'baseUrl', '--price-in': 'priceIn', '--price-out': 'priceOut', '--max-cost': 'maxCost', '--out': 'out' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--help' || argv[i] === '-h') { console.log(HELP); process.exit(0); }
     else if (argv[i] === '--stub') options.stub = true;
     else if (argv[i] === '--stub-fail') options.stubFail = true;
+    else if (argv[i] === '--stub-usage') options.stubUsage = argv[++i] || '';
     else if (names[argv[i]]) options[names[argv[i]]] = argv[++i];
     else throw new Error(`Unknown option ${argv[i]}`);
   }
@@ -81,6 +85,7 @@ function parseArgs(argv) {
     if (options.priceIn === null) throw new Error('--max-cost needs --price-in and --price-out');
   }
   if (options.stubFail && !options.stub) throw new Error('--stub-fail needs --stub');
+  if (options.stubUsage && (!options.stub || !['empty', 'invalid'].includes(options.stubUsage))) throw new Error('--stub-usage needs --stub and empty or invalid');
   options.out = options.out || (options.stub ? path.join(os.tmpdir(), `foldnex-eval-stub-${options.engine}`) : DEFAULT_OUT);
   return options;
 }
@@ -152,7 +157,9 @@ function makeStubFetch(options, apiKey) {
       return reply(200, {
         type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
         content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: answer }],
-        usage: { input_tokens: promptTokens, output_tokens: Math.ceil(answer.length / 4), cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+        usage: options.stubUsage === 'empty' ? {}
+          : options.stubUsage === 'invalid' ? { input_tokens: 'many', output_tokens: -1 }
+            : { input_tokens: promptTokens, output_tokens: Math.ceil(answer.length / 4), cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
       });
     }
     if (options.engine === 'gemini_api') {
@@ -198,7 +205,8 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const { engine } = options;
   const config = PROVIDER_CATALOG[engine];
-  const apiKey = options.stub ? (process.env[envName(engine)] || 'stub-key') : (process.env[envName(engine)] || '');
+  // A stub run never reads the environment: its credential is made here, so nothing real can reach a log.
+  const apiKey = options.stub ? `evalstub-${randomBytes(12).toString('hex')}` : (process.env[envName(engine)] || '');
   if (!apiKey && !config.keyOptional) throw new Error(`${envName(engine)} is not set`);
   const redact = text => (apiKey ? String(text).split(apiKey).join('[key]') : String(text));
 
@@ -222,8 +230,9 @@ async function main() {
   let modelSeen = null;
   let spentUsd = 0;
   const priced = options.priceIn !== null;
-  const maxAttempts = 2;
-  // Worst case of one HTTP attempt for a window: input bounded by the prompt's characters / 2, output by the limit the product sends.
+  // The attempts the engine's plan can make (its retry policy), not a flat two.
+  const maxAttempts = planMaxAttempts(engine);
+  // Estimate of one HTTP attempt for a window: input from the prompt's characters / 2 (schema and framing left out), output the limit the product sends.
   const attemptUsd = tabs => {
     const effort = planReasoningEffort(engine, options.model);
     const outputLimit = planRequestBudget(tabs.length, effort, engine === 'anthropic' && !anthropicProfileKnown(options.model));
@@ -241,7 +250,7 @@ async function main() {
         const tabs = all[name];
         const reserveUsd = options.maxCost !== null ? attemptUsd(tabs) : 0;
         if (options.maxCost !== null && spentUsd + reserveUsd * maxAttempts > options.maxCost) {
-          console.log(`Stopping: window ${name} could take the run past the ${options.maxCost} USD cap (spent or reserved ${spentUsd.toFixed(4)} USD, worst case for this window ${(reserveUsd * maxAttempts).toFixed(4)} USD)`);
+          console.log(`Stopping: window ${name} could take the run past the ${options.maxCost} USD cap (it is an estimate; spent or reserved ${spentUsd.toFixed(4)} USD, estimate for this window ${(reserveUsd * maxAttempts).toFixed(4)} USD)`);
           break outer;
         }
         attempts = 0;
@@ -258,7 +267,9 @@ async function main() {
         const outer = Math.round(performance.now() - t0);
         const answer = response?.json ?? null;
         const failed = Boolean(error) || !Array.isArray(answer?.folders);
-        const usage = response?.usage || null;
+        // Usage counts only when it reports positive, finite input and output; otherwise the attempt keeps its reservation.
+        const reported = response?.usage || null;
+        const usage = reported && [reported.promptTokens, reported.completionTokens].every(value => Number.isFinite(value) && value > 0) ? reported : null;
         const input = usage ? usage.promptTokens : null;
         // Gemini's candidate count leaves thoughts out; the others include reasoning in completion tokens.
         const output = usage ? usage.completionTokens + (engine === 'gemini_api' ? usage.reasoningTokens || 0 : 0) : null;
@@ -283,7 +294,7 @@ async function main() {
         });
         unitsByVariant.get(variant).push(unit);
         console.log(`${String(position).padStart(3)}/${total} ${name.padEnd(12)} #${repeat}${variant ? ` priority ${variant}` : ''} ${failed ? 'FAILED' : 'ok    '} F1 ${unit.score.f1.toFixed(2)} ${request.wall_ms}ms in ${input ?? '-'} out ${output ?? '-'} tok${cost === null ? '' : ` $${cost.toFixed(5)}`}`);
-        if (request.error) console.log(`    error: ${request.status ?? ''} ${request.error}`);
+        if (request.error) console.log(`    error: ${request.error_code ?? ''} ${request.status ?? ''} ${request.error}`.replace(/ {2,}/g, ' '));
       }
     }
   }

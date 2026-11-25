@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   ANTHROPIC_API_BASE,
+  clearAnthropicCatalogProfiles,
   anthropicAnswerText,
   anthropicModelProfile,
   anthropicProfileFromCapabilities,
@@ -565,11 +566,11 @@ test('M2: a failed Anthropic response, an unreadable body and a bad header carry
 });
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-function runEngineScript(args, key) {
+function runEngineScript(args, key, engine = 'anthropic') {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'foldnex-run-engine-'));
   try {
-    const run = spawnSync(process.execPath, [path.join(REPO, 'eval/run-engine.mjs'), '--engine', 'anthropic', '--stub', '--windows', 'b-move', '--repeats', '1', '--out', out, ...args], {
-      env: { ...process.env, ANTHROPIC_API_KEY: key }, encoding: 'utf8'
+    const run = spawnSync(process.execPath, [path.join(REPO, 'eval/run-engine.mjs'), '--engine', engine, '--stub', '--windows', 'b-move', '--repeats', '1', '--out', out, ...args], {
+      env: { ...process.env, ANTHROPIC_API_KEY: key, OPENAI_API_KEY: key }, encoding: 'utf8'
     });
     const files = fs.readdirSync(out).map(name => fs.readFileSync(path.join(out, name), 'utf8'));
     return { status: run.status, output: `${run.stdout}\n${run.stderr}`, files };
@@ -588,6 +589,7 @@ test('M2: the evaluation runner logs a safe code and status, with no key fragmen
   assert.equal(request.status, 400);
   assert.equal(request.error_code, 'http_400');
   assert.equal(request.error, 'Anthropic · Claude API HTTP 400 (invalid request)');
+  assert.match(run.output, /error: http_400 400 Anthropic · Claude API HTTP 400 \(invalid request\)/, 'the terminal line carries the code and the status');
   for (const text of [run.output, run.files[0]]) {
     assert.doesNotMatch(text, /EVALSYNTHETIC|ant-api03|stub: bad request/);
     for (let index = 0; index + 8 <= secret.length; index++) assert.equal(text.includes(secret.slice(index, index + 8)), false, secret.slice(index, index + 8));
@@ -663,9 +665,146 @@ test('L3: a catalogue answered for the page is published only when the page says
   }
 });
 
+test('M2: a 401 whose error metadata is malformed still reports its HTTP status, and a malformed 400 body only loses its retry hint', async () => {
+  installBrowser([]);
+  setPermission(true);
+  const original = globalThis.fetch;
+  try {
+    for (const status of [401, 400]) {
+      globalThis.fetch = async () => ({
+        ok: false, status, statusText: 'Synthetic',
+        async json() { return { error: { message: Object.create(null), param: 5, type: ['x'] } }; }
+      });
+      await assert.rejects(planWindowWithCloud(rows, 2, ANTHROPIC, { recordUsage: false }), error => {
+        assert.equal(error.status, status);
+        assert.equal(error.code, `http_${status}`);
+        assert.match(error.message, new RegExp(`^Anthropic · Claude API HTTP ${status} `));
+        return true;
+      });
+    }
+    // A body that cannot be read at all, on a 401.
+    globalThis.fetch = async () => ({ ok: false, status: 401, get statusText() { throw new Error('boom'); }, async json() { throw new Error('boom'); } });
+    await assert.rejects(planWindowWithCloud(rows, 2, ANTHROPIC, { recordUsage: false }), error => error.status === 401 && error.code === 'http_401');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('M3: an empty or invalid usage keeps the reservation; valid usage books the real cost', () => {
+  const prices = ['--price-in', '0', '--price-out', '25', '--max-cost', '5'];
+  const spent = run => Number(run.output.match(/cost \$([\d.]+)/)?.[1]);
+  const valid = runEngineScript(prices, 'unused');
+  assert.equal(valid.status, 0, valid.output);
+  assert.ok(spent(valid) < 0.01, valid.output);
+  for (const kind of ['empty', 'invalid']) {
+    const run = runEngineScript([...prices, '--stub-usage', kind], 'unused');
+    assert.equal(run.status, 0, run.output);
+    assert.ok(spent(run) >= 0.03, `${kind}: the dispatched window keeps its reservation (${run.output})`);
+    assert.equal(JSON.parse(run.files[0]).units[0].cost_usd, null, `${kind}: no cost was booked as known`);
+  }
+});
+
+test('N1: a stub run never uses or prints the environment credential, for any engine', () => {
+  const secret = 'sk-proj-ENVSYNTHETICKEYMATERIAL0123456789abcdefghijklmnopqrstuvwxyz0123456789';
+  for (const engine of ['openai', 'anthropic']) {
+    const run = runEngineScript(['--stub-fail'], secret, engine);
+    assert.equal(run.status, 0, run.output);
+    for (const text of [run.output, ...run.files]) {
+      assert.doesNotMatch(text, /ENVSYNTHETIC/);
+      for (let index = 0; index + 8 <= secret.length; index++) assert.equal(text.includes(secret.slice(index, index + 8)), false, `${engine}: ${secret.slice(index, index + 8)}`);
+    }
+  }
+});
+
+test('N6: the cap reserves the attempts the engine can make: one for OpenAI, two for Anthropic', () => {
+  const prices = ['--price-in', '0', '--price-out', '10', '--max-cost', '0.015'];
+  const openai = runEngineScript(prices, 'unused', 'openai');
+  assert.equal(openai.status, 0, openai.output);
+  assert.match(openai.output, /stub saw 1 request\(s\)/, 'one attempt fits the cap');
+  assert.doesNotMatch(openai.output, /Stopping/);
+  const anthropic = runEngineScript(prices, 'unused');
+  assert.match(anthropic.output, /Stopping: window b-move/, 'two attempts do not');
+});
+
+test('N4: a Models body read cut off by the timeout is reported as a timeout, not an unreadable answer', async () => {
+  installBrowser([]);
+  setPermission(true);
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: true, status: 200, async json() { throw new DOMException('This operation was aborted', 'AbortError'); } });
+    await assert.rejects(listProviderModels('anthropic', { apiKey: KEY }), error => error.message === 'Model catalog request timed out');
+    globalThis.fetch = async () => ({ ok: true, status: 200, async json() { throw new SyntaxError('Unexpected token'); } });
+    await assert.rejects(listProviderModels('anthropic', { apiKey: KEY }), error => error.message === 'Anthropic · Claude response could not be read');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('N5: a format rejection that mentions thinking in passing is a schema rejection, not a controls retry', async () => {
+  installBrowser([]);
+  setPermission(true);
+  const api = installAnthropic({ fail: payload => (payload.output_config?.format
+    ? 'schema nesting is too deep for structured output (thinking is unaffected)' : null) });
+  try {
+    await assert.rejects(
+      planWindowWithCloud(rows, 2, { ...ANTHROPIC, anthropicModel: 'claude-opus-5-5' }, { recordUsage: false }),
+      error => error.schemaRejected === true
+    );
+    assert.equal(api.requests.length, 1, 'no controls-less retry went out');
+    assert.ok(api.requests[0].payload.thinking || api.requests[0].payload.output_config.effort, 'the controls were in the request');
+  } finally {
+    api.restore();
+  }
+  // A rejection that does name the control field is still met by the controls retry.
+  const controls = installAnthropic({ fail: payload => (payload.output_config?.effort ? 'output_config.effort: this model does not support the structured output schema together with effort' : null) });
+  try {
+    await planWindowWithCloud(rows, 2, { ...ANTHROPIC, anthropicModel: 'claude-opus-5-5' }, { recordUsage: false });
+    assert.equal(controls.requests.length, 2);
+    assert.equal(controls.requests[1].payload.output_config.effort, undefined);
+  } finally {
+    controls.restore();
+  }
+});
+
+test('L3: a listing replaces the earlier one, a connection change clears it, and a fresher stored profile is not masked', () => {
+  const profile = efforts => ({ efforts: Object.freeze(efforts), off: 'disabled' });
+  publishAnthropicCatalogProfiles(new Map([['claude-l3-old', profile(['low', 'high'])], ['claude-l3-keep', profile(['low'])]]));
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-old')], ['none', 'low', 'high']);
+  // A later accepted listing that omits a model forgets it.
+  publishAnthropicCatalogProfiles(new Map([['claude-l3-keep', profile(['low'])]]));
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-old')], [], 'the omitted model has no settings left');
+  assert.equal(anthropicStoredProfile('claude-l3-old'), null);
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-keep')], ['none', 'low']);
+  // A connection change clears the listing.
+  clearAnthropicCatalogProfiles();
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-keep')], []);
+  // An older page listing never masks a stored profile loaded afterwards.
+  publishAnthropicCatalogProfiles(new Map([['claude-l3-mask', profile(['low'])]]));
+  registerAnthropicModelProfile({ model: 'claude-l3-mask', efforts: ['low', 'medium'], off: 'disabled' });
+  assert.deepEqual([...getReasoningEffortOptions('anthropic', 'claude-l3-mask')], ['none', 'low', 'medium']);
+  registerAnthropicModelProfile(null);
+});
+
 test('L4: the documents that state the one-request limit also disclose the Anthropic compatibility retry', () => {
   for (const file of ['README.md', 'docs/user-guide.md', 'docs/legal/privacy.md', 'docs/legal/terms.md', 'docs/development/chromewebstore.md', 'docs/architecture/product.md']) {
     const text = fs.readFileSync(path.join(REPO, file), 'utf8');
     assert.match(text, /Anthropic[^.]{0,200}(?:HTTP 400)/, `${file} names the retry and its trigger`);
+  }
+});
+
+test('L4: each one-request statement the review named carries the Anthropic exception on its own line', () => {
+  const statements = [
+    ['README.md', 'with at most one request per cleanup to a cloud model or Ollama'],
+    ['README.md', 'a cleanup you run sends at most one request for the current window'],
+    ['docs/development/chromewebstore.md', 'or your own Ollama server: at most one request per cleanup'],
+    ['docs/development/chromewebstore.md', 'at most one request for the window; for Anthropic'],
+    ['docs/development/chromewebstore.md', 'a cleanup on a window with two or more unlocked tabs sends one request'],
+    ['docs/legal/privacy.md', '**Test connection** sends one grouping request with two synthetic tabs']
+  ];
+  for (const [file, marker] of statements) {
+    const line = fs.readFileSync(path.join(REPO, file), 'utf8').split('\n').find(candidate => candidate.includes(marker));
+    assert.ok(line, `${file}: "${marker}" is there`);
+    const at = line.indexOf(marker);
+    assert.match(line.slice(at, at + 400), /Anthropic[^.]{0,200}HTTP 400/, `${file}: "${marker}" names the retry`);
   }
 });
