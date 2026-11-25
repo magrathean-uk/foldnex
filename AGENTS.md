@@ -1,5 +1,7 @@
 # Foldnex project context
 
+<!-- clean-development-policy:v6 -->
+
 Foldnex is a dependency-free Manifest V3 Chrome extension. The runtime source is plain JavaScript with no transpilation step.
 
 ## Code and product map
@@ -30,3 +32,7 @@ npm run package:store
 `README.md`, `CHANGELOG.md`, `docs/user-guide.md`, `docs/architecture/product.md`, `docs/legal/privacy.md`, `docs/legal/terms.md` and `docs/development/chromewebstore.md` describe permissions and provider behaviour. `store-assets/manifest.json` records screenshot provenance. Original captures and promotional assets are separate from the runtime archive.
 
 Product links use `https://magrathean.uk/solutions/foldnex/` (and `/privacy/`, `/terms/`); support is `contact+foldnex@magrathean.uk`.
+
+## Continuity
+
+The repository is public, so the passover, decisions log and run ledger live in `~/dev/records/foldnex/` (PASSOVER.md, DECISIONS.md, runs.tsv). Release tags are annotated `vX.Y.Z`; push only those to origin. No GitHub Releases. Chrome Web Store upload is G's manual step.
