@@ -20,6 +20,7 @@ const DEFAULT_OUT = path.join(HERE, 'results', 'provider', 'phase1');
 export const KEY_ENV = {
   openai: 'OPENAI_API_KEY',
   gemini_api: 'GEMINI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
   xai: 'XAI_API_KEY',
   groq: 'GROQ_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
@@ -40,6 +41,8 @@ const HELP = `Usage: node eval/run-engine.mjs --engine <engine> [options]
   --base-url <url>     override the engine's base URL (a remote Ollama, for example)
   --price-in <usd>     USD per million input tokens; with --price-out, cost is reported in USD (never assumed)
   --price-out <usd>    USD per million output tokens (reasoning tokens counted as output)
+  --max-cost <usd>     with prices: stop before a request that could take the run past this total
+                       (the next request is assumed to cost as much as the dearest one so far)
   --out <dir>          default eval/results/provider/phase1 (--stub: a temporary directory)
   --stub               no network: fetch is replaced by a local function answering in each provider's shape
 
@@ -48,8 +51,8 @@ ${Object.entries(KEY_ENV).map(([engine, name]) => `  ${engine.padEnd(11)} ${name
 `;
 
 function parseArgs(argv) {
-  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, out: '', stub: false };
-  const names = { '--engine': 'engine', '--model': 'model', '--windows': 'windows', '--repeats': 'repeats', '--effort': 'effort', '--priority': 'priority', '--base-url': 'baseUrl', '--price-in': 'priceIn', '--price-out': 'priceOut', '--out': 'out' };
+  const options = { engine: '', model: '', windows: 'all', repeats: 2, effort: '', priority: 'on', baseUrl: '', priceIn: null, priceOut: null, maxCost: null, out: '', stub: false };
+  const names = { '--engine': 'engine', '--model': 'model', '--windows': 'windows', '--repeats': 'repeats', '--effort': 'effort', '--priority': 'priority', '--base-url': 'baseUrl', '--price-in': 'priceIn', '--price-out': 'priceOut', '--max-cost': 'maxCost', '--out': 'out' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--help' || argv[i] === '-h') { console.log(HELP); process.exit(0); }
     else if (argv[i] === '--stub') options.stub = true;
@@ -68,6 +71,11 @@ function parseArgs(argv) {
     }
   }
   if ((options.priceIn === null) !== (options.priceOut === null)) throw new Error('Give both --price-in and --price-out, or neither');
+  if (options.maxCost !== null) {
+    options.maxCost = Number(options.maxCost);
+    if (!Number.isFinite(options.maxCost) || options.maxCost <= 0) throw new Error('--max-cost must be a positive number of USD');
+    if (options.priceIn === null) throw new Error('--max-cost needs --price-in and --price-out');
+  }
   options.out = options.out || (options.stub ? path.join(os.tmpdir(), `foldnex-eval-stub-${options.engine}`) : DEFAULT_OUT);
   return options;
 }
@@ -124,6 +132,23 @@ function makeStubFetch(options, apiKey) {
     const headers = init.headers || {};
     const note = { url: String(url), method: init.method };
     seen.push(note);
+    if (options.engine === 'anthropic') {
+      if (String(url) !== `${PROVIDER_CATALOG.anthropic.baseUrl}/messages`) return reply(404, { type: 'error', error: { message: `stub: unexpected URL ${url}` } });
+      if (headers['x-api-key'] !== apiKey || !headers['anthropic-version']) return reply(401, { type: 'error', error: { message: 'stub: missing x-api-key or anthropic-version' } });
+      const rows = tabRowsIn(body.messages?.at(-1)?.content);
+      if (!rows || body.model !== options.model || !body.output_config?.format?.schema?.properties?.folders) {
+        return reply(400, { type: 'error', error: { message: 'stub: not a plan request in the Messages shape' } });
+      }
+      if (['temperature', 'top_p', 'top_k'].some(key => key in body)) return reply(400, { type: 'error', error: { message: 'stub: sampling parameters are a 400' } });
+      note.shape = `messages, output_config.format${body.output_config.effort ? `, effort ${body.output_config.effort}` : ''}${body.thinking ? `, thinking ${body.thinking.type}` : ''}${body.fallbacks ? `, fallbacks ${body.fallbacks}` : ''}`;
+      const answer = JSON.stringify(stubPlan(rows));
+      const promptTokens = Math.ceil((String(body.system).length + body.messages.at(-1).content.length) / 4);
+      return reply(200, {
+        type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
+        content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: answer }],
+        usage: { input_tokens: promptTokens, output_tokens: Math.ceil(answer.length / 4), cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+      });
+    }
     if (options.engine === 'gemini_api') {
       const expected = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(options.model)}:generateContent`;
       if (String(url) !== expected) return reply(404, { error: { message: `stub: unexpected URL ${url}` } });
@@ -190,6 +215,7 @@ async function main() {
   let effortSeen = null;
   let modelSeen = null;
   let spentUsd = 0;
+  let dearestUsd = 0;
   const priced = options.priceIn !== null;
 
   outer: for (let repeat = 0; repeat < options.repeats; repeat++) {
@@ -197,6 +223,10 @@ async function main() {
       const first = (repeat * names.length + windowIndex) % variants.length;
       for (let rank = 0; rank < variants.length; rank++) {
         if (interrupted) break outer;
+        if (options.maxCost !== null && spentUsd + dearestUsd > options.maxCost) {
+          console.log(`Stopping: the next request could take the run past the ${options.maxCost} USD cap (spent ${spentUsd.toFixed(4)} USD)`);
+          break outer;
+        }
         const variant = variants[(first + rank) % variants.length];
         const name = names[windowIndex];
         const tabs = all[name];
@@ -219,7 +249,10 @@ async function main() {
         // Gemini's candidate count leaves thoughts out; the others include reasoning in completion tokens.
         const output = usage ? usage.completionTokens + (engine === 'gemini_api' ? usage.reasoningTokens || 0 : 0) : null;
         const cost = priced && usage ? ((input || 0) * options.priceIn + (output || 0) * options.priceOut) / 1e6 : null;
-        if (cost !== null) spentUsd += cost;
+        if (cost !== null) {
+          spentUsd += cost;
+          dearestUsd = Math.max(dearestUsd, cost);
+        }
         if (response?.reasoningEffort && !effortSeen) effortSeen = response.reasoningEffort;
         if (response?.model && !modelSeen) modelSeen = response.model;
         const request = {

@@ -104,6 +104,366 @@
  ],
  "rows": [
   {
+   "id": "anthropic|claude-opus-5-5|plan|default-low",
+   "label": "anthropic claude-opus-5-5, effort low",
+   "files": [
+    "anthropic_claude-opus-5-5_plan_2026-11-25T14-46-21.json"
+   ],
+   "stub": false,
+   "pilotWording": false,
+   "windows": 12,
+   "units": 24,
+   "twelve": {
+    "appliedTasked": 0.907,
+    "appliedAll": 0.8789,
+    "unassigned": 7.0833
+   },
+   "ten": {
+    "appliedTasked": 0.8974,
+    "appliedAll": 0.8694,
+    "windows": 10
+   },
+   "perWindow": {
+    "a-designer": {
+     "units": 2,
+     "appliedTasked": 0.8549,
+     "appliedAll": 0.8286,
+     "unassigned": 5
+    },
+    "a-hoarder": {
+     "units": 2,
+     "appliedTasked": 0.9408,
+     "appliedAll": 0.9263,
+     "unassigned": 26.5
+    },
+    "a-household": {
+     "units": 2,
+     "appliedTasked": 0.9684,
+     "appliedAll": 0.9465,
+     "unassigned": 4
+    },
+    "a-oncall": {
+     "units": 2,
+     "appliedTasked": 0.9469,
+     "appliedAll": 0.9333,
+     "unassigned": 8
+    },
+    "a-student": {
+     "units": 2,
+     "appliedTasked": 0.9808,
+     "appliedAll": 0.9808,
+     "unassigned": 7
+    },
+    "b-academic": {
+     "units": 2,
+     "appliedTasked": 0.9444,
+     "appliedAll": 0.9132,
+     "unassigned": 7
+    },
+    "b-expat": {
+     "units": 2,
+     "appliedTasked": 0.8876,
+     "appliedAll": 0.8439,
+     "unassigned": 3.5
+    },
+    "b-messy": {
+     "units": 2,
+     "appliedTasked": 0.8433,
+     "appliedAll": 0.8272,
+     "unassigned": 10
+    },
+    "b-move": {
+     "units": 2,
+     "appliedTasked": 0.7801,
+     "appliedAll": 0.7151,
+     "unassigned": 5
+    },
+    "b-shop": {
+     "units": 2,
+     "appliedTasked": 0.8265,
+     "appliedAll": 0.7795,
+     "unassigned": 4
+    },
+    "dev": {
+     "units": 2,
+     "appliedTasked": 0.9638,
+     "appliedAll": 0.9326,
+     "unassigned": 2
+    },
+    "life": {
+     "units": 2,
+     "appliedTasked": 0.9471,
+     "appliedAll": 0.92,
+     "unassigned": 3
+    }
+   },
+   "validity": [
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "a-student",
+     "tabs": 64,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-oncall",
+     "tabs": 82,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-household",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-designer",
+     "tabs": 66,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "a-hoarder",
+     "tabs": 200,
+     "omitted": 1,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "b-move",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-academic",
+     "tabs": 69,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-expat",
+     "tabs": 54,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 8,
+     "overLimit": false
+    },
+    {
+     "window": "b-messy",
+     "tabs": 74,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "b-shop",
+     "tabs": 55,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 7,
+     "overLimit": false
+    },
+    {
+     "window": "dev",
+     "tabs": 63,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    },
+    {
+     "window": "life",
+     "tabs": 62,
+     "omitted": 0,
+     "duplicates": 0,
+     "unknown": 0,
+     "folders": 10,
+     "overLimit": false
+    }
+   ],
+   "failures": [],
+   "latency": {
+    "overall": {
+     "n": 24,
+     "p50": 3283,
+     "p90": 3582
+    },
+    "bands": [
+     {
+      "name": "small",
+      "n": 8,
+      "p50": 3103,
+      "p90": 3302
+     },
+     {
+      "name": "middle",
+      "n": 8,
+      "p50": 3166,
+      "p90": 3518
+     },
+     {
+      "name": "large",
+      "n": 8,
+      "p50": 3489,
+      "p90": 5769
+     }
+    ],
+    "bar": {
+     "maxTabs": 66,
+     "p90": 3480,
+     "failedCounted": false
+    }
+   },
+   "cost": {
+    "meanUsd": 0.022,
+    "meanInputTokens": 3960.5,
+    "meanOutputTokens": 306.0417
+   },
+   "agreement": {
+    "mean": 0.966,
+    "pairs": 12
+   },
+   "bar": {
+    "status": "meets",
+    "f1Ok": true,
+    "latencyOk": true
+   }
+  },
+  {
    "id": "openai|gpt-6-luna|plan|default-none|priority-off",
    "label": "openai gpt-6-luna, effort none, priority off",
    "files": [
