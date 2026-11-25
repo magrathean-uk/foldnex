@@ -13,7 +13,7 @@ colors:
     quiet: "#5f6875"
     line: "#e2e5ea"
     line-strong: "#cfd4db"
-    control-border: "#8a929e"
+    control-border: "#7f8793"
     accent: "#1c5fd4"
     accent-hover: "#164eb3"
     accent-ink: "#1a56c4"
@@ -48,6 +48,7 @@ rounded: { sm: 6px, base: 10px, lg: 14px }
 elevation:
   shadow-1: "0 1px 2px rgba(20, 24, 31, .06); none in dark"
   shadow-2: "0 8px 28px rgba(20, 24, 31, .16); toast only"
+  shadow-thumb: "0 1px 2px rgba(0, 0, 0, .25); toggle thumb"
 motion: { fast: 140ms, base: 200ms, ease: "cubic-bezier(.22, 1, .36, 1)" }
 ---
 
@@ -61,12 +62,13 @@ The one prominent element is the popup's cleanup tray: the number of groupable t
 
 ## Tokens
 
-All values live once in `tokens.css`, linked by both `popup.html` and `options/options.html`; `popup.css` and `options/options.css` only compose them. Light values are the default; `@media (prefers-color-scheme: dark)` redefines the same names. Both pages declare `color-scheme: light dark`, so native controls follow the theme.
+All values live once in `tokens.css`, linked by both `popup.html` and `options/options.html`; `popup.css` and `options/options.css` only compose them. The base rules both pages share (reset, focus ring, icon font, switch, strategy segments, `.hidden`, `.visually-hidden`) sit in the second half of `tokens.css`, so the pages cannot drift; each sheet keeps only its own layout and size overrides. Light values are the default; `@media (prefers-color-scheme: dark)` redefines the same names. Both pages declare `color-scheme: light dark`, so native controls follow the theme.
 
-- **Colour.** Text uses `ink` (primary), `muted` (secondary) and `quiet` (help and metadata). Every text pair meets WCAG AA (4.5:1) on the surfaces it sits on, in both themes; `control-border` and the toggle track meet 3:1 against their surface. `accent` is the primary action and selection colour; links use `accent-ink`. Status colours have `-soft` fills and `-line` borders.
+- **Colour.** Text uses `ink` (primary), `muted` (secondary) and `quiet` (help and metadata). Every text pair meets WCAG AA (4.5:1) on the surfaces it sits on, in both themes; `control-border` and the toggle track meet 3:1 against the page, the surface and the sunken surface (3.3:1, 3.6:1 and 3.2:1 in light). `accent` is the primary action and selection colour; links use `accent-ink`. Status colours have `-soft` fills and `-line` borders.
 - **Type.** System sans-serif only; no font is fetched. Body is 13px in the popup and 14px in Settings. Headings are sentence case: 26px section titles, 16px group titles, 13px field labels. Numbers that change (tab count, totals, latency) use tabular figures.
 - **Space.** A 4px step scale. Groups pad 20px by 24px; rows within a group are separated by 16px and a hairline.
-- **Shape.** The 10px radius remains the base for controls and inner panels. Outer containers (Settings groups, popup cards) use 14px and small chips, keys and pills 6px, so nested corners stay concentric instead of one radius everywhere. Status dots and the spinner are circles.
+- **Shape.** The 10px radius remains the base for controls and inner panels. Outer containers (Settings groups, popup cards) use 14px and small chips, keys and pills 6px, so nested corners stay concentric instead of one radius everywhere. The toggle thumb and the strategy segments use the 6px radius, and the rule colour badge is a dot. Status dots and the spinner are circles. No radius outside 6, 10 and 14px is used.
+- **Focus.** Every focusable control has a 2px `focus` outline at a 2px offset. Containers that clip (the engine chooser, the scrolling top tabs under 920px) leave 4px of room so the ring on an edge item is never cut.
 - **Elevation.** Borders carry structure. `shadow-1` lifts a group or the selected segment slightly in light; dark uses none. `shadow-2` is for the toast only.
 
 ## Hierarchy rules
@@ -85,7 +87,7 @@ States: setup (accent-bordered card with two choices; the current one is marked)
 
 A 224px sidebar (brand, three sections, version and links) beside one reading column of at most 800px. At 920px the sidebar becomes a top bar; at 620px the sections become three equal tabs and every form stacks.
 
-- **Grouping engines.** An **Engine** group holds the selected-engine button; opening it shows two labelled columns, *On this device or your own server* (Offline smart mode, Ollama) and *Cloud providers, with your own API key* (a two-column grid), as one radio group. The provider panel below uses a label column and a control column: API key with Show and **Test connection**, model with **Refresh models** and a custom ID, reasoning effort, base URL, and for OpenAI priority processing and the bearer token. A failed model listing, such as Anthropic access not yet allowed, shows as an amber line under the model. **Model memory** appears only for Ollama on a loopback address.
+- **Grouping engines.** An **Engine** group holds the selected-engine button; opening it shows two labelled columns, *On this device or your own server* (Offline smart mode, Ollama) and *Cloud providers, with your own API key* (a two-column grid), as one radio group. The help line above it keeps the data qualifiers: an Ollama server may itself run cloud models, cloud engines send page titles and a short site hint only for By task cleanups and never for tabs your rules keep back, and Anthropic also needs Chrome access. The provider panel below uses a label column and a control column: API key with Show and **Test connection**, model with **Refresh models** and a custom ID, reasoning effort, base URL, and for OpenAI priority processing and the bearer token. A failed model listing, such as Anthropic access not yet allowed, shows as an amber line under the model. **Model memory** appears only for Ollama on a loopback address.
 - **Rules & memory.** **Add a rule** (pattern, group name, colour, **Add rule** in one row), then **Your rules** with filter, import, export, the table or a dashed empty state, and **Clear all rules** in the footer.
 - **Behaviour.** **Grouping** (strategy, Auto-group, Auto-collapse), **Starting a cleanup** (Run from toolbar and keyboard shortcuts), **Last cleanup** and **Provider request usage**, each diagnostics group ending in its clear action.
 

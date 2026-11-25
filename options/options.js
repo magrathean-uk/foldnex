@@ -267,6 +267,8 @@ function syncProviderSelector(provider) {
   selectedProvider = provider;
   providerSelectorName.textContent = config.name;
   providerSelectorDescription.textContent = config.description;
+  providerSelectorName.title = config.name;
+  providerSelectorDescription.title = config.description;
   providerSelectorMode.textContent = config.mode === 'local' ? 'Local' : config.local ? 'Your server' : 'Cloud';
 }
 

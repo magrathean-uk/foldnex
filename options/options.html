@@ -54,7 +54,7 @@
         <section class="group engine-group" aria-labelledby="engineGroupTitle">
           <div class="group-head">
             <h3 id="engineGroupTitle">Engine</h3>
-            <p class="group-help">Offline smart mode groups on this device. Ollama uses your own server. Cloud engines send page titles and a short site hint to the provider you choose, with your own API key.</p>
+            <p class="group-help">Offline smart mode groups on this device. Ollama uses the server you set, and that server may itself run cloud models. Cloud engines use your own API key and send page titles and a short site hint only for By task cleanups, never for tabs your rules keep back. Anthropic also needs Chrome access.</p>
           </div>
           <div id="providerPicker" class="provider-picker is-collapsed">
             <button id="providerSelector" class="provider-selector" type="button" aria-expanded="false" aria-controls="providerList">

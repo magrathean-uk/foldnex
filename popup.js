@@ -288,6 +288,7 @@ async function refreshEngineStatus() {
         ? `${effort[0].toUpperCase()}${effort.slice(1)}${adjustable ? '' : ' (fixed)'}`
         : 'Provider default';
     modelReasoningSummary.textContent = `${model} · Reasoning: ${effortLabel}`;
+    modelReasoningSummary.title = modelReasoningSummary.textContent;
     modelReasoningSummary.classList.remove('hidden');
   }
 
@@ -358,15 +359,18 @@ async function refreshStats() {
   try {
     const rules = await LearningCache.getRules();
     statRulesCount.textContent = rules.length.toString();
+    statRulesCount.title = statRulesCount.textContent;
 
     const localData = await chrome.storage.local.get('foldnex_last_run');
     if (localData.foldnex_last_run) {
       const { timestamp, groupsCreated, source, model } = localData.foldnex_last_run;
       const minsAgo = Math.round((Date.now() - timestamp) / 60000);
-      statLastGrouped.textContent = minsAgo <= 1 ? 'Just now' : `${minsAgo}m ago (${groupsCreated} grps)`;
-      statLastGrouped.title = `${source || 'unknown'}${model ? ` · ${model}` : ''}`;
+      const lastRunText = minsAgo <= 1 ? 'Just now' : `${minsAgo}m ago (${groupsCreated} grps)`;
+      statLastGrouped.textContent = lastRunText;
+      statLastGrouped.title = `${lastRunText} · ${source || 'unknown'}${model ? ` · ${model}` : ''}`;
     } else {
       statLastGrouped.textContent = 'Never';
+      statLastGrouped.title = '';
     }
 
     const { oneClickIconMode } = await chrome.storage.sync.get('oneClickIconMode');

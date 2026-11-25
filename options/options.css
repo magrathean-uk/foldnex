@@ -1,47 +1,11 @@
 /* Foldnex Settings. Tokens live in ../tokens.css; this sheet only composes them. */
 
-* { box-sizing: border-box; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.hidden { display: none !important; }
-
-.material-symbols-rounded {
-  display: inline-block;
-  overflow: hidden;
-  width: 1em;
-  flex: none;
-  font-family: "Material Symbols Rounded";
-  font-size: 20px;
-  font-style: normal;
-  font-weight: 400;
-  font-feature-settings: "liga";
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  white-space: nowrap;
-  direction: ltr;
-  -webkit-font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
-}
 .primary-btn .material-symbols-rounded,
 .secondary-btn .material-symbols-rounded,
 .danger-btn .material-symbols-rounded { font-size: 18px; }
 
-html, body { min-height: 100%; margin: 0; background: var(--page); }
-body {
-  min-width: 0;
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--text-md);
-  line-height: var(--leading);
-  -webkit-font-smoothing: antialiased;
-}
-button, input, select { font: inherit; color: inherit; }
-button, label, select { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-::selection { color: var(--on-accent); background: var(--accent); }
+html, body { min-height: 100%; }
+body { min-width: 0; font-size: var(--text-md); }
 a { color: var(--accent-ink); }
 
 /* Layout: quiet sidebar, one reading column */
@@ -83,7 +47,7 @@ a { color: var(--accent-ink); }
   font-weight: var(--weight-medium);
   text-align: left;
   cursor: pointer;
-  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
 }
 .nav-item .material-symbols-rounded { font-size: 19px; color: var(--quiet); }
 .nav-item:hover { color: var(--ink); background: var(--surface-hover); }
@@ -143,7 +107,7 @@ a { color: var(--accent-ink); }
   background: var(--surface);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease, box-shadow var(--duration) ease;
+  transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), box-shadow var(--duration) var(--ease);
 }
 .provider-selector:hover { border-color: var(--control-border-hover); background: var(--surface-hover); }
 .provider-selector:disabled { cursor: default; }
@@ -165,8 +129,11 @@ a { color: var(--accent-ink); }
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
-  transition: grid-template-rows 320ms var(--ease), opacity var(--duration) ease;
+  transition: grid-template-rows 320ms var(--ease), opacity var(--duration) var(--ease);
 }
+/* The clip box hides the collapsing list. The shell is 4px wider on each side and
+   the list pads 4px back, so a row's focus ring (2px outline, 2px offset) is not cut. */
+.provider-options-shell { margin: 0 calc(var(--space-1) * -1); }
 .provider-options-clip { min-height: 0; overflow: hidden; }
 .provider-picker.is-collapsed .provider-options-shell { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
 .provider-picker:not(.is-ready) .provider-options-shell { transition: none; }
@@ -175,7 +142,7 @@ a { color: var(--accent-ink); }
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: var(--space-5);
-  padding: var(--space-4) 2px 2px;
+  padding: var(--space-4) var(--space-1) var(--space-1);
 }
 .provider-group { display: flex; min-width: 0; flex-direction: column; gap: var(--space-2); }
 .provider-group + .provider-group { padding-left: var(--space-5); border-left: 1px solid var(--line); }
@@ -196,7 +163,7 @@ a { color: var(--accent-ink); }
   background: var(--surface);
   line-height: 1.35;
   cursor: pointer;
-  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
 }
 .provider-row:hover { border-color: var(--control-border-hover); background: var(--surface-hover); }
 .provider-row:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
@@ -270,7 +237,7 @@ a { color: var(--accent-ink); }
   color: var(--ink);
   background-color: var(--surface);
   outline-offset: 1px;
-  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
 }
 .form-select {
   padding-right: 34px;
@@ -326,7 +293,7 @@ input::placeholder { color: var(--quiet); opacity: 1; }
   font-weight: var(--weight-semibold);
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
 }
 .primary-btn { border: 1px solid var(--accent); color: var(--on-accent); background: var(--accent); }
 .primary-btn:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
@@ -361,7 +328,7 @@ input::placeholder { color: var(--quiet); opacity: 1; }
 .rules-table tbody tr:hover td { background: var(--surface-hover); }
 .rules-table .danger-btn { border-color: transparent; color: var(--muted); }
 .rules-table .danger-btn:hover { border-color: var(--danger-line); color: var(--danger); background: var(--danger-soft); }
-.color-badge { display: inline-block; width: 10px; height: 10px; margin-right: var(--space-2); border-radius: 3px; vertical-align: -1px; }
+.color-badge { display: inline-block; width: 10px; height: 10px; margin-right: var(--space-2); border-radius: var(--radius-sm); vertical-align: -1px; }
 .empty-state { padding: var(--space-8) var(--space-5); border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--quiet); text-align: center; }
 .rules-table-container:has(#noRulesMsg:not(.hidden)) .table-scroll { display: none; }
 
@@ -395,35 +362,11 @@ input::placeholder { color: var(--quiet); opacity: 1; }
 .strategy-setting { border: 0; border-top: 1px solid var(--line); }
 .settings-list .group-head + .strategy-setting { border-top: 0; }
 
-.strategy-choice {
-  display: grid;
-  width: min(360px, 48%);
-  flex: none;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius);
-  background: var(--surface-sunken);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.strategy-choice label { position: relative; min-width: 0; cursor: pointer; }
-.strategy-choice input { position: absolute; opacity: 0; pointer-events: none; }
-.strategy-choice span { display: flex; min-height: 46px; flex-direction: column; justify-content: center; padding: var(--space-1) var(--space-3); border: 1px solid transparent; border-radius: 8px; color: var(--muted); line-height: 1.3; transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease, border-color var(--duration-fast) ease; }
+/* Strategy segments: base rules in tokens.css */
+.strategy-choice { width: min(360px, 48%); flex: none; }
+.strategy-choice span { min-height: 46px; }
 .strategy-choice strong { overflow: hidden; font-size: var(--text-sm); font-weight: var(--weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-.strategy-choice small { color: var(--quiet); font-size: var(--text-xs); }
-.strategy-choice label:hover span { color: var(--ink); }
-.strategy-choice input:checked + span { border-color: var(--control-border); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-1); }
-.strategy-choice input:checked + span small { color: var(--muted); }
-.strategy-choice input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 1px; }
-
-.switch { position: relative; width: 40px; height: 24px; flex: none; }
-.switch input { position: absolute; opacity: 0; pointer-events: none; }
-.slider { position: absolute; inset: 0; border-radius: var(--radius); background: var(--toggle-off); cursor: pointer; transition: background-color var(--duration) ease; }
-.slider::before { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 8px; background: var(--toggle-thumb); box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform var(--duration) var(--ease); }
-.switch input:checked + .slider { background: var(--accent); }
-.switch input:checked + .slider::before { transform: translateX(16px); }
-.switch input:focus-visible + .slider { outline: 2px solid var(--focus); outline-offset: 2px; }
-.switch input:disabled + .slider { cursor: not-allowed; opacity: .5; }
+.strategy-choice small { font-size: var(--text-xs); }
 
 .shortcut-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--line); }
 .shortcut-row .setting-name { margin: 0; font-weight: var(--weight-medium); }
@@ -466,7 +409,7 @@ kbd { padding: 3px 7px; border: 1px solid var(--line-strong); border-bottom-widt
   .app-layout { width: min(100% - 32px, 800px); align-content: start; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); padding-top: var(--space-5); }
   .sidebar { position: static; height: auto; min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
   .sidebar-brand { padding: 0 var(--space-2) 0 0; }
-  .nav-menu { flex: 1 1 auto; flex-direction: row; gap: var(--space-1); overflow-x: auto; }
+  .nav-menu { flex: 1 1 auto; flex-direction: row; gap: var(--space-1); margin: calc(var(--space-1) * -1); padding: var(--space-1); overflow-x: auto; }
   .nav-item { flex: 0 0 auto; }
   .sidebar-footer { flex-basis: 100%; flex-direction: row; justify-content: space-between; padding: var(--space-2) var(--space-1) 0; }
   .provider-list { grid-template-columns: minmax(0, 1fr); }
