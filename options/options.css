@@ -376,12 +376,22 @@ input::placeholder { color: var(--quiet); opacity: 1; }
   border-top: 1px solid var(--line);
 }
 .settings-list .group-head + .setting-item { border-top: 0; padding-top: 0; }
+/* A toggle inside a provider panel follows the panel's label and control columns. */
+.provider-settings-box .form-row-setting { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: var(--space-6); row-gap: 6px; align-items: start; }
+.form-row-setting .setting-text { display: contents; }
+.form-row-setting .setting-name { grid-column: 1; grid-row: 1 / span 2; margin: 0; padding-top: 2px; }
+.form-row-setting .switch { grid-column: 2; grid-row: 1; }
+.form-row-setting .setting-description { grid-column: 2; grid-row: 2; font-size: var(--text-xs); }
 .setting-item { min-width: 0; margin: 0; }
 .setting-name { margin-bottom: 2px; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .setting-description { max-width: 64ch; color: var(--quiet); font-size: var(--text-sm); }
 .setting-text label.setting-name { display: block; }
 .setting-select { width: min(240px, 40%); flex: none; }
-.on-device-settings .setting-item { border-top: 0; padding: 0; }
+.on-device-settings .setting-item { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: var(--space-6); row-gap: 6px; align-items: start; padding: var(--space-2) 0 0; border-top: 0; }
+.on-device-settings .setting-text { display: contents; }
+.on-device-settings .setting-name { grid-column: 1; grid-row: 1 / span 2; margin: 0; padding-top: 9px; }
+.on-device-settings .setting-select { grid-column: 2; grid-row: 1; width: min(280px, 100%); }
+.on-device-settings .setting-description { grid-column: 2; grid-row: 2; font-size: var(--text-xs); }
 .strategy-setting { border: 0; border-top: 1px solid var(--line); }
 .settings-list .group-head + .strategy-setting { border-top: 0; }
 
@@ -474,6 +484,10 @@ kbd { padding: 3px 7px; border: 1px solid var(--line-strong); border-bottom-widt
   .form-group { grid-template-columns: minmax(0, 1fr); }
   .form-group > label { grid-row: auto; padding-top: 0; }
   .form-group > :not(label) { grid-column: 1; }
+  .provider-settings-box .form-row-setting, .on-device-settings .setting-item { grid-template-columns: minmax(0, 1fr); }
+  .on-device-settings .setting-name, .on-device-settings .setting-select, .on-device-settings .setting-description { grid-column: 1; grid-row: auto; padding-top: 0; }
+  .on-device-settings .setting-select { width: 100%; }
+  .form-row-setting .setting-name, .form-row-setting .switch, .form-row-setting .setting-description { grid-column: 1; grid-row: auto; }
   #providerGroupCloud + .provider-group-rows { grid-template-columns: minmax(0, 1fr); }
   .add-rule-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-list .setting-item, .provider-settings-box .setting-item { align-items: flex-start; gap: var(--space-4); }
