@@ -88,7 +88,8 @@ function parseOptions() {
 async function openOptions({
   sync = { provider: 'openai' }, run = null, usage = {},
   catalogError = null, connectionError = null, models = ['gpt-6'], storedLocal = {},
-  catalogResponse = null, connectionResponse = null, savedSettingsResponse = null, saveSecretsResponse = null
+  catalogResponse = null, connectionResponse = null, savedSettingsResponse = null, saveSecretsResponse = null,
+  permissions = undefined
 } = {}) {
   const root = parseOptions();
   const local = { ...storedLocal, ...(run ? { foldnex_last_run: run } : {}) };
@@ -143,7 +144,10 @@ async function openOptions({
     },
     LearningCache: { getRules: async () => [], STORAGE_KEY: 'rules' },
     ExactResultCache: { clear: async () => {} },
-    chrome: { storage: { sync: syncArea, local: makeArea(local, 'local'), onChanged: { addListener: listener => storageListeners.push(listener) } } },
+    chrome: {
+      storage: { sync: syncArea, local: makeArea(local, 'local'), onChanged: { addListener: listener => storageListeners.push(listener) } },
+      ...(permissions ? { permissions } : {})
+    },
     document: {
       visibilityState: 'hidden',
       getElementById: id => root.descendants().find(element => element.id === id) || null,
@@ -528,4 +532,41 @@ test('Settings marks a saved Ollama address the resolver refuses as not used', a
   assert.equal(refused.byId('compatibleBaseUrlNote').classList.contains('hidden'), false);
   const valid = await openOptions({ sync: { provider: 'ollama', ollamaBaseUrl: 'https://ollama.example.com/v1' } });
   assert.equal(valid.byId('compatibleBaseUrlNote').classList.contains('hidden'), true);
+});
+
+test('Anthropic: choosing it, Save and Test connection each ask Chrome for its host, and a refusal sends nothing', async () => {
+  const asked = [];
+  let grant = false;
+  const permissions = {
+    request(query) { asked.push(query); return Promise.resolve(grant); },
+    async contains() { return grant; }
+  };
+  const options = await openOptions({ sync: { provider: 'offline' }, models: ['claude-opus-5-5'], permissions });
+  await options.selectProvider('anthropic');
+  await flush();
+  // The page runs in its own realm: compare its objects as JSON.
+  assert.equal(JSON.stringify(asked), '[{"origins":["https://api.anthropic.com/*"]}]', 'selecting the engine asks once');
+  assert.equal(options.sync.provider, 'anthropic', 'the choice is saved either way');
+  assert.equal(options.byId('compatibleBaseUrl').value, 'https://api.anthropic.com/v1', 'the fixed endpoint is shown');
+
+  options.byId('compatibleApiKey').value = 'synthetic-anthropic-key';
+  await options.byId('btnTestCompatible').fire('click');
+  await flush();
+  assert.equal(asked.length, 2, 'Test connection asks');
+  assert.equal(options.requests.length, 0, 'refused: no test request');
+
+  grant = true;
+  await options.byId('btnTestCompatible').fire('click');
+  await flush();
+  assert.equal(asked.length, 3);
+  assert.equal(options.requests.length, 1, 'granted: one plan request');
+  assert.equal(options.requests[0].settings.provider, 'anthropic');
+  assert.equal(options.requests[0].settings.anthropicApiKey, 'synthetic-anthropic-key');
+
+  await options.byId('btnSaveCompatible').fire('click');
+  await flush();
+  assert.equal(asked.length, 4, 'Save asks');
+  assert.equal(options.local.anthropicApiKey, 'synthetic-anthropic-key', 'the key goes to local storage');
+  assert.equal(Object.hasOwn(options.sync, 'anthropicApiKey'), false);
+  assert.equal(Object.hasOwn(options.sync, 'anthropicBaseUrl'), false, 'no endpoint is stored');
 });

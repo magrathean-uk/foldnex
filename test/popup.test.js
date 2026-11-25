@@ -109,7 +109,7 @@ function makeArea(store, areaName, listeners) {
 let popupInstance = 0;
 
 /** Load a fresh popup instance over the given storage; every touch of Chrome's Prompt API is counted. */
-async function openPopup({ sync = {}, local = {}, groupingResult = null, activeWindowId = null, incognito = false, reply = null } = {}) {
+async function openPopup({ sync = {}, local = {}, groupingResult = null, activeWindowId = null, incognito = false, reply = null, permissions = undefined } = {}) {
   const root = parsePopup(POPUP_HTML);
   const documentListeners = {};
   globalThis.document = {
@@ -139,6 +139,7 @@ async function openPopup({ sync = {}, local = {}, groupingResult = null, activeW
       async update(id, details) { opened.push(details.url); return { id }; }
     },
     windows: { async update() {} },
+    ...(permissions ? { permissions } : {}),
     commands: { async getAll() { return []; } },
     runtime: {
       getURL: path => `chrome-extension://foldnex/${path}`,
@@ -597,4 +598,53 @@ test('the popup names only the endpoint a request would use: no legacy override,
     assert.match(hint, /runs locally/i, ollamaBaseUrl);
     assert.equal(refused.byId('engineBadge').textContent, 'Local', ollamaBaseUrl);
   }
+});
+
+test('Anthropic without its host permission: the popup says access must be allowed in Settings, and selecting it asks Chrome', async () => {
+  const asked = [];
+  let granted = false;
+  const permissions = {
+    async contains(query) { asked.push(['contains', query]); return granted; },
+    request(query) { asked.push(['request', query]); return Promise.resolve(granted); },
+    onAdded: { addListener() {} },
+    onRemoved: { addListener() {} }
+  };
+  const popup = await openPopup({
+    sync: { provider: 'anthropic', setupChoice: 'cloud' },
+    local: { anthropicApiKey: 'synthetic-anthropic-key' },
+    permissions
+  });
+  assert.equal(popup.byId('engineBadge').textContent, 'Access needed');
+  assert.match(popup.byId('engineHint').textContent, /Allow access to api\.anthropic\.com in Settings/);
+  assert.ok(asked.some(([kind, query]) => kind === 'contains' && query.origins[0] === 'https://api.anthropic.com/*'));
+  assert.ok(!allText(popup.root).includes('synthetic-anthropic-key'));
+
+  granted = true;
+  const ready = await openPopup({
+    sync: { provider: 'anthropic', setupChoice: 'cloud' },
+    local: { anthropicApiKey: 'synthetic-anthropic-key' },
+    permissions
+  });
+  assert.equal(ready.byId('engineBadge').textContent, 'Anthropic · Claude configured');
+  assert.match(ready.byId('engineHint').textContent, /to Anthropic · Claude when you group/);
+
+  // A cleanup that fell back because access was not allowed says so.
+  const fallback = await openPopup({
+    sync: { provider: 'anthropic', setupChoice: 'cloud' },
+    local: { anthropicApiKey: 'synthetic-anthropic-key' },
+    activeWindowId: 5,
+    permissions,
+    groupingResult: { success: true, provider: 'anthropic', strategy: 'task', groupsCreated: 3, fallbackUsed: true, fallbackCode: 'permission' }
+  });
+  await fallback.byId('btnGroupTabs').click();
+  await sleep(10);
+  assert.match(fallback.byId('statusMessage').textContent, /Created 3 groups offline \(access not allowed; allow it in Settings\)/);
+
+  const select = await openPopup({ sync: { provider: 'offline', setupChoice: 'offline' }, permissions });
+  asked.length = 0;
+  const providerSelect = select.byId('providerSelect');
+  providerSelect.value = 'anthropic';
+  await Promise.all((providerSelect.listeners.change || []).map(listener => listener({ target: providerSelect })));
+  assert.equal(asked[0][0], 'request', 'the request comes first, on the gesture');
+  assert.equal(select.sync.provider, 'anthropic');
 });

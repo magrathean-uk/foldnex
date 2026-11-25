@@ -10,6 +10,7 @@ import {
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
   isOpenAIResponsesOnlyModel,
+  providerHostPermission,
   listProviderModels,
   planWindowWithCloud,
   providerSettingKey,
@@ -114,6 +115,31 @@ const onDeviceSettings = document.getElementById('onDeviceSettings');
 const prefModelUnloadAfter = document.getElementById('prefModelUnloadAfter');
 
 let cachedRules = [];
+
+/**
+ * Engines whose settings use the key panel: the OpenAI-compatible ones and
+ * Anthropic, whose fixed endpoint is shown read-only like theirs.
+ */
+function usesKeyPanel(provider) {
+  return ['compatible', 'anthropic'].includes(PROVIDER_CATALOG[provider]?.mode);
+}
+
+/**
+ * Ask Chrome for an engine's optional host (Anthropic, D48). Called first in a
+ * click or change handler so it runs on the user's gesture; resolves to whether
+ * access is granted. Engines without one resolve true.
+ */
+function requestHostAccess(provider) {
+  const origin = providerHostPermission(provider);
+  if (!origin || typeof chrome.permissions?.request !== 'function') return Promise.resolve(true);
+  try {
+    return Promise.resolve(chrome.permissions.request({ origins: [origin] })).then(Boolean, () => false);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+const HOST_ACCESS_DENIED = 'Chrome did not allow access to api.anthropic.com, so cleanups run locally and nothing is sent. Save or Test connection asks again.';
 let selectedCompatibleProvider = 'openai';
 let selectedProvider = DEFAULT_PROVIDER;
 let providerTransitionId = 0;
@@ -211,7 +237,7 @@ function providerPanel(provider) {
   const config = PROVIDER_CATALOG[provider];
   if (provider === 'gemini_api') return panelGeminiDetails;
   if (provider === 'offline') return panelOfflineDetails;
-  if (config?.mode === 'compatible') return panelCompatibleDetails;
+  if (usesKeyPanel(provider)) return panelCompatibleDetails;
   return null;
 }
 
@@ -301,7 +327,7 @@ function focusProviderDetails(provider) {
     panel.classList.add('is-provider-entering');
     let target = panel;
     if (provider === 'gemini_api') target = geminiApiKey;
-    if (PROVIDER_CATALOG[provider]?.mode === 'compatible') {
+    if (usesKeyPanel(provider)) {
       target = PROVIDER_CATALOG[provider].keyOptional ? compatibleModel : compatibleApiKey;
     }
     target.focus({ preventScroll: true });
@@ -453,7 +479,7 @@ function renderModelOptions(provider, models, fetchedAt = 0) {
 }
 
 function invalidateModelCatalog(provider) {
-  if (!PROVIDER_CATALOG[provider] || !['gemini', 'compatible'].includes(PROVIDER_CATALOG[provider].mode)) return;
+  if (!PROVIDER_CATALOG[provider] || !['gemini', 'compatible', 'anthropic'].includes(PROVIDER_CATALOG[provider].mode)) return;
   const slot = catalogSlot(provider);
   catalogRevisions[slot]++;
   connectionRevisions[slot]++;
@@ -470,7 +496,7 @@ function invalidateModelCatalog(provider) {
 
 async function refreshModelCatalog(provider) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || !['gemini', 'compatible'].includes(config.mode) || !catalogProviderCurrent(provider)) return false;
+  if (!config || !['gemini', 'compatible', 'anthropic'].includes(config.mode) || !catalogProviderCurrent(provider)) return false;
 
   const ui = modelUi(provider);
   const slot = catalogSlot(provider);
@@ -581,7 +607,7 @@ compatibleReasoningEffort.addEventListener('change', () => {
 
 async function loadCompatibleProvider(provider) {
   const config = PROVIDER_CATALOG[provider];
-  if (!config || config.mode !== 'compatible') return;
+  if (!config || !usesKeyPanel(provider)) return;
   selectedCompatibleProvider = provider;
   const revision = ++compatibleLoadRevision;
   invalidateModelCatalog(provider);
@@ -639,16 +665,16 @@ function updateProviderPanels(provider) {
   compatibleLoadRevision++;
   panelProvider = provider;
   panelGeminiDetails.classList.toggle('hidden', provider !== 'gemini_api');
-  panelCompatibleDetails.classList.toggle('hidden', config?.mode !== 'compatible');
+  panelCompatibleDetails.classList.toggle('hidden', !usesKeyPanel(provider));
   panelOfflineDetails.classList.toggle('hidden', provider !== 'offline');
   renderOnDeviceSettings();
-  if (config?.mode === 'compatible') loadCompatibleProvider(provider);
+  if (usesKeyPanel(provider)) loadCompatibleProvider(provider);
   if (provider === 'gemini_api') refreshModelCatalog(provider);
 }
 
 function isCloudProvider(provider) {
   const config = PROVIDER_CATALOG[provider];
-  return Boolean(config && (config.mode === 'gemini' || config.mode === 'compatible') && !config.local);
+  return Boolean(config && ['gemini', 'compatible', 'anthropic'].includes(config.mode) && !config.local);
 }
 
 function onDeviceProvider(provider) {
@@ -689,6 +715,12 @@ getProviderRadios().forEach(radio => {
   radio.addEventListener('change', async (e) => {
     if (!e.target.checked) return;
     const provider = e.target.value;
+    // Choosing Anthropic asks for its host now, on this gesture (D48).
+    const access = requestHostAccess(provider);
+    access.then(granted => {
+      if (!granted) showToast(HOST_ACCESS_DENIED, 'error');
+      else if (providerHostPermission(provider)) refreshModelCatalog(provider);
+    });
     if (pendingCloudProvider && isCloudProvider(provider)) {
       // Cloud setup is still waiting for a key: show this engine without switching to it.
       pendingCloudProvider = provider;
@@ -889,6 +921,9 @@ btnRefreshCompatibleModels.addEventListener('click', () => {
  * bodies, which can echo request content.
  */
 function connectionErrorMessage(error, operation = 'Grouping test') {
+  if (error?.code === 'permission') return 'Allow access to api.anthropic.com first: Save or Test connection asks Chrome.';
+  if (error?.code === 'refusal') return 'The model declined the request. Try again or choose another model.';
+  if (error?.code === 'max_tokens') return 'The answer was cut off at its output limit. Try again or choose another model.';
   const message = String(error?.message || '');
   if (/Enter.*API key/i.test(message)) return 'Enter an API key to load provider models.';
   if (/HTTP 401|API key is not configured/i.test(message)) return 'API key missing or rejected. Check the key.';
@@ -980,6 +1015,8 @@ btnTestGemini.addEventListener('click', async () => {
 btnSaveCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
+  // Saving Anthropic asks for its host on this click (D48); the save goes on either way.
+  const access = requestHostAccess(provider);
   const apiKeyName = providerSettingKey(provider, 'apiKey');
   const modelName = providerSettingKey(provider, 'model');
   const reasoningName = providerSettingKey(provider, 'reasoningEffort');
@@ -1005,11 +1042,12 @@ btnSaveCompatible.addEventListener('click', async () => {
   await chrome.storage.sync.set(preferences);
   // A fixed provider's endpoint is never stored; a stale synced override goes.
   if (provider !== 'ollama') await chrome.storage.sync.remove(baseUrlName);
+  const granted = await access;
   if (pendingCloudProvider === provider && hasAuth) {
     await activatePendingProvider(provider);
-    showToast(`${config.name} saved and selected.`);
+    showToast(granted ? `${config.name} saved and selected.` : HOST_ACCESS_DENIED, granted ? 'success' : 'error');
   } else {
-    showToast(`${config.name} settings saved.`);
+    showToast(granted ? `${config.name} settings saved.` : HOST_ACCESS_DENIED, granted ? 'success' : 'error');
   }
   await refreshModelCatalog(provider);
 });
@@ -1018,6 +1056,8 @@ btnSaveCompatible.addEventListener('click', async () => {
 btnTestCompatible.addEventListener('click', async () => {
   const provider = selectedCompatibleProvider;
   const config = PROVIDER_CATALOG[provider];
+  // A test of Anthropic asks for its host on this click (D48).
+  const access = requestHostAccess(provider);
   const selectedModel = compatibleModel.value.trim() || config.defaultModel;
   if (provider === 'openai' && isOpenAIResponsesOnlyModel(selectedModel)) {
     showToast('Choose an OpenAI Chat Completions model.', 'error');
@@ -1042,6 +1082,10 @@ btnTestCompatible.addEventListener('click', async () => {
   btnTestCompatible.disabled = true;
 
   try {
+    if (!(await access)) {
+      if (isCurrent()) showToast(HOST_ACCESS_DENIED, 'error');
+      return;
+    }
     const base = providerEndpoint(provider, compatibleBaseUrl.value);
     await runConnectionTest({
       provider,

@@ -7,7 +7,9 @@ import {
   PROVIDER_CATALOG,
   getEffectiveReasoningEffort,
   getReasoningEffortOptions,
+  hasProviderHostAccess,
   isOpenAIResponsesOnlyModel,
+  providerHostPermission,
   planReasoningEffort,
   isLoopbackUrl,
   providerSettingKey,
@@ -44,14 +46,32 @@ const btnApplyPlan = document.getElementById('btnApplyPlan');
 const providerPreferenceKeys = Object.entries(PROVIDER_CATALOG).flatMap(([id, config]) => {
   if (id === 'gemini_api') return ['geminiModel', 'geminiReasoningEffort'];
   if (config.mode === 'compatible') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort'), providerSettingKey(id, 'baseUrl')];
+  if (config.mode === 'anthropic') return [providerSettingKey(id, 'model'), providerSettingKey(id, 'reasoningEffort')];
   return [];
 });
 const OLLAMA_BASE_URL_KEY = providerSettingKey('ollama', 'baseUrl');
-// Engines that send tab data to a provider: Gemini and compatible APIs except Ollama.
+// Engines that send tab data to a provider: Gemini, Anthropic and compatible APIs except Ollama.
 const CLOUD_PROVIDERS = Object.keys(PROVIDER_CATALOG).filter(id => {
   const config = PROVIDER_CATALOG[id];
-  return (config.mode === 'gemini' || config.mode === 'compatible') && !config.local;
+  return ['gemini', 'anthropic', 'compatible'].includes(config.mode) && !config.local;
 });
+
+/**
+ * Ask Chrome for an engine's optional host (Anthropic) on the user gesture
+ * that chooses it. Call before any other await so the gesture still counts;
+ * resolves to whether access is granted, false when Chrome refuses.
+ */
+function requestHostAccess(provider) {
+  const origin = providerHostPermission(provider);
+  if (!origin || typeof chrome.permissions?.request !== 'function') return Promise.resolve(true);
+  try {
+    return Promise.resolve(chrome.permissions.request({ origins: [origin] })).then(Boolean, () => false);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+const HOST_ACCESS_HINT = 'Allow access to api.anthropic.com in Settings. Until then cleanups run locally and nothing is sent.';
 let statusHideTimer = null;
 let setupBusy = false;
 let latestPopupRun = null;
@@ -193,6 +213,7 @@ function renderConfiguredProvider(config, lastRun, provider, model) {
     auth: ['danger', 'Last run: auth failed', 'Last cleanup ran offline because authentication failed. Check the API key in Settings and try again.'],
     quota: ['warning', 'Last run: quota', 'Last cleanup ran offline because the provider reported a quota or rate limit. Check your provider account before retrying.'],
     timeout: ['warning', 'Last run: timed out', 'Last cleanup ran offline because the provider timed out. Try again or choose another engine.'],
+    permission: ['warning', 'Last run: access needed', 'Last cleanup ran locally because Chrome has not allowed access to this engine. Allow it in Settings.'],
     provider_error: ['danger', 'Last run: failed', 'Last cleanup ran offline because the provider request failed. Check the connection in Settings.']
   };
   const failure = failures[lastRun.fallbackCode];
@@ -237,7 +258,7 @@ async function refreshEngineStatus() {
     return;
   }
 
-  if (provider === 'gemini_api' || config.mode === 'compatible') {
+  if (provider === 'gemini_api' || config.mode === 'compatible' || config.mode === 'anthropic') {
     const model = provider === 'gemini_api'
       ? syncSettings.geminiModel || config.defaultModel
       : syncSettings[providerSettingKey(provider, 'model')] || config.defaultModel;
@@ -266,6 +287,22 @@ async function refreshEngineStatus() {
     engineHint.textContent = 'Cloud mode sends tab titles (up to 160 characters) and host/path hints to Google Gemini when you group.';
     if (hasGeminiKey) {
       renderConfiguredProvider(config, lastRun, provider, syncSettings.geminiModel || config.defaultModel);
+    } else {
+      engineBadge.className = 'badge danger';
+      engineBadge.textContent = 'Key missing';
+    }
+  } else if (config.mode === 'anthropic') {
+    engineHint.classList.remove('hidden');
+    engineHint.textContent = `Cloud mode sends tab titles (up to 160 characters) and host/path hints to ${config.name} when you group.`;
+    // Without the optional host permission a cleanup sends nothing (D48).
+    const access = await hasProviderHostAccess(provider);
+    if (revision !== engineStatusRevision) return;
+    if (!access) {
+      engineBadge.className = 'badge warning';
+      engineBadge.textContent = 'Access needed';
+      engineHint.textContent = HOST_ACCESS_HINT;
+    } else if (secrets[providerSettingKey(provider, 'apiKey')]) {
+      renderConfiguredProvider(config, lastRun, provider, syncSettings[providerSettingKey(provider, 'model')] || config.defaultModel);
     } else {
       engineBadge.className = 'badge danger';
       engineBadge.textContent = 'Key missing';
@@ -407,8 +444,12 @@ async function chooseCloudSetup() {
   const keyed = [provider, 'openai', ...CLOUD_PROVIDERS]
     .find(id => CLOUD_PROVIDERS.includes(id) && hasKey(id));
   if (keyed) {
+    // Anthropic's host is optional: ask on this click, which is the user's gesture.
+    const access = requestHostAccess(keyed);
     await saveEngineChoice({ provider: keyed, setupChoice: 'cloud' });
-    finishSetup(`${PROVIDER_CATALOG[keyed].name} selected with your saved key.`);
+    finishSetup(await access
+      ? `${PROVIDER_CATALOG[keyed].name} selected with your saved key.`
+      : `${PROVIDER_CATALOG[keyed].name} selected. Allow its access in Settings; until then cleanups run locally.`);
     return;
   }
   await saveEngineChoice({ setupChoice: 'cloud' });
@@ -539,6 +580,8 @@ btnGroupTabs.addEventListener('click', async () => {
         reasonSnippet = 'API key missing or rejected';
       } else if (res.fallbackCode === 'timeout') {
         reasonSnippet = 'AI timed out';
+      } else if (res.fallbackCode === 'permission') {
+        reasonSnippet = 'access not allowed; allow it in Settings';
       }
       showStatus(`Created ${res.groupsCreated} groups offline (${reasonSnippet}).${duplicateSummary}`, 'warning');
     } else {
@@ -639,9 +682,16 @@ strategyInputs.forEach(input => input.addEventListener('change', async () => {
 
 providerSelect.addEventListener('change', async (e) => {
   const newProvider = e.target.value;
+  // First, while the change is still the user's gesture (D48).
+  const access = requestHostAccess(newProvider);
   await saveEngineChoice({ provider: newProvider });
+  await access;
   await refreshEngineStatus();
 });
+
+// A grant or removal made elsewhere (Settings, chrome://extensions) shows at once.
+chrome.permissions?.onAdded?.addListener(() => refreshEngineStatus());
+chrome.permissions?.onRemoved?.addListener(() => refreshEngineStatus());
 
 // Event: Toggle Direct 1-Click Toolbar Mode
 toggleOneClickMode.addEventListener('change', async (e) => {

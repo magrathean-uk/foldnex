@@ -30,6 +30,9 @@
     "https://api.cerebras.ai/*",
     "http://localhost:11434/*"
   ],
+  "optional_host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
