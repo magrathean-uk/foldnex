@@ -2,6 +2,19 @@
 
 This changelog summarises source changes. A version entry does not establish Chrome Web Store approval or public availability.
 
+## 2.3.0
+
+Release candidate, 25 November 2026. Not yet submitted to the Chrome Web Store. Behaviour, permissions, stored data and what is sent to providers are unchanged from 2.2.0.
+
+### Design
+
+- Redesigned the popup and Settings. The popup leads with the tab count and one **Clean up and group** button; results, warnings and the late-plan **Apply** appear directly under it.
+- Settings uses titled groups with a sentence of help and a label column, instead of boxed headers and all-caps labels. The engine chooser shows local engines and cloud providers in two labelled columns.
+- Destructive clears (**Clear all rules**, **Clear run history**, **Clear provider usage**) sit apart at the end of their group, in red, with a line on what they remove.
+- Added a dark theme that follows the system setting. Text and controls meet WCAG AA contrast in both themes; focus is always visible; reduced motion is respected.
+- Colours, type sizes, spacing, radii and elevation are defined once in `tokens.css` and shared by both pages.
+- New store screenshots from the 2.3.0 design, including the popup.
+
 ## 2.2.0
 
 Release candidate, 25 November 2026. Not yet submitted to the Chrome Web Store.

@@ -139,7 +139,7 @@ Pairwise F1 against hand-made task groups over every tab, on twelve synthetic ev
 
 - Product name: Foldnex.
 - Visual language: restrained Magrathean/Teslatlas utility design.
-- Use system typography, deep navy or clean neutral surfaces, precise spacing, thin rules, and compact actions.
+- Use system typography, quiet graphite surfaces in light and dark, one blue action colour, precise spacing, thin rules, and compact actions.
 - Avoid generic AI gradients, sparkles, emoji decoration, promotional model artwork, and card-grid settings.
 
 ## Acceptance criteria

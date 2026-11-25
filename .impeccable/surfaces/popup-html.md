@@ -13,20 +13,20 @@ The popup helps a Chrome user clean a crowded current window with one decisive a
 
 ## Visual authority
 
-Use [DESIGN.md](../../docs/architecture/design.md) and the current `popup.css` and `options/options.css` as the source of truth. The generated `.impeccable/design.json` records an older dark-palette snapshot and is not visual authority for new work.
+Use [DESIGN.md](../../docs/architecture/design.md), `tokens.css` and the current `popup.css` and `options/options.css` as the source of truth. The generated `.impeccable/design.json` records an older dark-palette snapshot and is not visual authority for new work.
 
 ## Constraints
 
 - Preserve current controls and provider behaviour.
 - Keep the popup compact and make duplicate removal visible in result copy.
-- Use the current light, instrument-like design: pale blue page surfaces, white panels, navy copy, blue primary actions, violet focus and selection, fine blue-grey rules, and system typography.
-- Every visibly rounded rectangle uses a 10px radius. Do not use full-pill controls.
+- Use the current design in light and dark: graphite page, titled groups on plain surfaces, one blue for the primary action, focus and selection, Chrome tab-group colours only for rule badges, and system typography.
+- Radii come from the 10px family: 10px controls, 14px outer groups, 6px chips. Do not use full-pill controls.
 - Avoid generic AI gradients, glow, emoji decoration, promotional provider cards, and stacked dashboard cards.
 - Keep keyboard focus visible, respect reduced motion, and keep local-versus-cloud status understandable.
 
 ## Layout and outcomes
 
-Place the current-window task first. A concise header leads to the cleanup action, followed by the strategy, engine or local state, memory summary, and quiet settings link. Use thin rules and shallow bordered surfaces to organise information. Provider choices remain one vertical list in settings with a shared configuration panel.
+Place the current-window task first. A concise header leads to the cleanup action, followed by the strategy, engine or local state, memory summary, and quiet settings link. Use titled groups and thin rules to organise information. Provider choices are one radio group in Settings, shown as local and cloud columns, with a shared configuration panel.
 
 State results directly: groups created, duplicates removed, fallback used, or setup required. Do not expose raw titles, URLs, prompts, credentials, or provider response bodies in the surface.
 

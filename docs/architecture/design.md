@@ -1,134 +1,106 @@
 ---
 name: Foldnex
-description: Calm, instrument-like tab organisation for Chrome.
+description: A calm filing tray for Chrome tabs, in light and dark.
+source: tokens.css
 colors:
-  page: "#f2f5f5"
-  surface: "#ffffff"
-  surface-muted: "#eef4f8"
-  ink: "#102536"
-  muted: "#4d6474"
-  quiet: "#5b6f7b"
-  line: "#d5dfe6"
-  line-strong: "#a8b8c3"
-  hover-border: "#7890a1"
-  action-blue: "#0b6bcb"
-  action-hover: "#0858a8"
-  action-soft: "#eaf3ff"
-  accent-sky: "#0284c7"
-  accent-violet: "#7c3aed"
-  selection-soft: "#f1edff"
-  violet-soft: "#8db7ff"
-  focus-violet: "#7c3aed"
-  success-green: "#34745a"
-  success-border: "#bfd7cb"
-  success-soft: "#eef6f1"
-  warning-ochre: "#8a641b"
-  warning-border: "#e1d2a9"
-  warning-soft: "#faf6e9"
-  danger-red: "#b33f35"
-  danger-border: "#e2bab4"
-  danger-border-hover: "#cf9189"
-  danger-soft: "#fff8f6"
-  placeholder: "#999b92"
-  inverse-muted: "#c7c9c2"
+  light:
+    page: "#f4f5f7"
+    surface: "#ffffff"
+    surface-sunken: "#eef0f3"
+    surface-hover: "#f3f5f8"
+    ink: "#1b2129"
+    muted: "#4c5563"
+    quiet: "#5f6875"
+    line: "#e2e5ea"
+    line-strong: "#cfd4db"
+    control-border: "#8a929e"
+    accent: "#1c5fd4"
+    accent-hover: "#164eb3"
+    accent-ink: "#1a56c4"
+    accent-soft: "#e8f0fc"
+    success: "#1e7148"
+    warning: "#8a5300"
+    danger: "#b42d26"
+  dark:
+    page: "#121418"
+    surface: "#1a1d23"
+    surface-sunken: "#15181d"
+    surface-hover: "#22262d"
+    ink: "#e8ebef"
+    muted: "#b3bac4"
+    quiet: "#959daa"
+    line: "#2b3038"
+    line-strong: "#3a414b"
+    control-border: "#69727f"
+    accent: "#8ab4f8"
+    accent-hover: "#a8c7fa"
+    on-accent: "#0f1b2d"
+    accent-soft: "#1f2b3d"
+    success: "#7dd3a0"
+    warning: "#f2b85c"
+    danger: "#f28b82"
 typography:
-  fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-  displayWeight: 720
-  bodyWeight: 400
-  labelWeight: 760
-rounded:
-  all: "10px"
-spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "16px"
-  lg: "24px"
-  xl: "32px"
+  fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif"
+  sizes: { 2xs: 11px, xs: 12px, sm: 13px, md: 14px, lg: 16px, xl: 20px, 2xl: 26px, 3xl: 34px }
+  weights: { regular: 400, medium: 500, semibold: 600, bold: 700 }
+spacing: { 1: 4px, 2: 8px, 3: 12px, 4: 16px, 5: 20px, 6: 24px, 8: 32px, 10: 40px, 12: 48px }
+rounded: { sm: 6px, base: 10px, lg: 14px }
+elevation:
+  shadow-1: "0 1px 2px rgba(20, 24, 31, .06); none in dark"
+  shadow-2: "0 8px 28px rgba(20, 24, 31, .16); toast only"
+motion: { fast: 140ms, base: 200ms, ease: "cubic-bezier(.22, 1, .36, 1)" }
 ---
 
 # Design system: Foldnex
 
-## Creative direction
+## Direction
 
-Foldnex uses pale blue working surfaces, deep navy navigation, focused blue actions, violet selection accents, fine blue-grey rules, compact labels, and very restrained elevation. Keep the interface compact and focused on tab cleanup.
+Foldnex files a crowded window into named groups, so the interface is filed too: every set of controls sits in one titled group with a sentence of help, on a quiet graphite page, and one blue is kept for the action that matters on each screen. Colour beyond that comes from Chrome's own tab-group palette (rule badges) and from status (green, amber, red). Nothing is decorative: no gradients, glows, eyebrow labels, all-caps labels or stacked identical cards.
 
-The extension icon remains the primary brand asset. Interface icons use a locally bundled subset of Google Material Symbols Rounded. Gradients, glowing effects, novelty illustrations, emoji decoration, and promotional provider cards are out of scope.
+The one prominent element is the popup's cleanup tray: the number of groupable tabs set large, a line on what will happen, and the full-width **Clean up and group** button. Status and the late-plan offer appear inside the tray, where the eye already is.
 
-## Shape rule
+## Tokens
 
-Every visibly rounded rectangle uses a `10px` corner radius. This includes panels, controls, status labels, segmented controls, keyboard hints, toasts, toggle tracks, and toggle handles. Do not use full-pill `999px` radii.
+All values live once in `tokens.css`, linked by both `popup.html` and `options/options.html`; `popup.css` and `options/options.css` only compose them. Light values are the default; `@media (prefers-color-scheme: dark)` redefines the same names. Both pages declare `color-scheme: light dark`, so native controls follow the theme.
 
-## Colour and hierarchy
+- **Colour.** Text uses `ink` (primary), `muted` (secondary) and `quiet` (help and metadata). Every text pair meets WCAG AA (4.5:1) on the surfaces it sits on, in both themes; `control-border` and the toggle track meet 3:1 against their surface. `accent` is the primary action and selection colour; links use `accent-ink`. Status colours have `-soft` fills and `-line` borders.
+- **Type.** System sans-serif only; no font is fetched. Body is 13px in the popup and 14px in Settings. Headings are sentence case: 26px section titles, 16px group titles, 13px field labels. Numbers that change (tab count, totals, latency) use tabular figures.
+- **Space.** A 4px step scale. Groups pad 20px by 24px; rows within a group are separated by 16px and a hairline.
+- **Shape.** The 10px radius remains the base for controls and inner panels. Outer containers (Settings groups, popup cards) use 14px and small chips, keys and pills 6px, so nested corners stay concentric instead of one radius everywhere. Status dots and the spinner are circles.
+- **Elevation.** Borders carry structure. `shadow-1` lifts a group or the selected segment slightly in light; dark uses none. `shadow-2` is for the toast only.
 
-- The page uses Magrathean reading blue `#f2f5f5`; panels use white `#ffffff`.
-- Deep navy `#102536` is reserved for primary copy and active navigation.
-- Blue `#0b6bcb` is reserved for primary actions and enabled toggles.
-- Violet `#7c3aed` is reserved for focus and selection accents.
-- Muted copy uses `#4d6474`; metadata uses `#5b6f7b`.
-- Semantic green, ochre, and red appear only for status feedback.
-- Borders carry most of the structure. Shadows are subtle and never used as a decorative effect.
+## Hierarchy rules
 
-## Typography
+- One primary (filled blue) action per screen: the popup's **Clean up and group**; in Settings, **Save** on the provider panel and **Add rule** on Rules & memory. The late-plan **Apply** is filled because it is the only action in its strip.
+- Secondary actions are outlined (**Test connection**, **Refresh models**, **Import JSON**, **Export JSON**). The popup's **Ungroup current window** is a quiet text button below the primary.
+- Destructive clears (**Clear all rules**, **Clear run history**, **Clear provider usage**) sit alone in a group footer, after a hairline, with a sentence on what they remove, in red outline. Per-row **Delete** in the rules table stays neutral until hovered.
 
-Use the local system sans-serif stack, without a remote font dependency. Headings are compact and slightly tight. Small instrument labels use uppercase, `11px`, heavy weight, and generous tracking. Ordinary controls and explanatory copy stay in sentence case.
+## Popup
 
-## Layout
+A 400px column: header (icon, name, settings), the cleanup tray, the first-run setup card when unanswered, **How tabs are sorted** (strategy segmented control, task engine, status badge with a coloured dot, model and data hint), then rule count, last cleanup and **Run from toolbar** in one card, then the footer links.
 
-The settings page is a centred two-column instrument panel, at most `1180px` wide: a `216px` sticky navigation surface and a flexible content column, separated by `20px`. Its three sections are **Grouping engines**, **Rules & memory**, and **Behaviour**. Related information sits in shallow bordered panels. The compact selected-engine button expands one vertical provider list; the chosen configuration appears below it. Model memory appears only for Ollama on a loopback address, and Priority processing only for OpenAI.
+States: setup (accent-bordered card with two choices; the current one is marked), ready, running (spinner, disabled primary), success (green line with a tick), warning (amber: fallback, late plan pending, nothing changed), error (red), late plan (accent strip with **Apply**), access needed and key missing (badge and hint), site strategy (engine select disabled), empty (no rules, never run).
 
-At `920px`, navigation becomes a horizontal strip. At `620px`, it becomes three equal-width section buttons and forms and controls stack; navigation icons are hidden. The rules table retains its own overflow surface. The popup is a `400px` single column with `16px` outer padding and `12px` gaps. Current-window count and cleanup actions lead, followed by live status, an unanswered setup card, strategy and engine, memory summary, toolbar behaviour, and quiet footer links.
+## Settings
 
-## Components
+A 224px sidebar (brand, three sections, version and links) beside one reading column of at most 800px. At 920px the sidebar becomes a top bar; at 620px the sections become three equal tabs and every form stacks.
 
-### Buttons
+- **Grouping engines.** An **Engine** group holds the selected-engine button; opening it shows two labelled columns, *On this device or your own server* (Offline smart mode, Ollama) and *Cloud providers, with your own API key* (a two-column grid), as one radio group. The provider panel below uses a label column and a control column: API key with Show and **Test connection**, model with **Refresh models** and a custom ID, reasoning effort, base URL, and for OpenAI priority processing and the bearer token. A failed model listing, such as Anthropic access not yet allowed, shows as an amber line under the model. **Model memory** appears only for Ollama on a loopback address.
+- **Rules & memory.** **Add a rule** (pattern, group name, colour, **Add rule** in one row), then **Your rules** with filter, import, export, the table or a dashed empty state, and **Clear all rules** in the footer.
+- **Behaviour.** **Grouping** (strategy, Auto-group, Auto-collapse), **Starting a cleanup** (Run from toolbar and keyboard shortcuts), **Last cleanup** and **Provider request usage**, each diagnostics group ending in its clear action.
 
-- Primary: blue fill, white label, `10px` radius.
-- Secondary: transparent or pale blue fill, blue-grey border, ink label.
-- Destructive: pale red surface with red border and label.
-- Focus: visible `2px` violet outline with `2px` offset.
-
-### Fields
-
-Settings inputs and selects use the pale blue `surface-muted` fill, visible border, `43px` minimum height, and `10px` radius; the popup engine select is at least `42px`. Focus changes the border and surface without glow. API keys keep explicit Show/Hide controls. Model choices use native selects with a Custom model field, adjacent **Refresh models**, and an inline status message. **Test connection** stays beside the credential field and becomes a stacked action at narrow widths.
-
-In engine settings, reasoning effort sits immediately below the model field. Show the effective value in the popup; disable the control with a clear explanation when the selected model has no adjustable level.
-
-### Navigation
-
-Inactive items are blue-grey on white. The active item is deep navy with white text and a small violet Material Symbol accent. Navigation items use a `10px` radius.
-
-### Provider list
-
-Providers stay in one vertical radio list with name, one-line description, and a right-aligned Local, Cloud, or status label. The selected-engine button exposes its expanded state; the collapsed list is hidden from focus and accessibility traversal. Status labels use `10px` corners, never full pills. A pending cloud setup shows an inline note when configuration is only being previewed and the saved engine remains active.
-
-### Grouping strategy
-
-Expose **By task** and **By site category** as one compact segmented control. The selected segment uses deep navy `#102536` with white labels and muted inverse explanatory text. In the popup, strategy precedes the engine selector and disables the engine while site-category mode is active. The radio inputs retain keyboard focus with a violet outline on the visible segment.
-
-### Setup and diagnostics
-
-The first-run choices use a bordered vertical list beneath the main action. Keep **Current** and the cloud data disclosure visible within each applicable choice. The main cleanup action remains usable before setup is complete.
-
-Status and toast surfaces announce changes politely. Diagnostics use labelled rows with counts, timing and safe fallback classes; separate **Last cleanup** from **Provider request usage**, which also counts late replies and connection tests. A late plan appears in the popup as a status line with an **Apply** button. Destructive clears have explicit labels and confirmation prompts in Settings.
-
-### Toggles
-
-Toggle tracks use `10px` corners. Enabled tracks are action blue; disabled tracks are neutral blue-grey. Keep a strong visible focus state.
-
-## Copy and outcomes
-
-Use direct, sentence-case copy. Lead with the result: groups created, duplicates removed, fallback used, or setup required. Keep technical diagnostics privacy-safe and never show raw titles, URLs, prompts, secrets, or provider response bodies.
+Toasts appear bottom right in the inverse surface; errors use the danger fill.
 
 ## Accessibility and motion
 
-- Interactive controls must expose a visible `:focus-visible` treatment.
-- Important controls should meet a `42–44px` target height where the compact popup allows it.
-- Motion is functional and brief: ordinary colour transitions are `160ms`, toggles `180ms`, panel reveals `220ms`, and the provider chooser's collapse uses `360ms` with a `180ms` opacity transition.
-- Engine selection uses one authored compression: provider rows converge into the compact selected-engine control while the chosen configuration surface takes focus. The chooser must remain reversible and keyboard accessible.
-- Respect `prefers-reduced-motion`.
+- Every interactive element shows a 2px `focus` outline with a 2px offset on `:focus-visible`; segmented controls and engine tiles draw it on the visible element.
+- Targets are at least 40px in Settings and 44px for the popup's primary action and setup choices.
+- Motion answers an action: colour transitions 140ms, toggles and reveals 200ms, the engine list opening with a 320ms height change. `prefers-reduced-motion` removes animation and transitions; the spinner stops and shows a static arc.
+
+## Copy
+
+Sentence case, plain verbs, the result first: groups created, duplicates removed, fallback used, access needed. Diagnostics never show titles, URLs, prompts, keys or provider bodies. Statements about what is sent and where keep the wording of the privacy page.
 
 ## Reference precedence
 
-Use this document and the tokens in `popup.css` and `options/options.css` for current UI work. `.impeccable/design.json` is an older generated dark-palette snapshot. Its component examples and narrative are historical and must not override the current light palette. The scoped [surface guidance](../../.impeccable/surfaces/popup-html.md) follows the current design.
-
-Visual and interaction acceptance requires a new browser check for the changed surfaces. [design-qa.md](../development/archive/design-qa.md) retains an earlier report; it is not a current release sign-off.
+This document and `tokens.css` are the current reference. `.impeccable/design.json` is an older generated snapshot and does not override them. Visual acceptance needs fresh captures of the changed surfaces in both themes; [design-qa.md](../development/archive/design-qa.md) is a historical report.

@@ -12,7 +12,14 @@
 
 Foldnex is a Manifest V3 Chrome extension that removes conservative exact duplicate tabs and organises the remaining tabs in the current window into Chrome tab groups. By task, it groups with a local engine on your device or, if you choose, with at most one request per cleanup to a cloud model or Ollama (Anthropic: a second, identical request without the thinking or effort setting if Anthropic rejects it with HTTP 400); By site category groups locally by address.
 
-Start with the [user guide](docs/user-guide.md) for setup, engine choices, rules, memory controls, and troubleshooting. The [changelog](CHANGELOG.md) records what changed in 2.2 and 2.1. The extension is free; optional cloud providers may charge for API use.
+Start with the [user guide](docs/user-guide.md) for setup, engine choices, rules, memory controls, and troubleshooting. The [changelog](CHANGELOG.md) records what changed in 2.3, 2.2 and 2.1. The extension is free; optional cloud providers may charge for API use.
+
+## What's new in 2.3
+
+- **A calmer, clearer interface.** The popup puts the tab count and the cleanup button first, with results right under it. Settings is organised into titled groups, the engine chooser separates local engines from cloud providers, and clearing actions sit apart.
+- **Dark theme.** The popup and Settings follow Chrome's light or dark appearance.
+
+Behaviour, permissions and what is sent to providers are unchanged.
 
 ## What's new in 2.2
 
