@@ -1,6 +1,6 @@
 # Documentation
 
-Foldnex's documentation, beyond the [README](../README.md). The README lists [what's new in 2.1](../README.md#whats-new-in-21).
+Foldnex's documentation, beyond the [README](../README.md). The README lists [what's new in 2.2](../README.md#whats-new-in-22) and [in 2.1](../README.md#whats-new-in-21).
 
 ## Using Foldnex
 

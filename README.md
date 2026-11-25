@@ -19,7 +19,7 @@ Start with the [user guide](docs/user-guide.md) for setup, engine choices, rules
 - **Anthropic · Claude engine.** Plans a window in one request to Anthropic's Messages API (`https://api.anthropic.com/v1`, fixed), like the other cloud engines. The default model is `claude-opus-5-5` at low effort; the model list comes from Anthropic's Models API.
 - **Optional host access.** `api.anthropic.com` is an optional host permission, not an install-time one: Chrome asks for it when you choose or save Anthropic, or run its Test connection, in Settings, in the popup's engine list or in the setup card. Until it is allowed, cleanups with Anthropic run locally, send nothing and say so.
 
-On the twelve evaluation windows the shipped request scored 0.88 (all tabs) in 3.3 s median (3.6 s p90) for about 2.2 US cents per window ([results](eval/results/provider/phase1-engines/report.md)).
+On the twelve evaluation windows the shipped request scored 0.88 (all tabs) in 3.28 s median and 3.58 s p90 over 24 requests (windows of 69 to 200 tabs had a p90 of 5.77 s) for about 2.2 US cents per window ([results](eval/results/provider/phase1-engines/report.md)).
 
 ## What's new in 2.1
 
@@ -31,7 +31,7 @@ On the twelve evaluation windows the shipped request scored 0.88 (all tabs) in 3
 - **Private windows send nothing.** Private (Incognito) windows send nothing, whatever engine is selected: By task uses Offline smart mode and By site category stays local.
 - **Gemini Nano is removed.** A saved Nano choice becomes Offline smart mode. Background preparation, the Nano memory controls and Cloud economy mode are removed with it.
 
-On twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups), a Claude Sonnet 5.5 plan measured directly against the Claude API scored 0.84 and OpenAI's default model 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels; the local engine scored 0.39, against 0.19 for 2.0's local rules ([evaluation record](docs/development/grouping-fix-plan.md)). Other engines' defaults were not measured.
+On twelve synthetic evaluation windows (906 tabs, pairwise F1 over all tabs against hand-made task groups), a Claude Sonnet 5.5 plan measured directly against the Claude API scored 0.84 and OpenAI's default model 0.74 to 0.77, against 0.42 for 2.0-style per-tab labels; the local engine scored 0.39, against 0.19 for 2.0's local rules ([evaluation record](docs/development/grouping-fix-plan.md)). Anthropic's default model was measured the same way in 2.2.0 (above); the other engines' defaults were not.
 
 ## What it does
 

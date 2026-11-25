@@ -9,11 +9,11 @@ Release candidate, 25 November 2026. Not yet submitted to the Chrome Web Store.
 ### Engines
 
 - Added **Anthropic · Claude** as a cloud engine. It plans the window in one request to Anthropic's Messages API at the fixed address `https://api.anthropic.com/v1`, with the same local checks, click budget, late-plan offer, stored plans and upkeep as the other cloud engines. No SDK: plain `fetch`, as for the other engines.
-- Default model `claude-opus-5-5` at low effort. Thinking and effort follow the model: Sonnet 5.5 is sent with thinking off (`between_tools`), Haiku 5.5 and older models with thinking disabled, and an unknown model with neither. No sampling parameters or prefill; the answer format is set by structured output.
+- Default model `claude-opus-5-5` at low effort. Thinking and effort follow the model: Sonnet 5.5 is sent with thinking off (`between_tools`); Haiku 5.5 and the other models that support effort and can turn thinking off are sent `thinking: disabled`; models that cannot turn it off get `effort: low`; `claude-haiku-4-5`, `claude-sonnet-4-5`, any listed model without effort support and an unknown model get neither field. The chosen model's capabilities, as Settings listed them, are saved with the settings so Settings, the popup and the service worker send the same fields; an unknown model also gets reasoning headroom in its output budget. No sampling parameters or prefill; the answer format is set by structured output.
 - Models that support it ask Anthropic to fall back to another of its models on a refusal (`fallbacks: "default"`). A final refusal, or an answer cut off at its output limit, ends the request and the cleanup groups locally.
 - Settings lists Claude models from Anthropic's Models API and offers an effort only where the model supports one.
 - Provider usage records Anthropic's input, output, cache-read and cache-write tokens.
-- Measured on the twelve evaluation windows: 0.88 F1 over all tabs, 3.3 s median and 3.6 s p90 per window, about 2.2 US cents per window (`eval/results/provider/phase1-engines/report.md`).
+- Measured on the twelve evaluation windows: 0.88 F1 over all tabs, 3.28 s median and 3.58 s p90 per window over 24 requests (windows of 69 to 200 tabs had a p90 of 5.77 s), about 2.2 US cents per window (`eval/results/provider/phase1-engines/report.md`).
 
 ### Permissions and privacy
 
